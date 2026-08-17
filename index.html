@@ -720,11 +720,12 @@ async function calculateChart(){
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
-          year:y, month:mo, day:d, hour:lh, minute:lm,
-          lat:selectedCity.lat, lon:selectedCity.lon,
-          timezone:selectedCity.tz,
-          house_system:houseSystem,
-          name:name
+          name:name,
+          birth_date:dateStr, // "YYYY-MM-DD" — <input type="date"> zaten bu formatta
+          birth_time:timeStr, // "HH:MM" — <input type="time"> zaten bu formatta
+          birth_place:`${selectedCity.name}, ${selectedCity.country}`,
+          latitude:selectedCity.lat,
+          longitude:selectedCity.lon
         })
       });
 
