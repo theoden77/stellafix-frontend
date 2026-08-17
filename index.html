@@ -181,7 +181,7 @@
 // ============================================================
 // BACKEND API
 // ============================================================
-const API_URL = "https://stellafix-api.onrender.com";
+const API_URL = "https://stellafix-backend.onrender.com";
 let useBackend = true; // false yapınca JS hesabına döner
 
 // ============================================================
@@ -654,6 +654,21 @@ function calcASC(JD,lat,lon){
 
 function lonToSign(l){return{si:Math.floor(l/30),deg:l%30};}
 
+// Backend response şeması alan isimleri sürüme göre değişebilir
+// (sign_index sayısı, sign metni veya sadece lon) — ikisini de destekle
+function signIndexOf(signIndexField,signNameField,lonField){
+  if(typeof signIndexField==='number')return((signIndexField%12)+12)%12;
+  if(typeof signNameField==='string'){const i=SIGNS.indexOf(signNameField);if(i>=0)return i;}
+  if(typeof lonField==='number')return Math.floor(norm(lonField)/30);
+  return 0;
+}
+function planetLon(p,si){
+  if(typeof p.lon==='number')return norm(p.lon);
+  const m=/(-?\d+(?:\.\d+)?)/.exec(p.degree_fmt||'');
+  const degWithin=m?parseFloat(m[1]):0;
+  return norm(si*30+degWithin);
+}
+
 function getDignity(pid,si,deg,day){
   if(pid==='asc')return{d:'—',s:0,c:''};
   const dg=DIGNITY[pid];if(!dg)return{d:'Peregrine',s:0,c:'d-peregrine'};
@@ -748,8 +763,11 @@ function renderFromAPI(data){
 
   // Planet tablosu
   const tb=document.getElementById('planetBody');tb.innerHTML='';
+  const pos={asc:norm(data.asc)};
   for(const p of data.planets){
-    const si=p.sign_index;
+    const si=signIndexOf(p.sign_index,p.sign,p.lon);
+    const lon=planetLon(p,si);
+    pos[p.key]=lon;
     const pct=Math.max(0,(p.dignity_score/5)*100);
     const pObj=PLANETS.find(x=>x.id===p.key)||{glyph:p.name[0],color:'#888'};
     const tr=document.createElement('tr');
@@ -757,7 +775,7 @@ function renderFromAPI(data){
       <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${p.degree_fmt}</td>
-      <td>${SIGN_GLYPHS[si]} ${SIGNS[si]}</td>
+      <td>${SIGN_GLYPHS[si]} ${p.sign||SIGNS[si]}</td>
       <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${p.house}. Ev</td>
       <td><span class="dignity-badge d-${p.dignity.toLowerCase()}">${p.dignity}</span></td>
       <td>
@@ -767,17 +785,17 @@ function renderFromAPI(data){
     tb.appendChild(tr);
   }
 
-  // Harita tekerleği
-  const pos={asc:data.asc};
-  for(const p of data.planets) pos[p.key]=p.lon;
-  renderWheel(pos, data.asc, data.cusps||[]);
+  // Harita tekerleği — asc tam ekliptik boylam (float), cusps gerçek Placidus dereceleri
+  const cusps=(Array.isArray(data.cusps)&&data.cusps.length===12)?data.cusps.map(norm):[];
+  renderWheel(pos, data.asc, cusps, typeof data.mc==='number'?norm(data.mc):null);
 
   // Analiz notu
   const sun=data.planets.find(p=>p.key==='sun');
   const moon=data.planets.find(p=>p.key==='moon');
+  const ascSI=signIndexOf(undefined,data.asc_sign,data.asc);
   document.getElementById('analysisBox').style.display='block';
   document.getElementById('analysisText').innerHTML=
-    `<strong>Harita Lordu:</strong> Asc ${data.asc_sign}'da — Haritanın lordu ${LORDS[Math.floor(data.asc/30)]}'dür.<br><br>`+
+    `<strong>Harita Lordu:</strong> Asc ${data.asc_sign||SIGNS[ascSI]}'da — Haritanın lordu ${LORDS[ascSI]}'dür.<br><br>`+
     `<strong>Güneş</strong> ${sun.sign} ${sun.degree_fmt}'de — <em>${sun.dignity}</em> (${sun.dignity_score>0?'+':''}${sun.dignity_score} puan). `+
     `${sun.dignity_score>=4?'Hayati güç kaynaklarına kolay erişim.':sun.dignity_score<=-4?'Hayati güçte ciddi kısıtlama.':'Orta düzey güç konumu.'}<br><br>`+
     `<strong>Ay</strong> ${moon.sign} ${moon.degree_fmt}'de — <em>${moon.dignity}</em> (${moon.dignity_score>0?'+':''}${moon.dignity_score} puan). `+
@@ -788,8 +806,9 @@ function renderFromAPI(data){
   document.getElementById('houseSection').style.display='block';
   const strip=document.getElementById('houseStrip');strip.innerHTML='';
   for(const h of data.houses){
+    const si=signIndexOf(h.sign_index,h.sign,h.cusp);
     const c=document.createElement('div');c.className='house-chip';
-    c.innerHTML=`<strong>${h.house}. Ev</strong>${SIGN_GLYPHS[h.sign_index]} ${h.sign}`;
+    c.innerHTML=`<strong>${h.house}. Ev</strong>${SIGN_GLYPHS[si]} ${h.sign||SIGNS[si]}`;
     strip.appendChild(c);
   }
 }
@@ -841,33 +860,87 @@ function renderTable(pos,daytime,houses,getH){
   }
 }
 
-function renderWheel(pos,ascSI){
+// Ekran açısı: ASC her zaman saat 9 yönünde (sol) sabitlenir, wheel bu referansa
+// göre döner. Boylam arttıkça (ev/burç sırası ilerledikçe) saatin tersi yönde
+// hareket eder — klasik natal harita çizim kuralı (Astro Gold / Solar Fire vb.).
+function wheelAngle(lonDeg,ascDeg){return(180-norm(lonDeg-ascDeg))*Math.PI/180;}
+function wheelPt(cx,cy,radius,angleRad){return[cx+radius*Math.cos(angleRad),cy+radius*Math.sin(angleRad)];}
+
+function renderWheel(pos,ascDeg,cusps,mc){
   const svg=document.getElementById('astroWheel');
-  const cx=150,cy=150,r=120,ri=80;
-  const sc=['#c84040','#8cb840','#4080c8','#c8a040','#8c40c8','#40c8a0','#c84080','#4040c8','#80c840','#c86040','#40c8c8','#c840c8'];
+  const cx=150,cy=150;
+  const R_OUT=116,R_SIGN_IN=92,R_HOUSE_OUT=92,R_HOUSE_IN=26,R_PLANET=76;
+  const R_TIP=R_OUT+12,R_LABEL=R_OUT+24;
+  const elementColor=['#a8402f','#4a7a4a','#a8841c','#2f6c8f']; // Ateş,Toprak,Hava,Su (burç sırasına göre %4)
+  ascDeg=norm(ascDeg);
   let h='';
-  for(let i=0;i<12;i++){
-    const si=(ascSI+i)%12;
-    const sa=(i*30-90)*Math.PI/180,ea=((i+1)*30-90)*Math.PI/180;
-    const[x1,y1]=[cx+r*Math.cos(sa),cy+r*Math.sin(sa)];
-    const[x2,y2]=[cx+r*Math.cos(ea),cy+r*Math.sin(ea)];
-    const[xi1,yi1]=[cx+ri*Math.cos(sa),cy+ri*Math.sin(sa)];
-    const[xi2,yi2]=[cx+ri*Math.cos(ea),cy+ri*Math.sin(ea)];
-    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2} L${xi2},${yi2} A${ri},${ri} 0 0,0 ${xi1},${yi1}" fill="${sc[si]}22" stroke="#c8b882" stroke-width="0.5"/>`;
-    const ma=(i*30+15-90)*Math.PI/180;
-    h+=`<text x="${cx+(r+ri)/2*Math.cos(ma)}" y="${cy+(r+ri)/2*Math.sin(ma)}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="${sc[si]}">${SIGN_GLYPHS[si]}</text>`;
+
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R_OUT}" fill="none" stroke="#8a6d2f" stroke-width="1.2"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R_SIGN_IN}" fill="none" stroke="#c8b882" stroke-width="1"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R_HOUSE_IN}" fill="none" stroke="#c8b882" stroke-width="1"/>`;
+
+  // Burç dilimleri — mutlak 30°'lik burç sınırlarına göre, gerçek (kesirli) asc derecesiyle hizalı
+  for(let si=0;si<12;si++){
+    const a1=wheelAngle(si*30,ascDeg), a2=a1-(30*Math.PI/180);
+    const[x1,y1]=wheelPt(cx,cy,R_OUT,a1), [x2,y2]=wheelPt(cx,cy,R_OUT,a2);
+    const[xi1,yi1]=wheelPt(cx,cy,R_SIGN_IN,a1), [xi2,yi2]=wheelPt(cx,cy,R_SIGN_IN,a2);
+    const col=elementColor[si%4];
+    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}1a" stroke="#c8b882" stroke-width="0.6"/>`;
+    h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#c8b882" stroke-width="0.6"/>`;
+    const amid=wheelAngle(si*30+15,ascDeg);
+    const[gx,gy]=wheelPt(cx,cy,(R_OUT+R_SIGN_IN)/2,amid);
+    h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
   }
-  h+=`<circle cx="${cx}" cy="${cy}" r="${ri}" fill="#f5f0e822" stroke="#c8b882" stroke-width="1"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="20" fill="#1a120833" stroke="#b8860b" stroke-width="1"/>`;
+
+  // Ev çizgileri — backend'den gelen gerçek (dengesiz) Placidus cusp dereceleri;
+  // yoksa (ör. Whole Sign veya offline hesap) 30°'lik eşit dilimlere düş
+  let cuspLons=(Array.isArray(cusps)&&cusps.length===12)?cusps.map(norm):null;
+  if(!cuspLons){
+    const ascSignStart=Math.floor(ascDeg/30)*30;
+    cuspLons=Array.from({length:12},(_,i)=>norm(ascSignStart+i*30));
+  }
+  for(let i=0;i<12;i++){
+    const lon=cuspLons[i];
+    const a=wheelAngle(lon,ascDeg);
+    const[ox,oy]=wheelPt(cx,cy,R_HOUSE_OUT,a), [ix,iy]=wheelPt(cx,cy,R_HOUSE_IN,a);
+    const isAngular=(i===0||i===3||i===6||i===9);
+    h+=`<line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${isAngular?'#8b1a1a':'#b8860b'}" stroke-width="${isAngular?1.4:0.7}"/>`;
+    const nextLon=cuspLons[(i+1)%12];
+    let span=norm(nextLon-lon); if(span<=0)span=30;
+    const labelA=wheelAngle(lon+span/2,ascDeg);
+    const[lx,ly]=wheelPt(cx,cy,R_HOUSE_IN+10,labelA);
+    h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="7.5" fill="#8a6d2f" font-family="Cinzel,serif">${i+1}</text>`;
+  }
+
+  // Gezegenler — gerçek boylam üzerinden hesaplanan açı (norm/mod HATASI YOK)
   for(const p of PLANETS){
     if(p.id==='asc')continue;
-    const l=pos[p.id];if(!l&&l!==0)continue;
-    const angle=(norm(l-pos.asc)-90)*Math.PI/180;
-    const pr=ri-14;
-    h+=`<text x="${cx+pr*Math.cos(angle)}" y="${cy+pr*Math.sin(angle)}" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="${p.color}">${p.glyph}</text>`;
+    const l=pos[p.id];if(l===undefined||l===null)continue;
+    const a=wheelAngle(l,ascDeg);
+    const[tx,ty]=wheelPt(cx,cy,R_HOUSE_OUT,a);
+    const[px,py]=wheelPt(cx,cy,R_PLANET,a);
+    h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
+    h+=`<circle cx="${px}" cy="${py}" r="9" fill="#f5f0e8" stroke="${p.color}" stroke-width="1"/>`;
+    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${p.color}">${p.glyph}</text>`;
   }
-  h+=`<line x1="${cx}" y1="${cy}" x2="${cx+ri}" y2="${cy}" stroke="#b8860b" stroke-width="1.5" stroke-dasharray="3,2"/>`;
-  h+=`<text x="${cx+ri+5}" y="${cy+4}" font-size="8" fill="#b8860b" font-family="Cinzel,serif">ASC</text>`;
+
+  // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
+  // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
+  const ascA=wheelAngle(ascDeg,ascDeg);
+  const[ax1,ay1]=wheelPt(cx,cy,R_HOUSE_IN,ascA), [ax2,ay2]=wheelPt(cx,cy,R_TIP,ascA);
+  const[alx,aly]=wheelPt(cx,cy,R_LABEL,ascA);
+  h+=`<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="#8b1a1a" stroke-width="2"/>`;
+  h+=`<text x="${alx}" y="${aly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#8b1a1a" font-family="Cinzel,serif">ASC</text>`;
+
+  if(typeof mc==='number'){
+    const mcA=wheelAngle(mc,ascDeg);
+    const[mx1,my1]=wheelPt(cx,cy,R_HOUSE_IN,mcA), [mx2,my2]=wheelPt(cx,cy,R_TIP,mcA);
+    const[mlx,mly]=wheelPt(cx,cy,R_LABEL,mcA);
+    h+=`<line x1="${mx1}" y1="${my1}" x2="${mx2}" y2="${my2}" stroke="#1a3a5c" stroke-width="2"/>`;
+    h+=`<text x="${mlx}" y="${mly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a3a5c" font-family="Cinzel,serif">MC</text>`;
+  }
+
+  h+=`<circle cx="${cx}" cy="${cy}" r="3" fill="#8a6d2f"/>`;
   svg.innerHTML=h;
 }
 
