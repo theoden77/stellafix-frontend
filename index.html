@@ -501,6 +501,10 @@ const PLANETS=[
   {id:'mars',name:'Mars',glyph:'♂',color:'#c84040'},
   {id:'jupiter',name:'Jüpiter',glyph:'♃',color:'#8c7840'},
   {id:'saturn',name:'Satürn',glyph:'♄',color:'#787878'},
+  {id:'uranus',name:'Uranüs',glyph:'♅',color:'#4aa8c8'},
+  {id:'neptune',name:'Neptün',glyph:'♆',color:'#3a5ac8'},
+  {id:'pluto',name:'Plüton',glyph:'♇',color:'#6a3a5c'},
+  {id:'true_node',name:'Ay Düğümü',glyph:'☊',color:'#a0a060'},
   {id:'asc',name:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
@@ -668,6 +672,21 @@ function planetLon(p,si){
   const degWithin=m?parseFloat(m[1]):0;
   return norm(si*30+degWithin);
 }
+// degree_fmt "Pisces 29°43'" gibi burç adıyla önekli gelebilir — sadece dereceyi al
+function degreeOnly(fmt){return String(fmt||'').replace(/^[^\d\-]+/,'');}
+
+const DIGNITY_LABELS={domicile:'Domicile',exaltation:'Exaltation',triplicity:'Triplicity',term:'Term',face:'Face',peregrine:'Peregrine',detriment:'Detriment',fall:'Fall'};
+// Gerçek backend dignity'yi dizi olarak döndürüyor (ör. ["detriment","face"]) ve
+// klasik olmayan gezegenler için dignity_score null olabilir — ikisini de karşıla
+function dignityInfo(dignityArr,score){
+  if(typeof score!=='number'){
+    return{badges:'<span class="dignity-badge d-peregrine" style="opacity:.5">—</span>',label:'—',scoreText:'—',neg:false,pct:0};
+  }
+  const arr=Array.isArray(dignityArr)&&dignityArr.length?dignityArr:['peregrine'];
+  const names=arr.map(d=>DIGNITY_LABELS[String(d).toLowerCase()]||d);
+  const badges=arr.map((d,i)=>`<span class="dignity-badge d-${String(d).toLowerCase()}">${names[i]}</span>`).join(' ');
+  return{badges,label:names.join(', '),scoreText:(score>0?'+':'')+score,neg:score<0,pct:Math.max(0,(score/5)*100)};
+}
 
 function getDignity(pid,si,deg,day){
   if(pid==='asc')return{d:'—',s:0,c:''};
@@ -736,7 +755,7 @@ async function calculateChart(){
       }
 
       const data = await resp.json();
-      renderFromAPI(data);
+      renderFromAPI(data,name,dateStr,timeStr);
 
     } catch(e){
       showErr(`Bağlantı hatası: ${e.message}. JS hesabına geçiliyor...`);
@@ -752,15 +771,12 @@ async function calculateChart(){
   calculateChartJS(y,mo,d,lh,lm,name,houseSystem);
 }
 
-function renderFromAPI(data){
+function renderFromAPI(data,name,dateStr,timeStr){
   document.getElementById('chartArea').style.display='grid';
-  const sign=data.utc_offset>=0?'+':'-';
-  const oh=Math.floor(Math.abs(data.utc_offset));
-  const om=Math.round((Math.abs(data.utc_offset)-oh)*60);
   document.getElementById('chartMeta').innerHTML=
-    `${data.name}<br>${selectedCity.name}, ${selectedCity.country}<br>`+
-    `UTC${sign}${oh}:${String(om).padStart(2,'0')} · JD ${data.jd}<br>`+
-    `${data.daytime?'☀️ Gündüz':'🌙 Gece'} haritası · Swiss Ephemeris`;
+    `${name}<br>${selectedCity.name}, ${selectedCity.country}<br>`+
+    `${dateStr} · ${timeStr}<br>`+
+    `Swiss Ephemeris`;
 
   // Planet tablosu
   const tb=document.getElementById('planetBody');tb.innerHTML='';
@@ -769,19 +785,19 @@ function renderFromAPI(data){
     const si=signIndexOf(p.sign_index,p.sign,p.lon);
     const lon=planetLon(p,si);
     pos[p.key]=lon;
-    const pct=Math.max(0,(p.dignity_score/5)*100);
+    const dg=dignityInfo(p.dignity,p.dignity_score);
     const pObj=PLANETS.find(x=>x.id===p.key)||{glyph:p.name[0],color:'#888'};
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
-      <td style="font-family:monospace;font-size:12px">${p.degree_fmt}</td>
-      <td>${SIGN_GLYPHS[si]} ${p.sign||SIGNS[si]}</td>
+      <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
+      <td>${SIGN_GLYPHS[si]} ${SIGNS[si]}</td>
       <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${p.house}. Ev</td>
-      <td><span class="dignity-badge d-${p.dignity.toLowerCase()}">${p.dignity}</span></td>
+      <td>${dg.badges}</td>
       <td>
-        <span style="font-family:monospace;font-size:12px;color:${p.dignity_score>0?'#2d6a2d':p.dignity_score<0?'#8b1a1a':'#888'}">${p.dignity_score>0?'+':''}${p.dignity_score}</span>
-        <div class="score-bar"><div class="score-fill ${p.dignity_score<0?'neg':''}" style="width:${pct}%"></div></div>
+        <span style="font-family:monospace;font-size:12px;color:${dg.neg?'#8b1a1a':dg.scoreText==='—'?'#888':'#2d6a2d'}">${dg.scoreText}</span>
+        <div class="score-bar"><div class="score-fill ${dg.neg?'neg':''}" style="width:${dg.pct}%"></div></div>
       </td>`;
     tb.appendChild(tr);
   }
@@ -793,13 +809,17 @@ function renderFromAPI(data){
   // Analiz notu
   const sun=data.planets.find(p=>p.key==='sun');
   const moon=data.planets.find(p=>p.key==='moon');
+  const sunSI=signIndexOf(sun.sign_index,sun.sign,sun.lon);
+  const moonSI=signIndexOf(moon.sign_index,moon.sign,moon.lon);
+  const sunDg=dignityInfo(sun.dignity,sun.dignity_score);
+  const moonDg=dignityInfo(moon.dignity,moon.dignity_score);
   const ascSI=signIndexOf(undefined,data.asc_sign,data.asc);
   document.getElementById('analysisBox').style.display='block';
   document.getElementById('analysisText').innerHTML=
-    `<strong>Harita Lordu:</strong> Asc ${data.asc_sign||SIGNS[ascSI]}'da — Haritanın lordu ${LORDS[ascSI]}'dür.<br><br>`+
-    `<strong>Güneş</strong> ${sun.sign} ${sun.degree_fmt}'de — <em>${sun.dignity}</em> (${sun.dignity_score>0?'+':''}${sun.dignity_score} puan). `+
+    `<strong>Harita Lordu:</strong> Asc ${SIGNS[ascSI]}'da — Haritanın lordu ${LORDS[ascSI]}'dür.<br><br>`+
+    `<strong>Güneş</strong> ${SIGNS[sunSI]} ${degreeOnly(sun.degree_fmt)}'de — <em>${sunDg.label}</em> (${sunDg.scoreText} puan). `+
     `${sun.dignity_score>=4?'Hayati güç kaynaklarına kolay erişim.':sun.dignity_score<=-4?'Hayati güçte ciddi kısıtlama.':'Orta düzey güç konumu.'}<br><br>`+
-    `<strong>Ay</strong> ${moon.sign} ${moon.degree_fmt}'de — <em>${moon.dignity}</em> (${moon.dignity_score>0?'+':''}${moon.dignity_score} puan). `+
+    `<strong>Ay</strong> ${SIGNS[moonSI]} ${degreeOnly(moon.degree_fmt)}'de — <em>${moonDg.label}</em> (${moonDg.scoreText} puan). `+
     `${moon.dignity_score>=4?'Duygusal denge güçlüdür.':moon.dignity_score<=-4?'Duygusal alanda kısıtlama.':'Ay orta konumda.'}<br><br>`+
     `<em style="font-size:12px;color:#888">✓ Swiss Ephemeris · Placidus · Ptolemy terms</em>`;
 
@@ -809,7 +829,7 @@ function renderFromAPI(data){
   for(const h of data.houses){
     const si=signIndexOf(h.sign_index,h.sign,h.cusp);
     const c=document.createElement('div');c.className='house-chip';
-    c.innerHTML=`<strong>${h.house}. Ev</strong>${SIGN_GLYPHS[si]} ${h.sign||SIGNS[si]}`;
+    c.innerHTML=`<strong>${h.house}. Ev</strong>${SIGN_GLYPHS[si]} ${SIGNS[si]}`;
     strip.appendChild(c);
   }
 }
