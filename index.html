@@ -887,6 +887,35 @@ function renderTable(pos,daytime,houses,getH){
 function wheelAngle(lonDeg,ascDeg){return(180-norm(lonDeg-ascDeg))*Math.PI/180;}
 function wheelPt(cx,cy,radius,angleRad){return[cx+radius*Math.cos(angleRad),cy+radius*Math.sin(angleRad)];}
 
+// Yakın dereceli gezegen glyph'lerinin çakışmasını önlemek için, ASC'den itibaren
+// göreli boylamları (0-360) minSep derecelik bir asgari aralık bırakacak şekilde
+// hafifçe iter — dairesel dikiş (0/360) sorununu önlemek için en geniş boşluğun
+// olduğu noktadan "kesip" düz bir dizi gibi işliyor.
+function declutterRelLons(relLons,minSep){
+  const n=relLons.length;
+  if(n<2)return relLons.slice();
+  const idx=relLons.map((_,i)=>i).sort((a,b)=>relLons[a]-relLons[b]);
+  const sorted=idx.map(i=>relLons[i]);
+  let maxGap=-1,cutAt=0;
+  for(let i=0;i<n;i++){
+    const j=(i+1)%n;
+    let gap=sorted[j]-sorted[i];
+    if(j===0)gap+=360;
+    if(gap>maxGap){maxGap=gap;cutAt=j;}
+  }
+  const lin=[];
+  for(let k=0;k<n;k++){
+    const i=(cutAt+k)%n;
+    lin.push(i<cutAt?sorted[i]+360:sorted[i]);
+  }
+  for(let k=1;k<n;k++){
+    if(lin[k]-lin[k-1]<minSep)lin[k]=lin[k-1]+minSep;
+  }
+  const result=new Array(n);
+  for(let k=0;k<n;k++)result[idx[(cutAt+k)%n]]=norm(lin[k]);
+  return result;
+}
+
 function renderWheel(pos,ascDeg,cusps,mc){
   const svg=document.getElementById('astroWheel');
   const cx=150,cy=150;
@@ -933,17 +962,20 @@ function renderWheel(pos,ascDeg,cusps,mc){
     h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="7.5" fill="#8a6d2f" font-family="Cinzel,serif">${i+1}</text>`;
   }
 
-  // Gezegenler — gerçek boylam üzerinden hesaplanan açı (norm/mod HATASI YOK)
-  for(const p of PLANETS){
-    if(p.id==='asc')continue;
-    const l=pos[p.id];if(l===undefined||l===null)continue;
-    const a=wheelAngle(l,ascDeg);
-    const[tx,ty]=wheelPt(cx,cy,R_HOUSE_OUT,a);
-    const[px,py]=wheelPt(cx,cy,R_PLANET,a);
+  // Gezegenler — gerçek boylam üzerinden hesaplanan açı (norm/mod HATASI YOK).
+  // Yakın dereceli gezegenler glyph konumunda hafifçe açısal ayrılıyor (declutter);
+  // ince lider çizgisi her zaman gerçek dereceyi gösteriyor.
+  const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
+  const trueRelLons=drawnPlanets.map(p=>norm(pos[p.id]-ascDeg));
+  const declRelLons=declutterRelLons(trueRelLons,10);
+  drawnPlanets.forEach((p,i)=>{
+    const trueA=wheelAngle(pos[p.id],ascDeg);
+    const declA=wheelAngle(ascDeg+declRelLons[i],ascDeg);
+    const[tx,ty]=wheelPt(cx,cy,R_HOUSE_OUT,trueA);
+    const[px,py]=wheelPt(cx,cy,R_PLANET,declA);
     h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
-    h+=`<circle cx="${px}" cy="${py}" r="9" fill="#f5f0e8" stroke="${p.color}" stroke-width="1"/>`;
-    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${p.color}">${p.glyph}</text>`;
-  }
+    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
+  });
 
   // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
   // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
