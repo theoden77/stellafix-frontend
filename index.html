@@ -17,6 +17,11 @@
   .logo{font-family:'Cinzel',serif;color:var(--gold-light);font-size:20px;letter-spacing:3px;font-weight:700;}
   .logo span{color:var(--parchment);font-weight:400;font-size:10px;display:block;letter-spacing:3px;margin-top:2px;font-family:'EB Garamond',serif;font-style:italic;}
   .badge{font-family:'EB Garamond',serif;font-style:italic;color:var(--gold);font-size:12px;border:1px solid var(--gold);padding:3px 10px;}
+  .lang-toggle{display:flex;border:1px solid var(--gold);}
+  .lang-btn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:var(--gold-light);background:transparent;border:none;padding:6px 12px;cursor:pointer;transition:all .15s;}
+  .lang-btn+.lang-btn{border-left:1px solid var(--gold);}
+  .lang-btn:hover{background:rgba(184,134,11,.15);}
+  .lang-btn.active{background:var(--gold);color:var(--ink);}
   .container{max-width:1100px;margin:0 auto;padding:28px 16px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:700px){.container{grid-template-columns:1fr;}.chart-area{grid-template-columns:1fr!important;}}
   .panel{background:white;border:1px solid var(--rule);border-top:3px solid var(--gold);padding:22px;}
@@ -78,52 +83,58 @@
 <body>
 
 <div class="header">
-  <div class="logo">STELLAFIX<span>Klasik Batı Astrolojisi · Abu Ma'shar Geleneği</span></div>
-  <div class="badge">Demo v0.3</div>
+  <div class="logo">STELLAFIX<span data-i18n="logoSubtitle">Klasik Batı Astrolojisi · Abu Ma'shar Geleneği</span></div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="lang-toggle" id="langToggle">
+      <button type="button" class="lang-btn active" data-locale="tr" onclick="setLocale('tr')">TR</button>
+      <button type="button" class="lang-btn" data-locale="en" onclick="setLocale('en')">EN</button>
+    </div>
+    <div class="badge">Demo v0.3</div>
+  </div>
 </div>
 
 <div class="container">
   <!-- INPUT -->
   <div class="panel">
-    <div class="panel-title">Natal Harita Verisi</div>
+    <div class="panel-title" data-i18n="panelNatalTitle">Natal Harita Verisi</div>
 
     <div class="form-group">
-      <label>Ad (isteğe bağlı)</label>
-      <input type="text" id="nameInput" placeholder="Kişi adı">
+      <label data-i18n="labelName">Ad (isteğe bağlı)</label>
+      <input type="text" id="nameInput" placeholder="Kişi adı" data-i18n-placeholder="placeholderName">
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label>Doğum Tarihi</label>
+        <label data-i18n="labelBirthDate">Doğum Tarihi</label>
         <input type="date" id="birthDate" value="1990-06-15" onchange="onDateChange()">
       </div>
       <div class="form-group">
-        <label>Doğum Saati (yerel)</label>
+        <label data-i18n="labelBirthTime">Doğum Saati (yerel)</label>
         <input type="time" id="birthTime" value="14:30">
       </div>
     </div>
 
     <div class="form-group">
-      <label>Ev Sistemi</label>
+      <label data-i18n="labelHouseSystem">Ev Sistemi</label>
       <select id="houseSystem">
-        <option value="P">Placidus (Solar Fire uyumlu)</option>
-        <option value="W">Whole Sign (Bütün Burç)</option>
+        <option value="P" data-i18n="optionPlacidus">Placidus (Solar Fire uyumlu)</option>
+        <option value="W" data-i18n="optionWholeSign">Whole Sign (Bütün Burç)</option>
       </select>
     </div>
 
     <div class="form-group" style="position:relative">
-      <label>Doğum Yeri</label>
+      <label data-i18n="labelBirthPlace">Doğum Yeri</label>
       <input type="text" id="cityInput" placeholder="Şehir adı yazın..." autocomplete="off"
-        oninput="onCityInput()" onkeydown="onCityKey(event)">
+        oninput="onCityInput()" onkeydown="onCityKey(event)" data-i18n-placeholder="placeholderCity">
       <div class="city-dropdown" id="cityDropdown"></div>
       <div class="city-confirmed" id="cityConfirmed"></div>
       <div class="tz-badge" id="tzBadge"></div>
     </div>
 
-    <button class="btn-primary" id="calcBtn" onclick="calculateChart()">⚷ Natal Harita Hesapla</button>
+    <button class="btn-primary" id="calcBtn" onclick="calculateChart()" data-i18n="btnCalculate">⚷ Natal Harita Hesapla</button>
     <div class="error-box" id="errorBox"></div>
 
-    <div class="method-note">
+    <div class="method-note" data-i18n="noteMethod">
       Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi ·
       Essential dignity Ptolemy term'leri · Veri yoksa analiz yapılmaz
     </div>
@@ -131,46 +142,46 @@
 
   <!-- REFERENCE -->
   <div class="panel">
-    <div class="panel-title">Essential Dignity Referansı</div>
+    <div class="panel-title" data-i18n="panelDignityTitle">Essential Dignity Referansı</div>
     <table class="ref-table">
-      <thead><tr><th>Puan</th><th>Dignity</th><th>Açıklama</th></tr></thead>
+      <thead><tr><th data-i18n="thScore">Puan</th><th>Dignity</th><th data-i18n="thDescription">Açıklama</th></tr></thead>
       <tbody>
-        <tr><td>+5</td><td><span class="dignity-badge d-domicile">Domicile</span></td><td>Ev sahibi</td></tr>
-        <tr><td>+4</td><td><span class="dignity-badge d-exaltation">Exaltation</span></td><td>Yüceltme</td></tr>
-        <tr><td>+3</td><td><span class="dignity-badge d-triplicity">Triplicity</span></td><td>Üçlük lordu</td></tr>
-        <tr><td>+2</td><td><span class="dignity-badge d-term">Term</span></td><td>Sınır lordu</td></tr>
-        <tr><td>+1</td><td><span class="dignity-badge d-face">Face</span></td><td>Decan / Yüz</td></tr>
-        <tr><td>0</td><td><span class="dignity-badge d-peregrine">Peregrine</span></td><td>Yabancı</td></tr>
-        <tr><td>−5</td><td><span class="dignity-badge d-detriment">Detriment</span></td><td>Sürgün</td></tr>
-        <tr><td>−4</td><td><span class="dignity-badge d-fall">Fall</span></td><td>Düşüş</td></tr>
+        <tr><td>+5</td><td><span class="dignity-badge d-domicile">Domicile</span></td><td data-i18n="descDomicile">Ev sahibi</td></tr>
+        <tr><td>+4</td><td><span class="dignity-badge d-exaltation">Exaltation</span></td><td data-i18n="descExaltation">Yüceltme</td></tr>
+        <tr><td>+3</td><td><span class="dignity-badge d-triplicity">Triplicity</span></td><td data-i18n="descTriplicity">Üçlük lordu</td></tr>
+        <tr><td>+2</td><td><span class="dignity-badge d-term">Term</span></td><td data-i18n="descTerm">Sınır lordu</td></tr>
+        <tr><td>+1</td><td><span class="dignity-badge d-face">Face</span></td><td data-i18n="descFace">Decan / Yüz</td></tr>
+        <tr><td>0</td><td><span class="dignity-badge d-peregrine">Peregrine</span></td><td data-i18n="descPeregrine">Yabancı</td></tr>
+        <tr><td>−5</td><td><span class="dignity-badge d-detriment">Detriment</span></td><td data-i18n="descDetriment">Sürgün</td></tr>
+        <tr><td>−4</td><td><span class="dignity-badge d-fall">Fall</span></td><td data-i18n="descFall">Düşüş</td></tr>
       </tbody>
     </table>
     <div class="method-note" style="margin-top:16px">
       <strong style="color:var(--gold-light);font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px">DEMO v0.3</strong><br>
-      500+ şehir veritabanı · Offline çalışır · Jean Meeus algoritmaları ·
-      Production'da Swiss Ephemeris Python bağlaması kullanılacaktır.
+      <span data-i18n="noteDemo">500+ şehir veritabanı · Offline çalışır · Jean Meeus algoritmaları ·
+      Production'da Swiss Ephemeris Python bağlaması kullanılacaktır.</span>
     </div>
   </div>
 
   <!-- CHART -->
   <div class="chart-area" id="chartArea" style="display:none">
     <div class="wheel-panel">
-      <div class="panel-title" style="text-align:left">Natal Harita</div>
+      <div class="panel-title" style="text-align:left" data-i18n="wheelPanelTitle">Natal Harita</div>
       <svg id="astroWheel" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg"></svg>
       <div style="margin-top:10px;font-size:11px;font-style:italic;color:#888;line-height:1.5" id="chartMeta"></div>
     </div>
     <div class="results-panel">
-      <div class="panel-title">Gezegen Pozisyonları · Essential Dignity</div>
+      <div class="panel-title" data-i18n="resultsPanelTitle">Gezegen Pozisyonları · Essential Dignity</div>
       <table class="planet-table">
-        <thead><tr><th></th><th>Gezegen</th><th>Derece</th><th>Burç</th><th>Ev</th><th>Dignity</th><th>Puan</th></tr></thead>
+        <thead><tr><th></th><th data-i18n="thPlanet">Gezegen</th><th data-i18n="thDegree">Derece</th><th data-i18n="thSign">Burç</th><th data-i18n="thHouse">Ev</th><th>Dignity</th><th data-i18n="thScoreCol">Puan</th></tr></thead>
         <tbody id="planetBody"></tbody>
       </table>
       <div class="analysis-box" id="analysisBox" style="display:none">
-        <div class="analysis-title">Klasik Analiz Notu</div>
+        <div class="analysis-title" data-i18n="analysisTitle">Klasik Analiz Notu</div>
         <div id="analysisText"></div>
       </div>
       <div id="houseSection" style="display:none;margin-top:14px">
-        <div class="panel-title" style="margin-bottom:6px">Ev Başlangıçları · Whole Sign</div>
+        <div class="panel-title" style="margin-bottom:6px" data-i18n="houseSectionTitle">Ev Başlangıçları · Whole Sign</div>
         <div class="house-strip" id="houseStrip"></div>
       </div>
     </div>
@@ -183,6 +194,112 @@
 // ============================================================
 const API_URL = "https://stellafix-backend.onrender.com";
 let useBackend = true; // false yapınca JS hesabına döner
+
+// ============================================================
+// I18N — tarayıcı oturumu boyunca (sayfa yenilenene kadar) hatırlanır,
+// kalıcı depolamaya gerek yok
+// ============================================================
+let currentLocale = 'tr';
+const I18N = {
+  tr: {
+    pageTitle: "Stellafix · Klasik Astroloji Demo",
+    logoSubtitle: "Klasik Batı Astrolojisi · Abu Ma'shar Geleneği",
+    panelNatalTitle: "Natal Harita Verisi",
+    labelName: "Ad (isteğe bağlı)",
+    placeholderName: "Kişi adı",
+    labelBirthDate: "Doğum Tarihi",
+    labelBirthTime: "Doğum Saati (yerel)",
+    labelHouseSystem: "Ev Sistemi",
+    optionPlacidus: "Placidus (Solar Fire uyumlu)",
+    optionWholeSign: "Whole Sign (Bütün Burç)",
+    labelBirthPlace: "Doğum Yeri",
+    placeholderCity: "Şehir adı yazın...",
+    btnCalculate: "⚷ Natal Harita Hesapla",
+    btnCalculating: "⏳ Hesaplanıyor...",
+    noteMethod: "Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi · Essential dignity Ptolemy term'leri · Veri yoksa analiz yapılmaz",
+    panelDignityTitle: "Essential Dignity Referansı",
+    thScore: "Puan",
+    thDescription: "Açıklama",
+    descDomicile: "Ev sahibi", descExaltation: "Yüceltme", descTriplicity: "Üçlük lordu",
+    descTerm: "Sınır lordu", descFace: "Decan / Yüz", descPeregrine: "Yabancı",
+    descDetriment: "Sürgün", descFall: "Düşüş",
+    noteDemo: "500+ şehir veritabanı · Offline çalışır · Jean Meeus algoritmaları · Production'da Swiss Ephemeris Python bağlaması kullanılacaktır.",
+    wheelPanelTitle: "Natal Harita",
+    resultsPanelTitle: "Gezegen Pozisyonları · Essential Dignity",
+    thPlanet: "Gezegen", thDegree: "Derece", thSign: "Burç", thHouse: "Ev", thScoreCol: "Puan",
+    analysisTitle: "Klasik Analiz Notu",
+    houseSectionTitle: "Ev Başlangıçları · Whole Sign",
+    errNoDateTime: "Doğum tarihi ve saati gereklidir.",
+    errNoCity: "Lütfen doğum yerini seçin. Şehir adı yazıp listeden tıklayın.",
+    errFileProtocol: "⚠️ API bağlantısı için dosyayı bir web sunucusundan açın veya aşağıdaki GitHub Pages linkini kullanın. Şimdilik JS hesabına geçiliyor...",
+    errApiPrefix: "API Hatası: ",
+    errConnPrefix: "Bağlantı hatası: ",
+    errConnSuffix: ". JS hesabına geçiliyor...",
+    sunLabel: "Güneş", moonLabel: "Ay",
+    ptsWord: "puan",
+    dayLabel: "☀️ Gündüz", nightLabel: "🌙 Gece",
+    chartLabel: "haritası",
+    jsApproxNote: "⚠️ JS yaklaşık hesap",
+    fullAnalysisNote: "Tam analiz için: Natal gösterge + Zaman Lordu + Transit tetik zinciri.",
+    tzYearSuffix: "yılı",
+  },
+  en: {
+    pageTitle: "Stellafix · Classical Astrology Demo",
+    logoSubtitle: "Classical Western Astrology · Abu Ma'shar Tradition",
+    panelNatalTitle: "Natal Chart Data",
+    labelName: "Name (optional)",
+    placeholderName: "Person's name",
+    labelBirthDate: "Birth Date",
+    labelBirthTime: "Birth Time (local)",
+    labelHouseSystem: "House System",
+    optionPlacidus: "Placidus (Solar Fire compatible)",
+    optionWholeSign: "Whole Sign",
+    labelBirthPlace: "Birth Place",
+    placeholderCity: "Type a city name...",
+    btnCalculate: "⚷ Calculate Natal Chart",
+    btnCalculating: "⏳ Calculating...",
+    noteMethod: "Timezone automatic · Historical DST included · Classical Western Astrology · Essential dignity Ptolemy terms · No analysis without data",
+    panelDignityTitle: "Essential Dignity Reference",
+    thScore: "Score",
+    thDescription: "Description",
+    descDomicile: "Home sign", descExaltation: "Exaltation", descTriplicity: "Triplicity lord",
+    descTerm: "Term lord", descFace: "Decan / Face", descPeregrine: "Unaffiliated",
+    descDetriment: "Exile", descFall: "Fall",
+    noteDemo: "500+ city database · Works offline · Jean Meeus algorithms · Production will use a Swiss Ephemeris Python binding.",
+    wheelPanelTitle: "Natal Chart",
+    resultsPanelTitle: "Planet Positions · Essential Dignity",
+    thPlanet: "Planet", thDegree: "Degree", thSign: "Sign", thHouse: "House", thScoreCol: "Score",
+    analysisTitle: "Classical Analysis Note",
+    houseSectionTitle: "House Cusps · Whole Sign",
+    errNoDateTime: "Birth date and time are required.",
+    errNoCity: "Please select a birth place. Type a city name and click one from the list.",
+    errFileProtocol: "⚠️ Open this file from a web server to use the API connection. Falling back to the JS calculator for now...",
+    errApiPrefix: "API Error: ",
+    errConnPrefix: "Connection error: ",
+    errConnSuffix: ". Falling back to JS calculation...",
+    sunLabel: "Sun", moonLabel: "Moon",
+    ptsWord: "pts",
+    dayLabel: "☀️ Day", nightLabel: "🌙 Night",
+    chartLabel: "chart",
+    jsApproxNote: "⚠️ JS approximate calculation",
+    fullAnalysisNote: "For full analysis: Natal significator + Time Lord + Transit trigger chain.",
+    tzYearSuffix: "",
+  },
+};
+function t(key){
+  const d=I18N[currentLocale]||I18N.tr;
+  return d[key]!==undefined?d[key]:(I18N.tr[key]!==undefined?I18N.tr[key]:key);
+}
+function applyStaticText(){
+  document.title=t('pageTitle');
+  document.documentElement.lang=currentLocale;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ el.placeholder=t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.locale===currentLocale));
+}
+function setLocale(loc){
+  if(loc!==currentLocale){ currentLocale=loc; applyStaticText(); }
+}
 
 // ============================================================
 // ŞEHİR VERİTABANI — Offline, API yok
@@ -485,7 +602,7 @@ function updateTzBadge() {
   const h = Math.floor(Math.abs(off)), m = Math.round((Math.abs(off)-h)*60);
   const badge = document.getElementById('tzBadge');
   badge.style.display = 'inline-block';
-  badge.textContent = `UTC${sign}${h}:${String(m).padStart(2,'0')} — ${y} yılı ${selectedCity.name}`;
+  badge.textContent = tzBadgeText(`UTC${sign}${h}:${String(m).padStart(2,'0')}`, y, selectedCity.name);
 }
 
 function onDateChange() { updateTzBadge(); }
@@ -494,22 +611,54 @@ function onDateChange() { updateTzBadge(); }
 // ASTRONOMİ
 // ============================================================
 const PLANETS=[
-  {id:'sun',name:'Güneş',glyph:'☉',color:'#d4a017'},
-  {id:'moon',name:'Ay',glyph:'☽',color:'#c8c8d4'},
-  {id:'mercury',name:'Merkür',glyph:'☿',color:'#8cb8a8'},
-  {id:'venus',name:'Venüs',glyph:'♀',color:'#c88cb8'},
-  {id:'mars',name:'Mars',glyph:'♂',color:'#c84040'},
-  {id:'jupiter',name:'Jüpiter',glyph:'♃',color:'#8c7840'},
-  {id:'saturn',name:'Satürn',glyph:'♄',color:'#787878'},
-  {id:'uranus',name:'Uranüs',glyph:'♅',color:'#4aa8c8'},
-  {id:'neptune',name:'Neptün',glyph:'♆',color:'#3a5ac8'},
-  {id:'pluto',name:'Plüton',glyph:'♇',color:'#6a3a5c'},
-  {id:'true_node',name:'Ay Düğümü',glyph:'☊',color:'#a0a060'},
-  {id:'asc',name:'Asc',glyph:'Asc',color:'#b8860b'},
+  {id:'sun',name:'Güneş',nameEn:'Sun',glyph:'☉',color:'#d4a017'},
+  {id:'moon',name:'Ay',nameEn:'Moon',glyph:'☽',color:'#c8c8d4'},
+  {id:'mercury',name:'Merkür',nameEn:'Mercury',glyph:'☿',color:'#8cb8a8'},
+  {id:'venus',name:'Venüs',nameEn:'Venus',glyph:'♀',color:'#c88cb8'},
+  {id:'mars',name:'Mars',nameEn:'Mars',glyph:'♂',color:'#c84040'},
+  {id:'jupiter',name:'Jüpiter',nameEn:'Jupiter',glyph:'♃',color:'#8c7840'},
+  {id:'saturn',name:'Satürn',nameEn:'Saturn',glyph:'♄',color:'#787878'},
+  {id:'uranus',name:'Uranüs',nameEn:'Uranus',glyph:'♅',color:'#4aa8c8'},
+  {id:'neptune',name:'Neptün',nameEn:'Neptune',glyph:'♆',color:'#3a5ac8'},
+  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'♇',color:'#6a3a5c'},
+  {id:'true_node',name:'Ay Düğümü',nameEn:'North Node',glyph:'☊',color:'#a0a060'},
+  {id:'asc',name:'Asc',nameEn:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
+const SIGNS_EN=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 const SIGN_GLYPHS=['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
 const LORDS=['Mars','Venüs','Merkür','Ay','Güneş','Merkür','Venüs','Mars','Jüpiter','Satürn','Satürn','Jüpiter'];
+const LORDS_EN=['Mars','Venus','Mercury','Moon','Sun','Mercury','Venus','Mars','Jupiter','Saturn','Saturn','Jupiter'];
+
+// Yerel (backend'den bağımsız) burç/gezegen etiketleri — currentLocale'e göre
+function signName(si){return currentLocale==='en'?SIGNS_EN[si]:SIGNS[si];}
+function lordName(si){return currentLocale==='en'?LORDS_EN[si]:LORDS[si];}
+function planetDisplayName(p){return currentLocale==='en'?(p.nameEn||p.name):p.name;}
+function houseLabel(n){return currentLocale==='en'?`House ${n}`:`${n}. Ev`;}
+function tzBadgeText(offsetStr,year,cityName){
+  return currentLocale==='en'?`${offsetStr} — ${cityName}, ${year}`:`${offsetStr} — ${year} ${t('tzYearSuffix')} ${cityName}`;
+}
+function sentChartLord(sign,lord){
+  return currentLocale==='en'
+    ? `<strong>Chart Ruler:</strong> Asc is in ${sign} — the chart's ruler is ${lord}.`
+    : `<strong>Harita Lordu:</strong> Asc ${sign}'da — Haritanın lordu ${lord}'dür.`;
+}
+function planetAdvice(kind,score){
+  const T={
+    sun:{en:['Easy access to core vital strength.','Serious restriction in vital strength.','Moderate strength.'],
+         tr:['Hayati güç kaynaklarına kolay erişim.','Hayati güçte ciddi kısıtlama.','Orta düzey güç konumu.']},
+    moon:{en:['Strong emotional balance.','Restriction in the emotional domain.','Moon in a moderate position.'],
+          tr:['Duygusal denge güçlüdür.','Duygusal alanda kısıtlama.','Ay orta konumda.']},
+  };
+  const set=T[kind][currentLocale==='en'?'en':'tr'];
+  return score>=4?set[0]:score<=-4?set[1]:set[2];
+}
+function sentPlanetDignity(kind,planetLabel,sign,deg,dignityLabel,scoreText,score){
+  const advice=planetAdvice(kind,score);
+  return currentLocale==='en'
+    ? `<strong>${planetLabel}</strong> is at ${deg} ${sign} — <em>${dignityLabel}</em> (${scoreText} ${t('ptsWord')}). ${advice}`
+    : `<strong>${planetLabel}</strong> ${sign} ${deg}'de — <em>${dignityLabel}</em> (${scoreText} ${t('ptsWord')}). ${advice}`;
+}
 const DIGNITY={
   sun:{domicile:[4],exaltation:{sign:0,degree:19},detriment:[10],fall:{sign:6,degree:19},td:[0,4,8],tn:[0,4,8]},
   moon:{domicile:[3],exaltation:{sign:1,degree:3},detriment:[9],fall:{sign:7,degree:3},td:[3,7,11],tn:[3,7,11]},
@@ -709,11 +858,11 @@ function getDignity(pid,si,deg,day){
 async function calculateChart(){
   const dateStr=document.getElementById('birthDate').value;
   const timeStr=document.getElementById('birthTime').value;
-  const name=document.getElementById('nameInput').value||'Natal Harita';
+  const name=document.getElementById('nameInput').value||(currentLocale==='en'?'Natal Chart':'Natal Harita');
   const houseSystem=document.getElementById('houseSystem').value||'P';
 
-  if(!dateStr||!timeStr){showErr('Doğum tarihi ve saati gereklidir.');return;}
-  if(!selectedCity){showErr('Lütfen doğum yerini seçin. Şehir adı yazıp listeden tıklayın.');return;}
+  if(!dateStr||!timeStr){showErr(t('errNoDateTime'));return;}
+  if(!selectedCity){showErr(t('errNoCity'));return;}
   hideErr();
 
   const[y,mo,d]=dateStr.split('-').map(Number);
@@ -722,20 +871,20 @@ async function calculateChart(){
   // Backend API kullan
   if(useBackend){
     const btn=document.getElementById('calcBtn');
-    btn.textContent='⏳ Hesaplanıyor...';
+    btn.textContent=t('btnCalculating');
     btn.disabled=true;
 
     try {
       // file:// protokolünde çalışmaz — HTTP sunucusunda açılmalı
       if(window.location.protocol === 'file:'){
-        showErr('⚠️ API bağlantısı için dosyayı bir web sunucusundan açın veya aşağıdaki GitHub Pages linkini kullanın. Şimdilik JS hesabına geçiliyor...');
+        showErr(t('errFileProtocol'));
         useBackend=false;
         calculateChartJS(y,mo,d,lh,lm,name,houseSystem);
-        document.getElementById('calcBtn').textContent='⚷ Natal Harita Hesapla';
+        document.getElementById('calcBtn').textContent=t('btnCalculate');
         document.getElementById('calcBtn').disabled=false;
         return;
       }
-      const resp = await fetch(`${API_URL}/natal`, {
+      const resp = await fetch(`${API_URL}/natal?locale=${currentLocale}`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
@@ -750,7 +899,7 @@ async function calculateChart(){
 
       if(!resp.ok){
         const err=await resp.json();
-        showErr(`API Hatası: ${err.detail||resp.status}`);
+        showErr(`${t('errApiPrefix')}${err.detail||resp.status}`);
         return;
       }
 
@@ -758,11 +907,11 @@ async function calculateChart(){
       renderFromAPI(data,name,dateStr,timeStr);
 
     } catch(e){
-      showErr(`Bağlantı hatası: ${e.message}. JS hesabına geçiliyor...`);
+      showErr(`${t('errConnPrefix')}${e.message}${t('errConnSuffix')}`);
       useBackend=false;
       calculateChartJS(y,mo,d,lh,lm,name,houseSystem);
     } finally {
-      btn.textContent='⚷ Natal Harita Hesapla';
+      btn.textContent=t('btnCalculate');
       btn.disabled=false;
     }
     return;
@@ -792,8 +941,8 @@ function renderFromAPI(data,name,dateStr,timeStr){
       <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
-      <td>${SIGN_GLYPHS[si]} ${SIGNS[si]}</td>
-      <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${p.house}. Ev</td>
+      <td>${SIGN_GLYPHS[si]} ${signName(si)}</td>
+      <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${houseLabel(p.house)}</td>
       <td>${dg.badges}</td>
       <td>
         <span style="font-family:monospace;font-size:12px;color:${dg.neg?'#8b1a1a':dg.scoreText==='—'?'#888':'#2d6a2d'}">${dg.scoreText}</span>
@@ -816,11 +965,9 @@ function renderFromAPI(data,name,dateStr,timeStr){
   const ascSI=signIndexOf(undefined,data.asc_sign,data.asc);
   document.getElementById('analysisBox').style.display='block';
   document.getElementById('analysisText').innerHTML=
-    `<strong>Harita Lordu:</strong> Asc ${SIGNS[ascSI]}'da — Haritanın lordu ${LORDS[ascSI]}'dür.<br><br>`+
-    `<strong>Güneş</strong> ${SIGNS[sunSI]} ${degreeOnly(sun.degree_fmt)}'de — <em>${sunDg.label}</em> (${sunDg.scoreText} puan). `+
-    `${sun.dignity_score>=4?'Hayati güç kaynaklarına kolay erişim.':sun.dignity_score<=-4?'Hayati güçte ciddi kısıtlama.':'Orta düzey güç konumu.'}<br><br>`+
-    `<strong>Ay</strong> ${SIGNS[moonSI]} ${degreeOnly(moon.degree_fmt)}'de — <em>${moonDg.label}</em> (${moonDg.scoreText} puan). `+
-    `${moon.dignity_score>=4?'Duygusal denge güçlüdür.':moon.dignity_score<=-4?'Duygusal alanda kısıtlama.':'Ay orta konumda.'}<br><br>`+
+    `${sentChartLord(signName(ascSI),lordName(ascSI))}<br><br>`+
+    `${sentPlanetDignity('sun',t('sunLabel'),signName(sunSI),degreeOnly(sun.degree_fmt),sunDg.label,sunDg.scoreText,sun.dignity_score)}<br><br>`+
+    `${sentPlanetDignity('moon',t('moonLabel'),signName(moonSI),degreeOnly(moon.degree_fmt),moonDg.label,moonDg.scoreText,moon.dignity_score)}<br><br>`+
     `<em style="font-size:12px;color:#888">✓ Swiss Ephemeris · Placidus · Ptolemy terms</em>`;
 
   // Evler
@@ -829,7 +976,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
   for(const h of data.houses){
     const si=signIndexOf(h.sign_index,h.sign,h.cusp);
     const c=document.createElement('div');c.className='house-chip';
-    c.innerHTML=`<strong>${h.house}. Ev</strong>${SIGN_GLYPHS[si]} ${SIGNS[si]}`;
+    c.innerHTML=`<strong>${houseLabel(h.house)}</strong>${SIGN_GLYPHS[si]} ${signName(si)}`;
     strip.appendChild(c);
   }
 }
@@ -853,7 +1000,7 @@ function calculateChartJS(y,mo,d,lh,lm,name,houseSystem){
   document.getElementById('chartMeta').innerHTML=
     `${name}<br>${selectedCity.name}, ${selectedCity.country}<br>`+
     `UTC${sign}${oh}:${String(om).padStart(2,'0')} · JD ${JD.toFixed(2)}<br>`+
-    `${daytime?'☀️ Gündüz':'🌙 Gece'} haritası · ⚠️ JS yaklaşık hesap`;
+    `${daytime?t('dayLabel'):t('nightLabel')} ${t('chartLabel')} · ${t('jsApproxNote')}`;
   renderTable(pos,daytime,houses,getH);
   renderWheel(pos,pos.asc,[]);
   renderAnalysis(pos,daytime,getH);
@@ -870,10 +1017,10 @@ function renderTable(pos,daytime,houses,getH){
     const pct=Math.max(0,(dg.s/5)*100);
     const tr=document.createElement('tr');
     tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
-      <td><strong>${p.name}</strong></td>
+      <td><strong>${planetDisplayName(p)}</strong></td>
       <td style="font-family:monospace;font-size:12px">${p.id==='asc'?'—':fmtDeg(deg)}</td>
-      <td>${SIGN_GLYPHS[si]} ${SIGNS[si]}</td>
-      <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${house}. Ev</td>
+      <td>${SIGN_GLYPHS[si]} ${signName(si)}</td>
+      <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${houseLabel(house)}</td>
       <td><span class="dignity-badge ${dg.c}">${dg.d}</span></td>
       <td><span style="font-family:monospace;font-size:12px;color:${dg.s>0?'#2d6a2d':dg.s<0?'#8b1a1a':'#888'}">${dg.s>0?'+':''}${dg.s}</span>
       ${p.id!=='asc'?`<div class="score-bar"><div class="score-fill ${dg.s<0?'neg':''}" style="width:${pct}%"></div></div>`:''}</td>`;
@@ -1003,12 +1150,10 @@ function renderAnalysis(pos,daytime,getH){
   const md=getDignity('moon',ms.si,ms.deg,daytime);
   document.getElementById('analysisBox').style.display='block';
   document.getElementById('analysisText').innerHTML=
-    `<strong>Harita Lordu:</strong> Asc ${SIGNS[as_.si]}'da — Haritanın lordu ${LORDS[as_.si]}'dür.<br><br>`+
-    `<strong>Güneş</strong> ${SIGNS[ss.si]} ${fmtDeg(ss.deg)}'de — <em>${sd.d}</em> (${sd.s>0?'+':''}${sd.s} puan). `+
-    `${sd.s>=4?'Hayati güç kaynaklarına kolay erişim.':sd.s<=-4?'Hayati güçte ciddi kısıtlama.':'Orta düzey güç konumu.'}<br><br>`+
-    `<strong>Ay</strong> ${SIGNS[ms.si]} ${fmtDeg(ms.deg)}'de — <em>${md.d}</em> (${md.s>0?'+':''}${md.s} puan). `+
-    `${md.s>=4?'Duygusal denge güçlüdür.':md.s<=-4?'Duygusal alanda kısıtlama.':'Ay orta konumda.'}<br><br>`+
-    `<em style="font-size:12px;color:#888">Tam analiz için: Natal gösterge + Zaman Lordu + Transit tetik zinciri.</em>`;
+    `${sentChartLord(signName(as_.si),lordName(as_.si))}<br><br>`+
+    `${sentPlanetDignity('sun',t('sunLabel'),signName(ss.si),fmtDeg(ss.deg),sd.d,(sd.s>0?'+':'')+sd.s,sd.s)}<br><br>`+
+    `${sentPlanetDignity('moon',t('moonLabel'),signName(ms.si),fmtDeg(ms.deg),md.d,(md.s>0?'+':'')+md.s,md.s)}<br><br>`+
+    `<em style="font-size:12px;color:#888">${t('fullAnalysisNote')}</em>`;
 }
 
 function renderHouses(houses){
@@ -1016,7 +1161,7 @@ function renderHouses(houses){
   const s=document.getElementById('houseStrip');s.innerHTML='';
   for(let i=0;i<12;i++){
     const c=document.createElement('div');c.className='house-chip';
-    c.innerHTML=`<strong>${i+1}. Ev</strong>${SIGN_GLYPHS[houses[i]]} ${SIGNS[houses[i]]}`;
+    c.innerHTML=`<strong>${houseLabel(i+1)}</strong>${SIGN_GLYPHS[houses[i]]} ${signName(houses[i])}`;
     s.appendChild(c);
   }
 }
@@ -1025,6 +1170,7 @@ function showErr(m){const b=document.getElementById('errorBox');b.textContent=m;
 function hideErr(){document.getElementById('errorBox').style.display='none';}
 document.addEventListener('click',e=>{if(!e.target.closest('.form-group'))closeDropdown();});
 document.getElementById('birthDate').addEventListener('change',onDateChange);
+applyStaticText();
 </script>
 </body>
 </html>
