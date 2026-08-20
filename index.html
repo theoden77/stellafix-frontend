@@ -297,8 +297,24 @@ function applyStaticText(){
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ el.placeholder=t(el.dataset.i18nPlaceholder); });
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.locale===currentLocale));
 }
+// Son başarıyla hesaplanan doğum verisi — dil değişince backend'i aynı
+// veriyle yeni locale'de tekrar sorgulamak için kullanılır
+let lastCalculatedBirthData=null;
+
 function setLocale(loc){
-  if(loc!==currentLocale){ currentLocale=loc; applyStaticText(); }
+  if(loc===currentLocale)return;
+  currentLocale=loc;
+  applyStaticText();
+  updateTzBadge();
+  if(lastCalculatedBirthData){
+    const d=lastCalculatedBirthData;
+    document.getElementById('birthDate').value=d.dateStr;
+    document.getElementById('birthTime').value=d.timeStr;
+    document.getElementById('nameInput').value=d.nameInputRaw;
+    document.getElementById('houseSystem').value=d.houseSystem;
+    selectedCity=d.city;
+    calculateChart();
+  }
 }
 
 // ============================================================
@@ -858,12 +874,17 @@ function getDignity(pid,si,deg,day){
 async function calculateChart(){
   const dateStr=document.getElementById('birthDate').value;
   const timeStr=document.getElementById('birthTime').value;
-  const name=document.getElementById('nameInput').value||(currentLocale==='en'?'Natal Chart':'Natal Harita');
+  const nameInputRaw=document.getElementById('nameInput').value;
+  const name=nameInputRaw||(currentLocale==='en'?'Natal Chart':'Natal Harita');
   const houseSystem=document.getElementById('houseSystem').value||'P';
 
   if(!dateStr||!timeStr){showErr(t('errNoDateTime'));return;}
   if(!selectedCity){showErr(t('errNoCity'));return;}
   hideErr();
+
+  // Dil değiştirildiğinde aynı doğum verisiyle backend'i yeni locale'de tekrar
+  // sorgulayabilmek için son hesaplamada kullanılan girdileri sakla
+  lastCalculatedBirthData={dateStr,timeStr,nameInputRaw,houseSystem,city:{...selectedCity}};
 
   const[y,mo,d]=dateStr.split('-').map(Number);
   const[lh,lm]=timeStr.split(':').map(Number);
