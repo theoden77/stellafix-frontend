@@ -74,6 +74,35 @@
   .house-chip{font-size:11px;padding:3px 9px;background:var(--parchment);border:1px solid var(--rule);font-family:'Cinzel',serif;}
   .house-chip strong{color:var(--lapis);font-size:9px;display:block;}
   .error-box{background:#fff0f0;border-left:3px solid var(--crimson);padding:10px 14px;margin-top:10px;font-size:13px;color:var(--crimson);display:none;}
+
+  /* INTERPRET / CHAT */
+  .interpret-area{grid-column:1/-1;}
+  .category-group{margin-bottom:20px;}
+  .category-group:last-child{margin-bottom:0;}
+  .category-group-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--lapis);text-transform:uppercase;margin-bottom:8px;}
+  .category-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+  .category-card{text-align:left;background:var(--parchment);border:1px solid var(--rule);padding:12px 14px;cursor:pointer;font-family:'EB Garamond',serif;transition:all .15s;}
+  .category-card:hover{background:var(--gold-pale);border-color:var(--gold);}
+  .category-card-title{font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;color:var(--ink);margin-bottom:4px;}
+  .category-card-desc{font-size:12px;color:#666;line-height:1.4;}
+  .chat-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--parchment-dark);}
+  .chat-panel-head .panel-title{margin:0;padding:0;border:none;}
+  .chat-back-btn{font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;color:var(--lapis);background:none;border:none;cursor:pointer;text-transform:uppercase;padding:4px 0;}
+  .chat-back-btn:hover{text-decoration:underline;}
+  .chat-messages{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:480px;overflow-y:auto;}
+  .chat-bubble{max-width:80%;padding:12px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;}
+  .chat-bubble.assistant{align-self:flex-start;background:var(--parchment);border-left:3px solid var(--gold);}
+  .chat-bubble.user{align-self:flex-end;background:var(--lapis);color:white;border-right:3px solid var(--gold);}
+  .chat-bubble.error{align-self:flex-start;background:#fff0f0;border-left:3px solid var(--crimson);color:var(--crimson);}
+  .chat-loading{display:flex;align-items:center;gap:12px;padding:10px 2px;font-style:italic;font-size:13px;color:#666;}
+  .chat-spinner{width:20px;height:20px;border:2px solid var(--parchment-dark);border-top-color:var(--gold);border-radius:50%;animation:chatspin .8s linear infinite;flex-shrink:0;}
+  @keyframes chatspin{to{transform:rotate(360deg);}}
+  .chat-input-row{display:flex;gap:8px;}
+  .chat-input-row input{flex:1;}
+  .chat-input-row .btn-primary{width:auto;padding:9px 20px;margin-top:0;white-space:nowrap;}
+  .chat-input-row .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+  .chat-remaining{font-size:11px;color:#888;margin-top:8px;font-style:italic;}
+  .chat-remaining.exhausted{color:var(--crimson);font-style:normal;}
   #astroWheel{width:100%;max-width:264px;}
   .ref-table{width:100%;border-collapse:collapse;font-size:14px;}
   .ref-table th{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--gold);padding:6px 8px;border-bottom:2px solid var(--rule);text-align:left;}
@@ -186,6 +215,30 @@
       </div>
     </div>
   </div>
+
+  <!-- INTERPRET / CHAT -->
+  <div class="interpret-area" id="interpretArea" style="display:none">
+    <div class="panel" id="categoryPanel">
+      <div class="panel-title" data-i18n="interpretPanelTitle">Yıldızlarla Sohbet Et</div>
+      <div id="categoryGroups"></div>
+    </div>
+    <div class="panel" id="chatPanel" style="display:none">
+      <div class="chat-panel-head">
+        <div class="panel-title" id="chatCategoryTitle"></div>
+        <button type="button" class="chat-back-btn" onclick="backToCategories()" data-i18n="btnBackToCategories">← Kategorilere dön</button>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-loading" id="chatLoading" style="display:none">
+        <div class="chat-spinner"></div>
+        <div><span data-i18n="chatLoadingTitle">Yıldızlar okunuyor...</span><br><small data-i18n="chatLoadingNote">Bu biraz sürebilir</small></div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Bir soru sor..." data-i18n-placeholder="chatInputPlaceholder" onkeydown="if(event.key==='Enter'){event.preventDefault();sendFollowUp();}">
+        <button type="button" class="btn-primary" id="chatSendBtn" onclick="sendFollowUp()" data-i18n="btnSend">Gönder</button>
+      </div>
+      <div class="chat-remaining" id="chatRemaining"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -242,6 +295,23 @@ const I18N = {
     jsApproxNote: "⚠️ JS yaklaşık hesap",
     fullAnalysisNote: "Tam analiz için: Natal gösterge + Zaman Lordu + Transit tetik zinciri.",
     tzYearSuffix: "yılı",
+    interpretPanelTitle: "Yıldızlarla Sohbet Et",
+    catGroupTime: "Zaman Bazlı", catGroupLife: "Kişilik & Yaşam", catGroupSpecial: "Özel",
+    catWeeklyTitle: "Haftalık Değerlendirme", catWeeklyDesc: "Bu haftaki gökyüzü etkilerine bakış",
+    catMonthlyTitle: "Aylık Değerlendirme", catMonthlyDesc: "Bu ayki temaları ve fırsatları keşfet",
+    catYearlyTitle: "Yıllık Değerlendirme", catYearlyDesc: "Yıl boyunca seni bekleyen büyük resmi gör",
+    catPersonalityTitle: "Kişilik Analizi", catPersonalityDesc: "Doğum haritana göre karakterinin temel dinamikleri",
+    catCareerTitle: "Kariyer", catCareerDesc: "Mesleki yönelimin ve potansiyellerin",
+    catFinanceTitle: "Para", catFinanceDesc: "Maddi konulardaki eğilimlerin ve fırsatların",
+    catHealthTitle: "Sağlık", catHealthDesc: "Bedensel ve zihinsel denge eğilimlerin",
+    catEclipseTitle: "En Yakın Tutulma", catEclipseDesc: "Sıradaki tutulmanın haritan üzerindeki etkisi",
+    btnBackToCategories: "← Kategorilere dön",
+    chatLoadingTitle: "Yıldızlar okunuyor...",
+    chatLoadingNote: "Bu biraz sürebilir",
+    chatInputPlaceholder: "Bir soru sor...",
+    btnSend: "Gönder",
+    chatExhausted: "Bu konudaki ücretsiz soru hakkın doldu, yakında ek soru satın alma eklenecek.",
+    chatErrorMessage: "Şu an yıldızlarla bağlantı kurulamadı, tekrar dene.",
   },
   en: {
     pageTitle: "Stellafix · Classical Astrology Demo",
@@ -284,6 +354,23 @@ const I18N = {
     jsApproxNote: "⚠️ JS approximate calculation",
     fullAnalysisNote: "For full analysis: Natal significator + Time Lord + Transit trigger chain.",
     tzYearSuffix: "",
+    interpretPanelTitle: "Chat with the Stars",
+    catGroupTime: "Time-Based", catGroupLife: "Personality & Life", catGroupSpecial: "Special",
+    catWeeklyTitle: "Weekly Review", catWeeklyDesc: "A look at this week's sky influences",
+    catMonthlyTitle: "Monthly Review", catMonthlyDesc: "Explore this month's themes and opportunities",
+    catYearlyTitle: "Yearly Review", catYearlyDesc: "See the big picture waiting for you this year",
+    catPersonalityTitle: "Personality Analysis", catPersonalityDesc: "Core dynamics of your character from your birth chart",
+    catCareerTitle: "Career", catCareerDesc: "Your professional orientation and potential",
+    catFinanceTitle: "Finance", catFinanceDesc: "Your tendencies and opportunities around money",
+    catHealthTitle: "Health", catHealthDesc: "Your physical and mental balance tendencies",
+    catEclipseTitle: "Nearest Eclipse", catEclipseDesc: "How the next eclipse affects your chart",
+    btnBackToCategories: "← Back to categories",
+    chatLoadingTitle: "Reading the stars...",
+    chatLoadingNote: "This may take a moment",
+    chatInputPlaceholder: "Ask a question...",
+    btnSend: "Send",
+    chatExhausted: "You've used your free questions on this topic — additional question purchases are coming soon.",
+    chatErrorMessage: "Couldn't connect to the stars right now, please try again.",
   },
 };
 function t(key){
@@ -1000,10 +1087,14 @@ function renderFromAPI(data,name,dateStr,timeStr){
     c.innerHTML=`<strong>${houseLabel(h.house)}</strong>${SIGN_GLYPHS[si]} ${signName(si)}`;
     strip.appendChild(c);
   }
+
+  // Yıldızlarla Sohbet — sadece gerçek backend'den chart_id geldiğinde kullanılabilir
+  showInterpretArea(data.chart_id);
 }
 
 function calculateChartJS(y,mo,d,lh,lm,name,houseSystem){
-  // Fallback JS hesabı (yaklaşık)
+  // Fallback JS hesabı (yaklaşık) — backend'e bağlı olmadığı için sohbet özelliği yok
+  showInterpretArea(null);
   const off=getOffset(selectedCity.tz,y,mo,d);
   let uh=lh-Math.floor(off), um=lm-Math.round((off%1)*60), dayAdj=0;
   if(um<0){um+=60;uh--;}if(um>=60){um-=60;uh++;}
@@ -1189,6 +1280,196 @@ function renderHouses(houses){
 
 function showErr(m){const b=document.getElementById('errorBox');b.textContent=m;b.style.display='block';}
 function hideErr(){document.getElementById('errorBox').style.display='none';}
+
+// ============================================================
+// YORUM / SOHBET — sadece backend'den gerçek bir chart_id alındığında
+// (yani JS fallback değil, gerçek API hesaplaması sonrasında) kullanılabilir.
+// İlk aşama: form gerektirmeyen kategoriler (relationship/timing sonraki aşama).
+// ============================================================
+const CATEGORY_GROUPS=[
+  {id:'time',labelKey:'catGroupTime'},
+  {id:'life',labelKey:'catGroupLife'},
+  {id:'special',labelKey:'catGroupSpecial'},
+];
+const CATEGORIES=[
+  {id:'weekly_review',group:'time',titleKey:'catWeeklyTitle',descKey:'catWeeklyDesc'},
+  {id:'monthly_review',group:'time',titleKey:'catMonthlyTitle',descKey:'catMonthlyDesc'},
+  {id:'yearly_review',group:'time',titleKey:'catYearlyTitle',descKey:'catYearlyDesc'},
+  {id:'personality',group:'life',titleKey:'catPersonalityTitle',descKey:'catPersonalityDesc'},
+  {id:'career',group:'life',titleKey:'catCareerTitle',descKey:'catCareerDesc'},
+  {id:'finance',group:'life',titleKey:'catFinanceTitle',descKey:'catFinanceDesc'},
+  {id:'health',group:'life',titleKey:'catHealthTitle',descKey:'catHealthDesc'},
+  {id:'eclipse_nearest',group:'special',titleKey:'catEclipseTitle',descKey:'catEclipseDesc'},
+];
+
+let lastChartId=null;
+let interpretSessionId=null;
+let questionsRemaining=null;
+let currentCategory=null;
+
+function chatRemainingText(n){
+  return currentLocale==='en'?`${n} question${n===1?'':'s'} remaining`:`Kalan soru hakkın: ${n}`;
+}
+
+function showInterpretArea(chartId){
+  lastChartId=chartId||null;
+  const area=document.getElementById('interpretArea');
+  if(lastChartId){
+    resetInterpretArea();
+    area.style.display='block';
+  } else {
+    area.style.display='none';
+  }
+}
+
+function resetInterpretArea(){
+  interpretSessionId=null;
+  questionsRemaining=null;
+  currentCategory=null;
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('chatLoading').style.display='none';
+  const input=document.getElementById('chatInput');
+  input.value='';
+  input.disabled=false;
+  document.getElementById('chatSendBtn').disabled=false;
+  const rem=document.getElementById('chatRemaining');
+  rem.textContent='';
+  rem.classList.remove('exhausted');
+  document.getElementById('chatPanel').style.display='none';
+  document.getElementById('categoryPanel').style.display='block';
+  renderCategoryGrid();
+}
+
+function renderCategoryGrid(){
+  const wrap=document.getElementById('categoryGroups');
+  if(!wrap)return;
+  wrap.innerHTML=CATEGORY_GROUPS.map(g=>{
+    const cards=CATEGORIES.filter(c=>c.group===g.id).map(c=>
+      `<button type="button" class="category-card" onclick="selectCategory('${c.id}')">`+
+      `<div class="category-card-title">${t(c.titleKey)}</div>`+
+      `<div class="category-card-desc">${t(c.descKey)}</div>`+
+      `</button>`
+    ).join('');
+    return `<div class="category-group"><div class="category-group-label">${t(g.labelKey)}</div>`+
+      `<div class="category-cards">${cards}</div></div>`;
+  }).join('');
+}
+
+function backToCategories(){
+  document.getElementById('chatPanel').style.display='none';
+  document.getElementById('categoryPanel').style.display='block';
+}
+
+function showChatLoading(show){
+  document.getElementById('chatLoading').style.display=show?'flex':'none';
+  document.getElementById('chatInput').disabled=show||questionsRemaining===0;
+  document.getElementById('chatSendBtn').disabled=show||questionsRemaining===0;
+}
+
+function appendChatBubble(role,text){
+  const wrap=document.getElementById('chatMessages');
+  const div=document.createElement('div');
+  div.className='chat-bubble '+role;
+  const textDiv=document.createElement('div');
+  textDiv.className='chat-bubble-text';
+  textDiv.textContent=text; // backend metni innerHTML değil textContent ile basılır (XSS'e kapalı)
+  div.appendChild(textDiv);
+  wrap.appendChild(div);
+  wrap.scrollTop=wrap.scrollHeight;
+}
+
+function appendChatError(){
+  appendChatBubble('error',t('chatErrorMessage'));
+}
+
+function updateRemainingUI(){
+  const el=document.getElementById('chatRemaining');
+  const input=document.getElementById('chatInput');
+  const btn=document.getElementById('chatSendBtn');
+  if(questionsRemaining===0){
+    el.textContent=t('chatExhausted');
+    el.classList.add('exhausted');
+    input.disabled=true;
+    btn.disabled=true;
+  } else if(typeof questionsRemaining==='number'){
+    el.textContent=chatRemainingText(questionsRemaining);
+    el.classList.remove('exhausted');
+    input.disabled=false;
+    btn.disabled=false;
+  } else {
+    el.textContent='';
+    el.classList.remove('exhausted');
+  }
+}
+
+// Gerçek backend response şemaları (canlı API'den doğrulandı):
+//   POST /interpret/start   -> {session_id, message, language}   — questions_remaining YOK
+//   POST /interpret/continue -> {message, questions_remaining}   — session_id YOK, /start'ta
+//     alınan session_id istemci tarafında saklanıp sonraki her /continue çağrısında
+//     tekrar gönderilmeli; backend onu bir daha döndürmüyor.
+function handleStartResponse(data){
+  interpretSessionId=data.session_id;
+  appendChatBubble('assistant',data.message);
+  // /start questions_remaining döndürmüyor; gösterge ilk /continue yanıtına kadar boş kalır
+  updateRemainingUI();
+}
+function handleContinueResponse(data){
+  appendChatBubble('assistant',data.message);
+  questionsRemaining=data.questions_remaining;
+  updateRemainingUI();
+}
+
+async function selectCategory(catId){
+  currentCategory=catId;
+  const cfg=CATEGORIES.find(c=>c.id===catId);
+  document.getElementById('categoryPanel').style.display='none';
+  document.getElementById('chatPanel').style.display='block';
+  document.getElementById('chatCategoryTitle').textContent=cfg?t(cfg.titleKey):catId;
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('chatRemaining').textContent='';
+  interpretSessionId=null;
+  questionsRemaining=null;
+  showChatLoading(true);
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/interpret/start`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chart_id:lastChartId,category:catId,language:currentLocale})
+    });
+    showChatLoading(false);
+    if(!resp.ok){appendChatError();return;}
+    const data=await resp.json();
+    handleStartResponse(data);
+  }catch(e){
+    showChatLoading(false);
+    appendChatError();
+  }
+}
+
+async function sendFollowUp(){
+  const input=document.getElementById('chatInput');
+  const q=input.value.trim();
+  if(!q||questionsRemaining===0)return;
+  appendChatBubble('user',q);
+  input.value='';
+  showChatLoading(true);
+  try{
+    // session_id /start'tan saklanan değer — backend /continue yanıtında tekrar döndürmüyor
+    const resp=await fetch(`${API_URL}/api/v1/interpret/continue`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({session_id:interpretSessionId,question:q})
+    });
+    showChatLoading(false);
+    if(!resp.ok){appendChatError();return;}
+    const data=await resp.json();
+    handleContinueResponse(data);
+  }catch(e){
+    showChatLoading(false);
+    appendChatError();
+  }
+}
+
 document.addEventListener('click',e=>{if(!e.target.closest('.form-group'))closeDropdown();});
 document.getElementById('birthDate').addEventListener('change',onDateChange);
 applyStaticText();
