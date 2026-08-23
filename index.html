@@ -1402,15 +1402,20 @@ function updateRemainingUI(){
   }
 }
 
-// Backend alan isimleri doğrulanamadı (canlı API bu oturumdan erişilemiyor) —
-// en olası isim varyantlarını sırayla dene
-function handleInterpretResponse(data){
-  const message=data.message??data.response??data.reply??data.text??data.answer??'';
-  const sid=data.session_id??data.sessionId;
-  if(typeof sid==='string')interpretSessionId=sid;
-  const remaining=data.questions_remaining??data.questionsRemaining??data.remaining;
-  if(typeof remaining==='number')questionsRemaining=remaining;
-  appendChatBubble('assistant',message);
+// Gerçek backend response şemaları (canlı API'den doğrulandı):
+//   POST /interpret/start   -> {session_id, message, language}   — questions_remaining YOK
+//   POST /interpret/continue -> {message, questions_remaining}   — session_id YOK, /start'ta
+//     alınan session_id istemci tarafında saklanıp sonraki her /continue çağrısında
+//     tekrar gönderilmeli; backend onu bir daha döndürmüyor.
+function handleStartResponse(data){
+  interpretSessionId=data.session_id;
+  appendChatBubble('assistant',data.message);
+  // /start questions_remaining döndürmüyor; gösterge ilk /continue yanıtına kadar boş kalır
+  updateRemainingUI();
+}
+function handleContinueResponse(data){
+  appendChatBubble('assistant',data.message);
+  questionsRemaining=data.questions_remaining;
   updateRemainingUI();
 }
 
@@ -1422,6 +1427,7 @@ async function selectCategory(catId){
   document.getElementById('chatCategoryTitle').textContent=cfg?t(cfg.titleKey):catId;
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatRemaining').textContent='';
+  interpretSessionId=null;
   questionsRemaining=null;
   showChatLoading(true);
   try{
@@ -1433,7 +1439,7 @@ async function selectCategory(catId){
     showChatLoading(false);
     if(!resp.ok){appendChatError();return;}
     const data=await resp.json();
-    handleInterpretResponse(data);
+    handleStartResponse(data);
   }catch(e){
     showChatLoading(false);
     appendChatError();
@@ -1448,6 +1454,7 @@ async function sendFollowUp(){
   input.value='';
   showChatLoading(true);
   try{
+    // session_id /start'tan saklanan değer — backend /continue yanıtında tekrar döndürmüyor
     const resp=await fetch(`${API_URL}/api/v1/interpret/continue`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1456,7 +1463,7 @@ async function sendFollowUp(){
     showChatLoading(false);
     if(!resp.ok){appendChatError();return;}
     const data=await resp.json();
-    handleInterpretResponse(data);
+    handleContinueResponse(data);
   }catch(e){
     showChatLoading(false);
     appendChatError();
