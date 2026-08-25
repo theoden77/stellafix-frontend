@@ -22,6 +22,18 @@
   .lang-btn+.lang-btn{border-left:1px solid var(--gold);}
   .lang-btn:hover{background:rgba(184,134,11,.15);}
   .lang-btn.active{background:var(--gold);color:var(--ink);}
+  .auth-btn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:var(--gold-light);background:transparent;border:1px solid var(--gold);padding:6px 14px;cursor:pointer;text-transform:uppercase;transition:all .15s;}
+  .auth-btn:hover{background:var(--gold);color:var(--ink);}
+  .auth-btn-logout{border-color:var(--rule);color:var(--parchment);font-size:9px;padding:5px 12px;}
+  .auth-btn-logout:hover{background:var(--rule);color:var(--ink);}
+  .auth-welcome-banner{background:#eaf5ea;border-bottom:3px solid #2d6a2d;color:#1e4a1e;padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
+  .auth-welcome-dismiss{background:none;border:none;font-size:16px;line-height:1;color:#1e4a1e;cursor:pointer;padding:0;}
+  .auth-modal-backdrop{position:fixed;inset:0;background:rgba(26,18,8,.55);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;}
+  .auth-modal{background:var(--parchment);border:1px solid var(--gold);border-top:3px solid var(--gold);padding:26px;width:100%;max-width:360px;position:relative;}
+  .auth-modal-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:20px;color:var(--ink);cursor:pointer;line-height:1;padding:4px;}
+  .auth-modal-message{margin-top:12px;font-size:13px;line-height:1.5;min-height:1px;}
+  .auth-modal-message.success{color:#2d6a2d;}
+  .auth-modal-message.error{color:var(--crimson);}
   .container{max-width:1100px;margin:0 auto;padding:28px 16px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:700px){.container{grid-template-columns:1fr;}.chart-area{grid-template-columns:1fr!important;}}
   .panel{background:white;border:1px solid var(--rule);border-top:3px solid var(--gold);padding:22px;}
@@ -114,11 +126,31 @@
 <div class="header">
   <div class="logo">STELLAFIX<span data-i18n="logoSubtitle">Klasik Batı Astrolojisi · Abu Ma'shar Geleneği</span></div>
   <div style="display:flex;align-items:center;gap:14px">
+    <button type="button" class="auth-btn" id="authLoginBtn" onclick="openAuthModal()" data-i18n="btnLogin">Giriş Yap</button>
+    <button type="button" class="auth-btn auth-btn-logout" id="authLogoutBtn" style="display:none" onclick="logout()" data-i18n="btnLogout">Çıkış Yap</button>
     <div class="lang-toggle" id="langToggle">
       <button type="button" class="lang-btn active" data-locale="tr" onclick="setLocale('tr')">TR</button>
       <button type="button" class="lang-btn" data-locale="en" onclick="setLocale('en')">EN</button>
     </div>
     <div class="badge">Demo v0.3</div>
+  </div>
+</div>
+
+<div class="auth-welcome-banner" id="authWelcomeBanner" style="display:none">
+  <span id="authWelcomeText"></span>
+  <button type="button" class="auth-welcome-dismiss" onclick="dismissAuthWelcomeBanner()">×</button>
+</div>
+
+<div class="auth-modal-backdrop" id="authModalBackdrop" style="display:none" onclick="if(event.target===this)closeAuthModal()">
+  <div class="auth-modal">
+    <button type="button" class="auth-modal-close" onclick="closeAuthModal()">×</button>
+    <div class="panel-title" data-i18n="authModalTitle">Giriş Yap</div>
+    <div class="form-group">
+      <label data-i18n="authEmailLabel">E-posta</label>
+      <input type="email" id="authEmailInput" placeholder="ornek@eposta.com" data-i18n-placeholder="authEmailPlaceholder" onkeydown="if(event.key==='Enter'){event.preventDefault();requestMagicLink();}">
+    </div>
+    <button type="button" class="btn-primary" id="authSendBtn" onclick="requestMagicLink()" data-i18n="authSendBtn">Bağlantı Gönder</button>
+    <div class="auth-modal-message" id="authModalMessage"></div>
   </div>
 </div>
 
@@ -312,6 +344,19 @@ const I18N = {
     btnSend: "Gönder",
     chatExhausted: "Bu konudaki ücretsiz soru hakkın doldu, yakında ek soru satın alma eklenecek.",
     chatErrorMessage: "Şu an yıldızlarla bağlantı kurulamadı, tekrar dene.",
+    btnLogin: "Giriş Yap",
+    btnLogout: "Çıkış Yap",
+    authModalTitle: "Giriş Yap",
+    authEmailLabel: "E-posta",
+    authEmailPlaceholder: "ornek@eposta.com",
+    authSendBtn: "Bağlantı Gönder",
+    authSending: "Gönderiliyor...",
+    authLinkSent: "Email adresine bir giriş bağlantısı gönderdik, gelen kutunu kontrol et.",
+    authErrEmailRequired: "Lütfen e-posta adresini gir.",
+    authErrGeneric: "Bir şeyler ters gitti, tekrar dene.",
+    authWelcomeMessage: "Giriş başarılı, hoş geldin!",
+    errPersonLimit: "Ücretsiz hesabınla en fazla 2 kişi için harita oluşturabilirsin.",
+    errWeeklyLimitGeneric: "Bu haftaki ücretsiz sorgu hakkın doldu, yakında yenilenecek.",
   },
   en: {
     pageTitle: "Stellafix · Classical Astrology Demo",
@@ -371,6 +416,19 @@ const I18N = {
     btnSend: "Send",
     chatExhausted: "You've used your free questions on this topic — additional question purchases are coming soon.",
     chatErrorMessage: "Couldn't connect to the stars right now, please try again.",
+    btnLogin: "Log In",
+    btnLogout: "Log Out",
+    authModalTitle: "Log In",
+    authEmailLabel: "Email",
+    authEmailPlaceholder: "you@example.com",
+    authSendBtn: "Send Link",
+    authSending: "Sending...",
+    authLinkSent: "We sent a login link to your email, check your inbox.",
+    authErrEmailRequired: "Please enter your email address.",
+    authErrGeneric: "Something went wrong, please try again.",
+    authWelcomeMessage: "Login successful, welcome!",
+    errPersonLimit: "Your free account can create charts for up to 2 people.",
+    errWeeklyLimitGeneric: "You've used this week's free queries, resets soon.",
   },
 };
 function t(key){
@@ -402,6 +460,144 @@ function setLocale(loc){
     selectedCity=d.city;
     calculateChart();
   }
+}
+
+// ============================================================
+// AUTH — magic-link tabanlı email girişi. Token localStorage'da
+// tutulur (bu, gerçek statik bir sayfa dağıtımı — artifact/canvas
+// önizlemesi değil — bu yüzden localStorage burada güvenle kullanılabilir);
+// erişilemezse (ör. gizli sekme kısıtlaması) sessizce oturum-içi belleğe düşer.
+// ============================================================
+const AUTH_TOKEN_KEY='stellafix_token';
+function getStoredToken(){
+  try{ return localStorage.getItem(AUTH_TOKEN_KEY); }catch(e){ return null; }
+}
+function setStoredToken(tok){
+  try{ localStorage.setItem(AUTH_TOKEN_KEY,tok); }catch(e){}
+}
+function clearStoredToken(){
+  try{ localStorage.removeItem(AUTH_TOKEN_KEY); }catch(e){}
+}
+let authToken=getStoredToken();
+
+// Token varsa istek başlıklarına eklenir; yoksa mevcut anonim davranış aynen sürer
+function authHeaders(){
+  return authToken?{'Authorization':`Bearer ${authToken}`}:{};
+}
+
+function updateAuthUI(){
+  const loggedIn=!!authToken;
+  document.getElementById('authLoginBtn').style.display=loggedIn?'none':'inline-block';
+  document.getElementById('authLogoutBtn').style.display=loggedIn?'inline-block':'none';
+}
+
+function openAuthModal(){
+  document.getElementById('authEmailInput').value='';
+  const msg=document.getElementById('authModalMessage');
+  msg.textContent='';
+  msg.className='auth-modal-message';
+  document.getElementById('authModalBackdrop').style.display='flex';
+}
+function closeAuthModal(){
+  document.getElementById('authModalBackdrop').style.display='none';
+}
+
+async function requestMagicLink(){
+  const email=document.getElementById('authEmailInput').value.trim();
+  const msg=document.getElementById('authModalMessage');
+  if(!email){
+    msg.textContent=t('authErrEmailRequired');
+    msg.className='auth-modal-message error';
+    return;
+  }
+  const btn=document.getElementById('authSendBtn');
+  btn.disabled=true;
+  btn.textContent=t('authSending');
+  msg.textContent='';
+  msg.className='auth-modal-message';
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/auth/request-link`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email})
+    });
+    if(!resp.ok){
+      msg.textContent=t('authErrGeneric');
+      msg.className='auth-modal-message error';
+      return;
+    }
+    msg.textContent=t('authLinkSent');
+    msg.className='auth-modal-message success';
+  }catch(e){
+    msg.textContent=t('authErrGeneric');
+    msg.className='auth-modal-message error';
+  }finally{
+    btn.disabled=false;
+    btn.textContent=t('authSendBtn');
+  }
+}
+
+function logout(){
+  authToken=null;
+  clearStoredToken();
+  updateAuthUI();
+}
+
+function showAuthWelcomeBanner(){
+  document.getElementById('authWelcomeText').textContent=t('authWelcomeMessage');
+  document.getElementById('authWelcomeBanner').style.display='flex';
+}
+function dismissAuthWelcomeBanner(){
+  document.getElementById('authWelcomeBanner').style.display='none';
+}
+
+// Sayfa ?token=XXX ile açıldıysa (magic-link tıklanmış) — backend'in ham JSON
+// döndüren /auth/verify'ini tarayıcı doğrudan ziyaret etmesin diye burada fetch
+// ile biz çağırıyoruz, sonucu karşılayıp kullanıcıya düzgün bir arayüz gösteriyoruz.
+async function checkMagicLinkToken(){
+  const params=new URLSearchParams(window.location.search);
+  const token=params.get('token');
+  if(!token)return;
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/auth/verify?token=${encodeURIComponent(token)}`);
+    if(resp.ok){
+      const data=await resp.json();
+      if(data&&data.access_token){
+        authToken=data.access_token;
+        setStoredToken(authToken);
+        updateAuthUI();
+        showAuthWelcomeBanner();
+      }
+    }
+    // Geçersiz/süresi dolmuş token — kullanıcıya teknik detay göstermeden sessizce
+    // yoksay; "Giriş Yap" butonu olduğu gibi kalır, dilerse yeni bağlantı isteyebilir
+  }catch(e){
+    // Ağ hatası — sessizce yoksay
+  }finally{
+    // Denemenin sonucu ne olursa olsun token'ı URL'den temizle (sayfa yenilenince
+    // aynı — muhtemelen artık geçersiz — token'la tekrar tekrar denenmesin diye)
+    params.delete('token');
+    const newSearch=params.toString();
+    const newUrl=window.location.pathname+(newSearch?`?${newSearch}`:'')+window.location.hash;
+    history.replaceState({},'',newUrl);
+  }
+}
+
+function weeklyLimitMessage(dateStr){
+  return currentLocale==='en'
+    ?`You've used this week's free queries. Resets on ${dateStr}.`
+    :`Bu haftaki ücretsiz sorgu hakkın doldu, ${dateStr}'te yenilenecek.`;
+}
+// Backend'in 403 detail alanının tam şekli bu oturumdan doğrulanamadı — hem düz
+// string hem de tarihi taşıyan bir obje ({reset_at|reset_date|resets_at|date})
+// olma ihtimaline karşı toleranslı okunuyor
+function extractResetDate(err){
+  if(!err)return '';
+  if(typeof err.detail==='string')return err.detail;
+  if(err.detail&&typeof err.detail==='object'){
+    return err.detail.reset_at||err.detail.reset_date||err.detail.resets_at||err.detail.date||'';
+  }
+  return err.reset_at||err.reset_date||'';
 }
 
 // ============================================================
@@ -994,7 +1190,7 @@ async function calculateChart(){
       }
       const resp = await fetch(`${API_URL}/natal?locale=${currentLocale}`, {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type':'application/json',...authHeaders()},
         body: JSON.stringify({
           name:name,
           birth_date:dateStr, // "YYYY-MM-DD" — <input type="date"> zaten bu formatta
@@ -1006,7 +1202,11 @@ async function calculateChart(){
       });
 
       if(!resp.ok){
-        const err=await resp.json();
+        if(resp.status===403){
+          showErr(t('errPersonLimit'));
+          return;
+        }
+        let err={}; try{ err=await resp.json(); }catch(e){}
         showErr(`${t('errApiPrefix')}${err.detail||resp.status}`);
         return;
       }
@@ -1433,11 +1633,20 @@ async function selectCategory(catId){
   try{
     const resp=await fetch(`${API_URL}/api/v1/interpret/start`,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json',...authHeaders()},
       body:JSON.stringify({chart_id:lastChartId,category:catId,language:currentLocale})
     });
     showChatLoading(false);
-    if(!resp.ok){appendChatError();return;}
+    if(!resp.ok){
+      if(resp.status===403){
+        let err={}; try{ err=await resp.json(); }catch(e){}
+        const dateStr=extractResetDate(err);
+        appendChatBubble('error',dateStr?weeklyLimitMessage(dateStr):t('errWeeklyLimitGeneric'));
+        return;
+      }
+      appendChatError();
+      return;
+    }
     const data=await resp.json();
     handleStartResponse(data);
   }catch(e){
@@ -1457,7 +1666,7 @@ async function sendFollowUp(){
     // session_id /start'tan saklanan değer — backend /continue yanıtında tekrar döndürmüyor
     const resp=await fetch(`${API_URL}/api/v1/interpret/continue`,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json',...authHeaders()},
       body:JSON.stringify({session_id:interpretSessionId,question:q})
     });
     showChatLoading(false);
@@ -1473,6 +1682,8 @@ async function sendFollowUp(){
 document.addEventListener('click',e=>{if(!e.target.closest('.form-group'))closeDropdown();});
 document.getElementById('birthDate').addEventListener('change',onDateChange);
 applyStaticText();
+updateAuthUI();
+checkMagicLinkToken();
 </script>
 </body>
 </html>
