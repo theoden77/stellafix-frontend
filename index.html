@@ -26,6 +26,8 @@
   .auth-btn:hover{background:var(--gold);color:var(--ink);}
   .auth-btn-logout{border-color:var(--rule);color:var(--parchment);font-size:9px;padding:5px 12px;}
   .auth-btn-logout:hover{background:var(--rule);color:var(--ink);}
+  .auth-account{display:flex;align-items:center;gap:10px;}
+  .auth-user-email{font-family:'EB Garamond',serif;font-style:italic;font-size:12px;color:var(--parchment);opacity:.8;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .auth-confirm-banner{background:var(--gold-pale);border-bottom:3px solid var(--gold);color:var(--ink);padding:12px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
   .auth-confirm-btn{width:auto;padding:8px 20px;margin-top:0;font-size:10px;}
   .auth-welcome-banner{background:#eaf5ea;border-bottom:3px solid #2d6a2d;color:#1e4a1e;padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
@@ -129,7 +131,10 @@
   <div class="logo">STELLAFIX<span data-i18n="logoSubtitle">Klasik Batı Astrolojisi · Abu Ma'shar Geleneği</span></div>
   <div style="display:flex;align-items:center;gap:14px">
     <button type="button" class="auth-btn" id="authLoginBtn" onclick="openAuthModal()" data-i18n="btnLogin">Giriş Yap</button>
-    <button type="button" class="auth-btn auth-btn-logout" id="authLogoutBtn" style="display:none" onclick="logout()" data-i18n="btnLogout">Çıkış Yap</button>
+    <div class="auth-account" id="authAccount" style="display:none">
+      <span class="auth-user-email" id="authUserEmail"></span>
+      <button type="button" class="auth-btn auth-btn-logout" id="authLogoutBtn" onclick="logout()" data-i18n="btnLogout">Çıkış Yap</button>
+    </div>
     <div class="lang-toggle" id="langToggle">
       <button type="button" class="lang-btn active" data-locale="tr" onclick="setLocale('tr')">TR</button>
       <button type="button" class="lang-btn" data-locale="en" onclick="setLocale('en')">EN</button>
@@ -498,10 +503,34 @@ function authHeaders(){
   return authToken?{'Authorization':`Bearer ${authToken}`}:{};
 }
 
+// JWT payload'ını (2. segment) çözer — imza doğrulanmıyor, sadece görüntüleme
+// amaçlı okunuyor. Backend kaynağından (app/auth.py: create_access_token)
+// doğrulandı: payload her zaman {sub, email, exp} şeklinde.
+function decodeJwtPayload(token){
+  try{
+    const parts=String(token).split('.');
+    if(parts.length<2)return null;
+    let b64=parts[1].replace(/-/g,'+').replace(/_/g,'/');
+    while(b64.length%4)b64+='=';
+    const json=decodeURIComponent(atob(b64).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    return JSON.parse(json);
+  }catch(e){
+    return null;
+  }
+}
+function extractEmailFromToken(token){
+  const payload=decodeJwtPayload(token);
+  return payload&&typeof payload.email==='string'?payload.email:null;
+}
+
 function updateAuthUI(){
   const loggedIn=!!authToken;
   document.getElementById('authLoginBtn').style.display=loggedIn?'none':'inline-block';
-  document.getElementById('authLogoutBtn').style.display=loggedIn?'inline-block':'none';
+  document.getElementById('authAccount').style.display=loggedIn?'flex':'none';
+  const emailEl=document.getElementById('authUserEmail');
+  const email=loggedIn?extractEmailFromToken(authToken):null;
+  emailEl.textContent=email||'';
+  emailEl.style.display=email?'inline':'none';
 }
 
 function openAuthModal(){
