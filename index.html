@@ -32,6 +32,12 @@
   .auth-confirm-btn{width:auto;padding:8px 20px;margin-top:0;font-size:10px;}
   .auth-welcome-banner{background:#eaf5ea;border-bottom:3px solid #2d6a2d;color:#1e4a1e;padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
   .auth-welcome-dismiss{background:none;border:none;font-size:16px;line-height:1;color:#1e4a1e;cursor:pointer;padding:0;}
+  .auth-btn-upgrade{background:var(--gold);color:var(--ink);border-color:var(--gold);}
+  .auth-btn-upgrade:hover{background:var(--gold-light);}
+  .auth-btn-upgrade:disabled{opacity:.6;cursor:not-allowed;}
+  .premium-badge{font-size:11px;letter-spacing:.05em;color:var(--gold);border:1px solid var(--gold);padding:6px 12px;white-space:nowrap;}
+  .subscribe-error-banner{background:#fff0f0;border-bottom:3px solid var(--crimson);color:var(--crimson);padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
+  .subscribe-error-banner .auth-welcome-dismiss{color:var(--crimson);}
   .auth-modal-backdrop{position:fixed;inset:0;background:rgba(26,18,8,.55);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;}
   .auth-modal{background:var(--parchment);border:1px solid var(--gold);border-top:3px solid var(--gold);padding:26px;width:100%;max-width:360px;position:relative;}
   .auth-modal-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:20px;color:var(--ink);cursor:pointer;line-height:1;padding:4px;}
@@ -133,6 +139,8 @@
     <button type="button" class="auth-btn" id="authLoginBtn" onclick="openAuthModal()" data-i18n="btnLogin">Giriş Yap</button>
     <div class="auth-account" id="authAccount" style="display:none">
       <span class="auth-user-email" id="authUserEmail"></span>
+      <span class="premium-badge" id="premiumBadge" style="display:none" data-i18n="premiumBadge">✨ Premium Üye</span>
+      <button type="button" class="auth-btn auth-btn-upgrade" id="authUpgradeBtn" onclick="startSubscribeCheckout()" data-i18n="btnUpgrade">Premium'a Geç</button>
       <button type="button" class="auth-btn auth-btn-logout" id="authLogoutBtn" onclick="logout()" data-i18n="btnLogout">Çıkış Yap</button>
     </div>
     <div class="lang-toggle" id="langToggle">
@@ -151,6 +159,11 @@
 <div class="auth-welcome-banner" id="authWelcomeBanner" style="display:none">
   <span id="authWelcomeText"></span>
   <button type="button" class="auth-welcome-dismiss" onclick="dismissAuthWelcomeBanner()">×</button>
+</div>
+
+<div class="subscribe-error-banner" id="subscribeErrorBanner" style="display:none">
+  <span id="subscribeErrorText"></span>
+  <button type="button" class="auth-welcome-dismiss" onclick="dismissSubscribeErrorBanner()">×</button>
 </div>
 
 <div class="auth-modal-backdrop" id="authModalBackdrop" style="display:none" onclick="if(event.target===this)closeAuthModal()">
@@ -372,6 +385,11 @@ const I18N = {
     authWelcomeMessage: "Giriş başarılı, hoş geldin!",
     errPersonLimit: "Ücretsiz hesabınla en fazla 2 kişi için harita oluşturabilirsin.",
     errWeeklyLimitGeneric: "Bu haftaki ücretsiz sorgu hakkın doldu, yakında yenilenecek.",
+    btnUpgrade: "Premium'a Geç",
+    btnUpgrading: "Yönlendiriliyor...",
+    premiumBadge: "✨ Premium Üye",
+    subscribeErrAuth: "Bu işlem için giriş yapmış olman gerekiyor.",
+    subscribeErrGeneric: "Abonelik işlemi başlatılamadı, tekrar dene.",
   },
   en: {
     pageTitle: "Stellafix · Classical Astrology Demo",
@@ -447,6 +465,11 @@ const I18N = {
     authWelcomeMessage: "Login successful, welcome!",
     errPersonLimit: "Your free account can create charts for up to 2 people.",
     errWeeklyLimitGeneric: "You've used this week's free queries, resets soon.",
+    btnUpgrade: "Upgrade to Premium",
+    btnUpgrading: "Redirecting...",
+    premiumBadge: "✨ Premium Member",
+    subscribeErrAuth: "You need to be logged in for this.",
+    subscribeErrGeneric: "Couldn't start checkout, please try again.",
   },
 };
 function t(key){
@@ -505,7 +528,7 @@ function authHeaders(){
 
 // JWT payload'ını (2. segment) çözer — imza doğrulanmıyor, sadece görüntüleme
 // amaçlı okunuyor. Backend kaynağından (app/auth.py: create_access_token)
-// doğrulandı: payload her zaman {sub, email, exp} şeklinde.
+// doğrulandı: payload her zaman {sub, email, subscription_tier, exp} şeklinde.
 function decodeJwtPayload(token){
   try{
     const parts=String(token).split('.');
@@ -523,6 +546,14 @@ function extractEmailFromToken(token){
   return payload&&typeof payload.email==='string'?payload.email:null;
 }
 
+// Eski token'larda (bu alan backend'e eklenmeden önce verilmiş) subscription_tier
+// hiç yok - böyle bir tokende de olmayan/tanınmayan bir değerde de güvenli taraf
+// olan "free" varsayılıyor (yani buton gösterilir, rozet gösterilmez).
+function extractSubscriptionTierFromToken(token){
+  const payload=decodeJwtPayload(token);
+  return payload&&payload.subscription_tier==='paid'?'paid':'free';
+}
+
 function updateAuthUI(){
   const loggedIn=!!authToken;
   document.getElementById('authLoginBtn').style.display=loggedIn?'none':'inline-block';
@@ -531,6 +562,9 @@ function updateAuthUI(){
   const email=loggedIn?extractEmailFromToken(authToken):null;
   emailEl.textContent=email||'';
   emailEl.style.display=email?'inline':'none';
+  const isPaid=loggedIn&&extractSubscriptionTierFromToken(authToken)==='paid';
+  document.getElementById('premiumBadge').style.display=isPaid?'inline-block':'none';
+  document.getElementById('authUpgradeBtn').style.display=isPaid?'none':'inline-block';
 }
 
 function openAuthModal(){
@@ -583,6 +617,45 @@ function logout(){
   authToken=null;
   clearStoredToken();
   updateAuthUI();
+}
+
+function showSubscribeError(msg){
+  document.getElementById('subscribeErrorText').textContent=msg;
+  document.getElementById('subscribeErrorBanner').style.display='flex';
+}
+function dismissSubscribeErrorBanner(){
+  document.getElementById('subscribeErrorBanner').style.display='none';
+}
+
+// GET /api/v1/subscribe (JWT ile korumalı) bir Lemon Squeezy "buy link" döndürür;
+// aynı sekmede yönlendiriyoruz ki Lemon Squeezy'nin kendi success redirect'i
+// geri buraya dönebilsin (yeni sekmede açılsaydı o geri dönüş kaybolurdu).
+async function startSubscribeCheckout(){
+  if(!authToken){
+    showSubscribeError(t('subscribeErrAuth'));
+    return;
+  }
+  const btn=document.getElementById('authUpgradeBtn');
+  btn.disabled=true;
+  btn.textContent=t('btnUpgrading');
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/subscribe`,{headers:authHeaders()});
+    if(!resp.ok){
+      showSubscribeError(t('subscribeErrGeneric'));
+      return;
+    }
+    const data=await resp.json();
+    if(!data||typeof data.checkout_url!=='string'){
+      showSubscribeError(t('subscribeErrGeneric'));
+      return;
+    }
+    window.location.href=data.checkout_url;
+  }catch(e){
+    showSubscribeError(t('subscribeErrGeneric'));
+  }finally{
+    btn.disabled=false;
+    btn.textContent=t('btnUpgrade');
+  }
 }
 
 function showAuthWelcomeBanner(){
