@@ -1601,6 +1601,21 @@ function renderWheel(pos,ascDeg,cusps,mc){
     h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
   }
 
+  // Derece tikleri (astro.com tarzı) — mutlak ekliptik dereceye göre, wheel'in
+  // en dış halkasının hemen dışında. 30°'lik burç sınırları zaten kendi
+  // çizgisine sahip (yukarıdaki döngü), o yüzden burada atlanıyor. Sayı
+  // etiketi yok, sadece ince/düşük kontrastlı çizgiler - teknik detay değil,
+  // standart bir harita okuma yardımcısı olduğu için toggle'a bağlı değil,
+  // varsayılan görünümde de gösteriliyor.
+  for(let deg=0;deg<360;deg+=5){
+    if(deg%30===0)continue;
+    const tickA=wheelAngle(deg,ascDeg);
+    const isTen=deg%10===0;
+    const[tix,tiy]=wheelPt(cx,cy,R_OUT,tickA);
+    const[tox,toy]=wheelPt(cx,cy,R_OUT+(isTen?6:3),tickA);
+    h+=`<line x1="${tix}" y1="${tiy}" x2="${tox}" y2="${toy}" stroke="#B5B0A3" stroke-width="${isTen?0.6:0.4}"/>`;
+  }
+
   // Ev çizgileri — backend'den gelen gerçek (dengesiz) Placidus cusp dereceleri;
   // yoksa (ör. Whole Sign veya offline hesap) 30°'lik eşit dilimlere düş
   let cuspLons=(Array.isArray(cusps)&&cusps.length===12)?cusps.map(norm):null;
