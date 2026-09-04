@@ -1718,15 +1718,15 @@ function renderWheel(pos,ascDeg,cusps,mc){
   const ascA=wheelAngle(ascDeg,ascDeg);
   const[ax1,ay1]=wheelPt(cx,cy,R_HOUSE_IN,ascA), [ax2,ay2]=wheelPt(cx,cy,R_TIP,ascA);
   const[alx,aly]=wheelPt(cx,cy,R_LABEL,ascA);
-  h+=`<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="#7C3AED" stroke-width="2"/>`;
-  h+=`<text x="${alx}" y="${aly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#7C3AED" font-family="Inter,sans-serif" font-weight="700">ASC</text>`;
+  h+=`<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="#DC143C" stroke-width="1.5"/>`;
+  h+=`<text x="${alx}" y="${aly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#DC143C" font-family="Inter,sans-serif" font-weight="700">ASC</text>`;
 
   if(typeof mc==='number'){
     const mcA=wheelAngle(mc,ascDeg);
     const[mx1,my1]=wheelPt(cx,cy,R_HOUSE_IN,mcA), [mx2,my2]=wheelPt(cx,cy,R_TIP,mcA);
     const[mlx,mly]=wheelPt(cx,cy,R_LABEL,mcA);
-    h+=`<line x1="${mx1}" y1="${my1}" x2="${mx2}" y2="${my2}" stroke="#B8874F" stroke-width="2"/>`;
-    h+=`<text x="${mlx}" y="${mly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#B8874F" font-family="Inter,sans-serif" font-weight="700">MC</text>`;
+    h+=`<line x1="${mx1}" y1="${my1}" x2="${mx2}" y2="${my2}" stroke="#1a3a5c" stroke-width="2"/>`;
+    h+=`<text x="${mlx}" y="${mly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a3a5c" font-family="Inter,sans-serif" font-weight="700">MC</text>`;
   }
 
   h+=`<circle cx="${cx}" cy="${cy}" r="3" fill="#8a8378"/>`;
