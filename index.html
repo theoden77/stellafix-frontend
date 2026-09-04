@@ -77,7 +77,6 @@
   .tech-col{display:none;}
   body.show-tech-details .tech-col{display:table-cell;}
   .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;}
-  .element-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
   .dignity-badge{font-size:10px;padding:3px 8px;font-family:'Inter',sans-serif;font-weight:600;letter-spacing:.02em;border-radius:6px;display:inline-block;}
   .d-domicile{background:#EDE9FE;color:#6D28D9;}
   .d-exaltation{background:#DCFCE7;color:#15803D;}
@@ -1424,7 +1423,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
       <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
-      <td><span class="element-dot" style="background:${elementColorOf(si)}"></span>${SIGN_GLYPHS[si]} ${signName(si)}</td>
+      <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
       <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(p.house)}</td>
       <td class="tech-col">${dg.badges}</td>
       <td class="tech-col">
@@ -1506,7 +1505,7 @@ function renderTable(pos,daytime,houses,getH){
     tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
       <td style="font-family:monospace;font-size:12px">${p.id==='asc'?'—':fmtDeg(deg)}</td>
-      <td><span class="element-dot" style="background:${elementColorOf(si)}"></span>${SIGN_GLYPHS[si]} ${signName(si)}</td>
+      <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
       <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(house)}</td>
       <td class="tech-col"><span class="dignity-badge ${dg.c}">${dg.d}</span></td>
       <td class="tech-col"><span style="font-family:monospace;font-size:12px;color:${dg.s>0?'#15803D':dg.s<0?'#DC2626':'#888'}">${dg.s>0?'+':''}${dg.s}</span>
@@ -1550,6 +1549,30 @@ function declutterRelLons(relLons,minSep){
   return result;
 }
 
+// Ptolemaic majör açılar — wheel'in iç dairesinde çizilen açı çizgileri için
+// (astro.com tarzı). Orb aralıkları birbiriyle çakışmıyor (en geniş orb olan
+// kavuşum/karşıt ±8° bile sextil'in ±4°'lük bandına asla değmiyor), yani bir
+// gezegen çifti en fazla tek bir açıya uyabilir.
+const ASPECT_DEFS=[
+  {angle:0,orb:8,hard:true},    // kavuşum
+  {angle:60,orb:4,hard:false},  // sextil
+  {angle:90,orb:6,hard:true},   // kare
+  {angle:120,orb:6,hard:false}, // üçgen
+  {angle:180,orb:8,hard:true},  // karşıt
+];
+function angleDiff(a,b){
+  let d=Math.abs(norm(a)-norm(b))%360;
+  if(d>180)d=360-d;
+  return d;
+}
+function findAspect(lon1,lon2){
+  const d=angleDiff(lon1,lon2);
+  for(const asp of ASPECT_DEFS){
+    if(Math.abs(d-asp.angle)<=asp.orb)return asp;
+  }
+  return null;
+}
+
 function renderWheel(pos,ascDeg,cusps,mc){
   const svg=document.getElementById('astroWheel');
   const cx=150,cy=150;
@@ -1576,10 +1599,6 @@ function renderWheel(pos,ascDeg,cusps,mc){
     const amid=wheelAngle(si*30+15,ascDeg);
     const[gx,gy]=wheelPt(cx,cy,(R_OUT+R_SIGN_IN)/2,amid);
     h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
-    // Glyph'in hemen dışına (dış halkaya yakın), tam doygun element rengiyle
-    // küçük bir nokta - element grubunu bir bakışta pekiştirir.
-    const[dx,dy]=wheelPt(cx,cy,R_OUT-4,amid);
-    h+=`<circle cx="${dx}" cy="${dy}" r="2.6" fill="${col}"/>`;
   }
 
   // Ev çizgileri — backend'den gelen gerçek (dengesiz) Placidus cusp dereceleri;
@@ -1616,6 +1635,26 @@ function renderWheel(pos,ascDeg,cusps,mc){
     h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
     h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${p.color}">${p.glyph}</text>`;
   });
+
+  // Açı çizgileri (Ptolemaic majör açılar) — gezegenlerin GERÇEK (decluttered
+  // değil) boylamları arasında, wheel'in iç dairesinde (R_HOUSE_IN) çizilir,
+  // astro.com tarzı. Sert açılar (kavuşum/kare/karşıt) kırmızı, yumuşak açılar
+  // (sextil/üçgen) mavi. <g class="tech-details-field"> ile mevcut "Teknik
+  // Detayları Göster/Gizle" toggle'ının aynısına bağlı - varsayılan gizli,
+  // diğer teknik alanlarla (Ev Sistemi, Dignity paneli vb.) aynı body.show-
+  // tech-details CSS kancasını kullanıyor.
+  let aspectLines='';
+  for(let i=0;i<drawnPlanets.length;i++){
+    for(let j=i+1;j<drawnPlanets.length;j++){
+      const p1=drawnPlanets[i],p2=drawnPlanets[j];
+      const asp=findAspect(pos[p1.id],pos[p2.id]);
+      if(!asp)continue;
+      const[ax1l,ay1l]=wheelPt(cx,cy,R_HOUSE_IN,wheelAngle(pos[p1.id],ascDeg));
+      const[ax2l,ay2l]=wheelPt(cx,cy,R_HOUSE_IN,wheelAngle(pos[p2.id],ascDeg));
+      aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${asp.hard?'#DC2626':'#2563EB'}" stroke-width="0.8" opacity="0.6"/>`;
+    }
+  }
+  if(aspectLines)h+=`<g class="tech-details-field">${aspectLines}</g>`;
 
   // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
   // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
