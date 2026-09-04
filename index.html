@@ -1159,6 +1159,9 @@ const FL=[['mars','sun','venus'],['mercury','moon','saturn'],['jupiter','mars','
 
 function norm(d){return((d%360)+360)%360;}
 function fmtDeg(d){const dd=Math.floor(d),m=Math.floor((d-dd)*60),s=Math.floor(((d-dd)*60-m)*60);return`${dd}°${m}'${s}"`;}
+// Wheel'deki küçük gezegen etiketleri için kompakt derece/dakika (saniyesiz) -
+// mutlak boylamdan (0-360) burç-içi dereceyi (0-30) çıkarır.
+function fmtDegMinInSign(lon){const inSign=norm(lon)%30,dd=Math.floor(inSign),mm=Math.floor((inSign-dd)*60);return`${dd}°${String(mm).padStart(2,'0')}'`;}
 function jd(y,mo,d,h,mi){if(mo<=2){y--;mo+=12;}const A=Math.floor(y/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(mo+1))+d+h/24+mi/1440+B-1524.5;}
 
 function calcPlanets(JD){
@@ -1645,6 +1648,12 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // aynı oransal boşluğu korumak amacıyla), sıkışık kümelerde glyph'ler
   // büyüyünce birbirine değmesin diye.
   const declRelLons=declutterRelLons(trueRelLons,11);
+  // Derece/dakika etiketleri ("24°06'" gibi) glyph'in kendisinden çok daha
+  // geniş bir metin kutusuna sahip - glyph'lerin 11°'lik minSep'i sıkışık
+  // kümelerde etiketler için yetersiz kalıp üst üste binmelerine yol açıyordu
+  // (ölçülüp doğrulandı). Bu yüzden etiketler kendi ayrı, daha geniş declutter
+  // geçişini kullanıyor.
+  const declLabelRelLons=declutterRelLons(trueRelLons,18);
   drawnPlanets.forEach((p,i)=>{
     const trueA=wheelAngle(pos[p.id],ascDeg);
     const declA=wheelAngle(ascDeg+declRelLons[i],ascDeg);
@@ -1652,6 +1661,13 @@ function renderWheel(pos,ascDeg,cusps,mc){
     const[px,py]=wheelPt(cx,cy,R_PLANET,declA);
     h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
     h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
+    // Derece/dakika etiketi — glyph'in genel yakınında, merkeze doğru biraz
+    // içeride ("altında"), ama kendi (daha geniş) declutter açısında. Glyph
+    // rengiyle uyumlu ama soluk (opacity), küçük punto - ana sembolü gölgede
+    // bırakmasın.
+    const labelA=wheelAngle(ascDeg+declLabelRelLons[i],ascDeg);
+    const[lpx,lpy]=wheelPt(cx,cy,R_PLANET-10,labelA);
+    h+=`<text x="${lpx}" y="${lpy}" text-anchor="middle" dominant-baseline="central" font-size="6" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${fmtDegMinInSign(pos[p.id])}</text>`;
   });
 
   // Açı çizgileri (Ptolemaic majör açılar) — gezegenlerin GERÇEK (decluttered
