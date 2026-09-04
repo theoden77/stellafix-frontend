@@ -5,136 +5,147 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stellafix · Klasik Astroloji Demo</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
   :root{
-    --ink:#1a1208;--parchment:#f5f0e8;--parchment-dark:#e8e0cc;
-    --gold:#b8860b;--gold-light:#d4a017;--gold-pale:#f0e6c0;
-    --crimson:#8b1a1a;--lapis:#1a3a5c;--rule:#c8b882;
+    --ink:#1E1B2E;--parchment:#FAFAF8;--parchment-dark:#EDEAE3;
+    --gold:#D4A574;--gold-light:#DFB98C;--gold-pale:#FBF3E8;--gold-dark:#B8874F;
+    --crimson:#DC2626;--lapis:#7C3AED;--lapis-light:#8B5CF6;--lapis-pale:#F1EBFC;--rule:#E5E1DA;
   }
-  body{background:var(--parchment);color:var(--ink);font-family:'EB Garamond',serif;min-height:100vh;font-size:16px;}
-  .header{background:var(--ink);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--gold);}
-  .logo{font-family:'Cinzel',serif;color:var(--gold-light);font-size:20px;letter-spacing:3px;font-weight:700;}
-  .logo span{color:var(--parchment);font-weight:400;font-size:10px;display:block;letter-spacing:3px;margin-top:2px;font-family:'EB Garamond',serif;font-style:italic;}
-  .badge{font-family:'EB Garamond',serif;font-style:italic;color:var(--gold);font-size:12px;border:1px solid var(--gold);padding:3px 10px;}
-  .lang-toggle{display:flex;border:1px solid var(--gold);}
-  .lang-btn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:var(--gold-light);background:transparent;border:none;padding:6px 12px;cursor:pointer;transition:all .15s;}
-  .lang-btn+.lang-btn{border-left:1px solid var(--gold);}
-  .lang-btn:hover{background:rgba(184,134,11,.15);}
-  .lang-btn.active{background:var(--gold);color:var(--ink);}
-  .auth-btn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:var(--gold-light);background:transparent;border:1px solid var(--gold);padding:6px 14px;cursor:pointer;text-transform:uppercase;transition:all .15s;}
-  .auth-btn:hover{background:var(--gold);color:var(--ink);}
-  .auth-btn-logout{border-color:var(--rule);color:var(--parchment);font-size:9px;padding:5px 12px;}
-  .auth-btn-logout:hover{background:var(--rule);color:var(--ink);}
+  body{background:var(--parchment);color:var(--ink);font-family:'Inter',sans-serif;min-height:100vh;font-size:16px;}
+  .header{background:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--rule);}
+  .logo{font-family:'Cinzel',serif;color:var(--lapis);font-size:20px;letter-spacing:2px;font-weight:700;}
+  .lang-toggle{display:flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;}
+  .lang-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--lapis);background:transparent;border:none;padding:7px 13px;cursor:pointer;transition:all .15s;}
+  .lang-btn+.lang-btn{border-left:1px solid var(--rule);}
+  .lang-btn:hover{background:var(--lapis-pale);}
+  .lang-btn.active{background:var(--lapis);color:#fff;}
+  .auth-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:.01em;color:var(--lapis);background:transparent;border:1px solid var(--lapis);border-radius:8px;padding:7px 15px;cursor:pointer;text-transform:none;transition:all .15s;}
+  .auth-btn:hover{background:var(--lapis);color:#fff;}
+  .auth-btn-logout{border-color:var(--rule);color:var(--ink);opacity:.7;font-size:11px;padding:6px 13px;}
+  .auth-btn-logout:hover{background:var(--parchment-dark);color:var(--ink);opacity:1;}
   .auth-account{display:flex;align-items:center;gap:10px;}
-  .auth-user-email{font-family:'EB Garamond',serif;font-style:italic;font-size:12px;color:var(--parchment);opacity:.8;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .auth-confirm-banner{background:var(--gold-pale);border-bottom:3px solid var(--gold);color:var(--ink);padding:12px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
-  .auth-confirm-btn{width:auto;padding:8px 20px;margin-top:0;font-size:10px;}
-  .auth-welcome-banner{background:#eaf5ea;border-bottom:3px solid #2d6a2d;color:#1e4a1e;padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
-  .auth-welcome-dismiss{background:none;border:none;font-size:16px;line-height:1;color:#1e4a1e;cursor:pointer;padding:0;}
-  .auth-btn-upgrade{background:var(--gold);color:var(--ink);border-color:var(--gold);}
-  .auth-btn-upgrade:hover{background:var(--gold-light);}
+  .auth-user-email{font-family:'Inter',sans-serif;font-style:normal;font-size:13px;color:var(--ink);opacity:.65;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .auth-confirm-banner{background:var(--gold-pale);border-bottom:1px solid var(--gold);color:var(--ink);padding:12px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
+  .auth-confirm-btn{width:auto;padding:8px 20px;margin-top:0;font-size:11px;}
+  .auth-welcome-banner{background:#EAF7EE;border-bottom:1px solid #16A34A;color:#15803D;padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
+  .auth-welcome-dismiss{background:none;border:none;font-size:16px;line-height:1;color:inherit;cursor:pointer;padding:0;}
+  .auth-btn-upgrade{background:var(--lapis);color:#fff;border-color:var(--lapis);}
+  .auth-btn-upgrade:hover{background:var(--lapis-light);}
   .auth-btn-upgrade:disabled{opacity:.6;cursor:not-allowed;}
-  .premium-badge{font-size:11px;letter-spacing:.05em;color:var(--gold);border:1px solid var(--gold);padding:6px 12px;white-space:nowrap;}
-  .subscribe-error-banner{background:#fff0f0;border-bottom:3px solid var(--crimson);color:var(--crimson);padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
+  .premium-badge{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--gold-dark);background:var(--gold-pale);border:1px solid var(--gold);border-radius:8px;padding:6px 13px;white-space:nowrap;}
+  .subscribe-error-banner{background:#FEF2F2;border-bottom:1px solid var(--crimson);color:var(--crimson);padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
   .subscribe-error-banner .auth-welcome-dismiss{color:var(--crimson);}
-  .auth-modal-backdrop{position:fixed;inset:0;background:rgba(26,18,8,.55);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;}
-  .auth-modal{background:var(--parchment);border:1px solid var(--gold);border-top:3px solid var(--gold);padding:26px;width:100%;max-width:360px;position:relative;}
+  .auth-modal-backdrop{position:fixed;inset:0;background:rgba(30,27,46,.5);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;}
+  .auth-modal{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:26px;width:100%;max-width:360px;position:relative;box-shadow:0 12px 32px rgba(30,27,46,.16);}
   .auth-modal-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:20px;color:var(--ink);cursor:pointer;line-height:1;padding:4px;}
   .auth-modal-message{margin-top:12px;font-size:13px;line-height:1.5;min-height:1px;}
-  .auth-modal-message.success{color:#2d6a2d;}
+  .auth-modal-message.success{color:#15803D;}
   .auth-modal-message.error{color:var(--crimson);}
-  .container{max-width:1100px;margin:0 auto;padding:28px 16px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  .container{max-width:1320px;margin:0 auto;padding:28px 16px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:700px){.container{grid-template-columns:1fr;}.chart-area{grid-template-columns:1fr!important;}}
-  .panel{background:white;border:1px solid var(--rule);border-top:3px solid var(--gold);padding:22px;}
-  .panel-title{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--parchment-dark);}
+  .panel{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;box-shadow:0 1px 3px rgba(30,27,46,.05);}
+  .panel-title{font-family:'Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:.03em;color:var(--lapis);text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--rule);}
   .form-group{margin-bottom:14px;position:relative;}
-  label{display:block;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--lapis);text-transform:uppercase;margin-bottom:5px;}
-  input,select{width:100%;padding:9px 12px;border:1px solid var(--rule);background:var(--parchment);color:var(--ink);font-family:'EB Garamond',serif;font-size:15px;outline:none;transition:border-color .2s;}
-  input:focus,select:focus{border-color:var(--gold);background:var(--gold-pale);}
+  label{display:block;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--ink);opacity:.6;text-transform:none;margin-bottom:6px;}
+  input,select{width:100%;padding:10px 13px;border:1px solid var(--rule);border-radius:9px;background:var(--parchment);color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s;}
+  input:focus,select:focus{border-color:var(--lapis);background:#fff;box-shadow:0 0 0 3px var(--lapis-pale);}
   .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .btn-primary{width:100%;padding:13px;background:var(--ink);color:var(--gold-light);border:2px solid var(--gold);font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;margin-top:6px;transition:all .2s;}
-  .btn-primary:hover{background:var(--gold);color:var(--ink);}
+  .btn-primary{width:100%;padding:13px;background:var(--lapis);color:#fff;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:.02em;text-transform:none;cursor:pointer;margin-top:6px;transition:all .2s;}
+  .btn-primary:hover{background:var(--lapis-light);}
 
   /* CITY SEARCH */
-  .city-dropdown{position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--gold);z-index:200;max-height:240px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.18);display:none;}
+  .city-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--rule);border-radius:10px;z-index:200;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(30,27,46,.12);display:none;margin-top:4px;}
   .city-option{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--parchment-dark);transition:background .12s;}
   .city-option:hover,.city-option.active{background:var(--gold-pale);}
   .city-name{font-size:15px;font-weight:500;}
   .city-detail{font-size:12px;color:#888;font-style:italic;margin-top:1px;}
-  .city-confirmed{background:var(--gold-pale);border:1px solid var(--gold);padding:7px 12px;font-size:13px;margin-top:6px;display:none;border-radius:0;}
+  .city-confirmed{background:var(--gold-pale);border:1px solid var(--gold);padding:8px 13px;font-size:13px;margin-top:6px;display:none;border-radius:9px;}
   .city-confirmed strong{color:var(--lapis);}
 
   /* TZ BADGE */
-  .tz-badge{display:inline-block;background:var(--lapis);color:white;font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;padding:3px 10px;margin-top:8px;display:none;}
+  .tz-badge{display:inline-block;background:var(--lapis);color:#fff;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.02em;padding:4px 11px;border-radius:7px;margin-top:8px;display:none;}
 
   /* CHART */
-  .chart-area{grid-column:1/-1;display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start;}
-  .wheel-panel{background:white;border:1px solid var(--rule);border-top:3px solid var(--gold);padding:18px;text-align:center;}
-  .results-panel{background:white;border:1px solid var(--rule);border-top:3px solid var(--gold);padding:22px;}
+  .chart-area{grid-column:1/-1;display:grid;grid-template-columns:460px 1fr;gap:24px;align-items:start;}
+  .wheel-panel{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:20px;text-align:center;box-shadow:0 1px 3px rgba(30,27,46,.05);}
+  .results-panel{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;box-shadow:0 1px 3px rgba(30,27,46,.05);}
   .planet-table{width:100%;border-collapse:collapse;font-size:13px;}
-  .planet-table th{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;padding:7px 8px;border-bottom:2px solid var(--rule);text-align:left;}
-  .planet-table td{padding:8px 8px;border-bottom:1px solid var(--parchment-dark);vertical-align:middle;}
-  .planet-table tr:hover td{background:var(--gold-pale);}
+  .planet-table th{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--ink);opacity:.55;text-transform:uppercase;padding:8px;border-bottom:2px solid var(--rule);text-align:left;}
+  .planet-table td{padding:9px 8px;border-bottom:1px solid var(--parchment-dark);vertical-align:middle;}
+  .planet-table tr:hover td{background:var(--parchment);}
+  .tech-col{display:none;}
+  body.show-tech-details .tech-col{display:table-cell;}
   .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;}
-  .dignity-badge{font-size:10px;padding:2px 7px;font-family:'Cinzel',serif;letter-spacing:1px;display:inline-block;}
-  .d-domicile{background:#1a3a5c;color:#d4a017;}
-  .d-exaltation{background:#2d6a2d;color:#a8d4a8;}
-  .d-triplicity{background:#5c3a1a;color:#d4b08c;}
-  .d-term{background:#4a1a4a;color:#d4a8d4;}
-  .d-face{background:#3a3a1a;color:#d4d4a8;}
-  .d-peregrine{background:#3a3a3a;color:#a8a8a8;}
-  .d-detriment{background:#8b1a1a;color:#f0c0c0;}
-  .d-fall{background:#6b1a1a;color:#e0a0a0;}
+  .dignity-badge{font-size:10px;padding:3px 8px;font-family:'Inter',sans-serif;font-weight:600;letter-spacing:.02em;border-radius:6px;display:inline-block;}
+  .d-domicile{background:#EDE9FE;color:#6D28D9;}
+  .d-exaltation{background:#DCFCE7;color:#15803D;}
+  .d-triplicity{background:#FEF3E2;color:#B8874F;}
+  .d-term{background:#FCE7F3;color:#A21CAF;}
+  .d-face{background:#F1F5F9;color:#475569;}
+  .d-peregrine{background:#F3F4F6;color:#6B7280;}
+  .d-detriment{background:#FEE2E2;color:#B91C1C;}
+  .d-fall{background:#FFE4E6;color:#9F1239;}
   .score-bar{height:5px;background:var(--parchment-dark);border-radius:3px;overflow:hidden;margin-top:3px;width:70px;}
   .score-fill{height:100%;border-radius:3px;background:var(--gold);}
   .score-fill.neg{background:var(--crimson);}
-  .analysis-box{background:var(--parchment);border-left:3px solid var(--gold);padding:14px 16px;margin-top:14px;font-style:italic;font-size:14px;line-height:1.75;color:#2a1a08;}
-  .analysis-title{font-style:normal;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
-  .method-note{background:var(--ink);color:var(--parchment);padding:10px 14px;font-size:12px;font-style:italic;margin-top:14px;border-left:3px solid var(--gold);line-height:1.55;}
-  .house-strip{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;}
-  .house-chip{font-size:11px;padding:3px 9px;background:var(--parchment);border:1px solid var(--rule);font-family:'Cinzel',serif;}
-  .house-chip strong{color:var(--lapis);font-size:9px;display:block;}
-  .error-box{background:#fff0f0;border-left:3px solid var(--crimson);padding:10px 14px;margin-top:10px;font-size:13px;color:var(--crimson);display:none;}
+  .analysis-box{background:var(--gold-pale);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:14px 16px;margin-top:14px;font-style:normal;font-size:14px;line-height:1.75;color:var(--ink);}
+  .analysis-title{font-style:normal;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--gold-dark);text-transform:uppercase;margin-bottom:8px;}
+  .method-note{background:var(--parchment-dark);color:var(--ink);padding:11px 14px;font-size:12px;font-style:normal;margin-top:14px;border-radius:10px;border-left:3px solid var(--lapis);line-height:1.55;}
+  .house-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .house-chip{font-size:11px;padding:4px 10px;background:var(--parchment);border:1px solid var(--rule);border-radius:7px;font-family:'Inter',sans-serif;font-weight:500;}
+  .house-chip strong{color:var(--lapis);font-size:10px;display:block;font-weight:700;}
+  .error-box{background:#FEF2F2;border-left:3px solid var(--crimson);border-radius:0 8px 8px 0;padding:10px 14px;margin-top:10px;font-size:13px;color:var(--crimson);display:none;}
+
+  /* TECHNICAL DETAILS TOGGLE */
+  .tech-toggle-bar{grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:-4px;}
+  .tech-toggle-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:var(--lapis-pale);border:1px solid var(--rule);border-radius:20px;padding:7px 16px;cursor:pointer;transition:all .15s;}
+  .tech-toggle-btn:hover{border-color:var(--lapis);}
+  .dignity-panel{display:none;}
+  body.show-tech-details .dignity-panel{display:block;}
+  .natal-panel{grid-column:1/-1;}
+  body.show-tech-details .natal-panel{grid-column:auto;}
+  .tech-details-field{display:none;}
+  body.show-tech-details .tech-details-field{display:block;}
 
   /* INTERPRET / CHAT */
   .interpret-area{grid-column:1/-1;}
   .category-group{margin-bottom:20px;}
   .category-group:last-child{margin-bottom:0;}
-  .category-group-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--lapis);text-transform:uppercase;margin-bottom:8px;}
+  .category-group-label{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--lapis);text-transform:uppercase;margin-bottom:8px;}
   .category-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
-  .category-card{text-align:left;background:var(--parchment);border:1px solid var(--rule);padding:12px 14px;cursor:pointer;font-family:'EB Garamond',serif;transition:all .15s;}
-  .category-card:hover{background:var(--gold-pale);border-color:var(--gold);}
-  .category-card-title{font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;color:var(--ink);margin-bottom:4px;}
-  .category-card-desc{font-size:12px;color:#666;line-height:1.4;}
-  .chat-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--parchment-dark);}
+  .category-card{text-align:left;background:var(--parchment);border:1px solid var(--rule);border-radius:11px;padding:13px 15px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;}
+  .category-card:hover{background:#fff;border-color:var(--lapis);box-shadow:0 4px 12px rgba(30,27,46,.08);}
+  .category-card-title{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px;}
+  .category-card-desc{font-size:12px;color:var(--ink);opacity:.6;line-height:1.4;}
+  .chat-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--rule);}
   .chat-panel-head .panel-title{margin:0;padding:0;border:none;}
-  .chat-back-btn{font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;color:var(--lapis);background:none;border:none;cursor:pointer;text-transform:uppercase;padding:4px 0;}
+  .chat-back-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:none;border:none;cursor:pointer;text-transform:none;padding:4px 0;}
   .chat-back-btn:hover{text-decoration:underline;}
   .chat-messages{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:480px;overflow-y:auto;}
-  .chat-bubble{max-width:80%;padding:12px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;}
-  .chat-bubble.assistant{align-self:flex-start;background:var(--parchment);border-left:3px solid var(--gold);}
-  .chat-bubble.user{align-self:flex-end;background:var(--lapis);color:white;border-right:3px solid var(--gold);}
-  .chat-bubble.error{align-self:flex-start;background:#fff0f0;border-left:3px solid var(--crimson);color:var(--crimson);}
-  .chat-loading{display:flex;align-items:center;gap:12px;padding:10px 2px;font-style:italic;font-size:13px;color:#666;}
-  .chat-spinner{width:20px;height:20px;border:2px solid var(--parchment-dark);border-top-color:var(--gold);border-radius:50%;animation:chatspin .8s linear infinite;flex-shrink:0;}
+  .chat-bubble{max-width:80%;padding:12px 14px;border-radius:12px;font-size:14px;line-height:1.65;white-space:pre-wrap;}
+  .chat-bubble.assistant{align-self:flex-start;background:var(--parchment);border-left:3px solid var(--gold);border-radius:4px 12px 12px 12px;}
+  .chat-bubble.user{align-self:flex-end;background:var(--lapis);color:#fff;border-radius:12px 4px 12px 12px;}
+  .chat-bubble.error{align-self:flex-start;background:#FEF2F2;border-left:3px solid var(--crimson);color:var(--crimson);border-radius:4px 12px 12px 12px;}
+  .chat-loading{display:flex;align-items:center;gap:12px;padding:10px 2px;font-style:normal;font-size:13px;color:var(--ink);opacity:.6;}
+  .chat-spinner{width:20px;height:20px;border:2px solid var(--parchment-dark);border-top-color:var(--lapis);border-radius:50%;animation:chatspin .8s linear infinite;flex-shrink:0;}
   @keyframes chatspin{to{transform:rotate(360deg);}}
   .chat-input-row{display:flex;gap:8px;}
   .chat-input-row input{flex:1;}
-  .chat-input-row .btn-primary{width:auto;padding:9px 20px;margin-top:0;white-space:nowrap;}
+  .chat-input-row .btn-primary{width:auto;padding:10px 22px;margin-top:0;white-space:nowrap;}
   .chat-input-row .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
-  .chat-remaining{font-size:11px;color:#888;margin-top:8px;font-style:italic;}
-  .chat-remaining.exhausted{color:var(--crimson);font-style:normal;}
-  #astroWheel{width:100%;max-width:264px;}
+  .chat-remaining{font-size:11px;color:var(--ink);opacity:.5;margin-top:8px;font-style:normal;}
+  .chat-remaining.exhausted{color:var(--crimson);opacity:1;font-style:normal;}
+  #astroWheel{width:100%;max-width:440px;}
   .ref-table{width:100%;border-collapse:collapse;font-size:14px;}
-  .ref-table th{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--gold);padding:6px 8px;border-bottom:2px solid var(--rule);text-align:left;}
-  .ref-table td{padding:6px 8px;border-bottom:1px solid var(--parchment-dark);}
+  .ref-table th{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--ink);opacity:.55;padding:7px 8px;border-bottom:2px solid var(--rule);text-align:left;text-transform:uppercase;}
+  .ref-table td{padding:7px 8px;border-bottom:1px solid var(--parchment-dark);}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="logo">STELLAFIX<span data-i18n="logoSubtitle">Klasik Batı Astrolojisi · Abu Ma'shar Geleneği</span></div>
+  <div class="logo">STELLAFIX</div>
   <div style="display:flex;align-items:center;gap:14px">
     <button type="button" class="auth-btn" id="authLoginBtn" onclick="openAuthModal()" data-i18n="btnLogin">Giriş Yap</button>
     <div class="auth-account" id="authAccount" style="display:none">
@@ -147,7 +158,6 @@
       <button type="button" class="lang-btn active" data-locale="tr" onclick="setLocale('tr')">TR</button>
       <button type="button" class="lang-btn" data-locale="en" onclick="setLocale('en')">EN</button>
     </div>
-    <div class="badge">Demo v0.3</div>
   </div>
 </div>
 
@@ -180,8 +190,11 @@
 </div>
 
 <div class="container">
+  <div class="tech-toggle-bar">
+    <button type="button" class="tech-toggle-btn" id="techToggleBtn" onclick="toggleTechnicalDetails()">⚙ <span id="techToggleLabel"></span></button>
+  </div>
   <!-- INPUT -->
-  <div class="panel">
+  <div class="panel natal-panel">
     <div class="panel-title" data-i18n="panelNatalTitle">Natal Harita Verisi</div>
 
     <div class="form-group">
@@ -200,11 +213,10 @@
       </div>
     </div>
 
-    <div class="form-group">
+    <div class="form-group tech-details-field">
       <label data-i18n="labelHouseSystem">Ev Sistemi</label>
       <select id="houseSystem">
         <option value="P" data-i18n="optionPlacidus">Placidus (Solar Fire uyumlu)</option>
-        <option value="W" data-i18n="optionWholeSign">Whole Sign (Bütün Burç)</option>
       </select>
     </div>
 
@@ -227,7 +239,7 @@
   </div>
 
   <!-- REFERENCE -->
-  <div class="panel">
+  <div class="panel dignity-panel">
     <div class="panel-title" data-i18n="panelDignityTitle">Essential Dignity Referansı</div>
     <table class="ref-table">
       <thead><tr><th data-i18n="thScore">Puan</th><th>Dignity</th><th data-i18n="thDescription">Açıklama</th></tr></thead>
@@ -243,7 +255,7 @@
       </tbody>
     </table>
     <div class="method-note" style="margin-top:16px">
-      <strong style="color:var(--gold-light);font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px">DEMO v0.3</strong><br>
+      <strong style="color:var(--gold-dark);font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em">DEMO v0.3</strong><br>
       <span data-i18n="noteDemo">500+ şehir veritabanı · Offline çalışır · Jean Meeus algoritmaları ·
       Production'da Swiss Ephemeris Python bağlaması kullanılacaktır.</span>
     </div>
@@ -259,15 +271,15 @@
     <div class="results-panel">
       <div class="panel-title" data-i18n="resultsPanelTitle">Gezegen Pozisyonları · Essential Dignity</div>
       <table class="planet-table">
-        <thead><tr><th></th><th data-i18n="thPlanet">Gezegen</th><th data-i18n="thDegree">Derece</th><th data-i18n="thSign">Burç</th><th data-i18n="thHouse">Ev</th><th>Dignity</th><th data-i18n="thScoreCol">Puan</th></tr></thead>
+        <thead><tr><th></th><th data-i18n="thPlanet">Gezegen</th><th data-i18n="thDegree">Derece</th><th data-i18n="thSign">Burç</th><th data-i18n="thHouse">Ev</th><th class="tech-col">Dignity</th><th class="tech-col" data-i18n="thScoreCol">Puan</th></tr></thead>
         <tbody id="planetBody"></tbody>
       </table>
       <div class="analysis-box" id="analysisBox" style="display:none">
         <div class="analysis-title" data-i18n="analysisTitle">Klasik Analiz Notu</div>
         <div id="analysisText"></div>
       </div>
-      <div id="houseSection" style="display:none;margin-top:14px">
-        <div class="panel-title" style="margin-bottom:6px" data-i18n="houseSectionTitle">Ev Başlangıçları · Whole Sign</div>
+      <div id="houseSection" class="tech-details-field" style="margin-top:14px">
+        <div class="panel-title" style="margin-bottom:6px" data-i18n="houseSectionTitle">Ev Başlangıçları</div>
         <div class="house-strip" id="houseStrip"></div>
       </div>
     </div>
@@ -313,7 +325,6 @@ let currentLocale = 'tr';
 const I18N = {
   tr: {
     pageTitle: "Stellafix · Klasik Astroloji Demo",
-    logoSubtitle: "Klasik Batı Astrolojisi · Abu Ma'shar Geleneği",
     panelNatalTitle: "Natal Harita Verisi",
     labelName: "Ad (isteğe bağlı)",
     placeholderName: "Kişi adı",
@@ -321,7 +332,6 @@ const I18N = {
     labelBirthTime: "Doğum Saati (yerel)",
     labelHouseSystem: "Ev Sistemi",
     optionPlacidus: "Placidus (Solar Fire uyumlu)",
-    optionWholeSign: "Whole Sign (Bütün Burç)",
     labelBirthPlace: "Doğum Yeri",
     placeholderCity: "Şehir adı yazın...",
     btnCalculate: "⚷ Natal Harita Hesapla",
@@ -338,7 +348,7 @@ const I18N = {
     resultsPanelTitle: "Gezegen Pozisyonları · Essential Dignity",
     thPlanet: "Gezegen", thDegree: "Derece", thSign: "Burç", thHouse: "Ev", thScoreCol: "Puan",
     analysisTitle: "Klasik Analiz Notu",
-    houseSectionTitle: "Ev Başlangıçları · Whole Sign",
+    houseSectionTitle: "Ev Başlangıçları",
     errNoDateTime: "Doğum tarihi ve saati gereklidir.",
     errNoCity: "Lütfen doğum yerini seçin. Şehir adı yazıp listeden tıklayın.",
     errFileProtocol: "⚠️ API bağlantısı için dosyayı bir web sunucusundan açın veya aşağıdaki GitHub Pages linkini kullanın. Şimdilik JS hesabına geçiliyor...",
@@ -390,10 +400,11 @@ const I18N = {
     premiumBadge: "✨ Premium Üye",
     subscribeErrAuth: "Bu işlem için giriş yapmış olman gerekiyor.",
     subscribeErrGeneric: "Abonelik işlemi başlatılamadı, tekrar dene.",
+    btnShowTechnical: "Teknik Detayları Göster",
+    btnHideTechnical: "Teknik Detayları Gizle",
   },
   en: {
     pageTitle: "Stellafix · Classical Astrology Demo",
-    logoSubtitle: "Classical Western Astrology · Abu Ma'shar Tradition",
     panelNatalTitle: "Natal Chart Data",
     labelName: "Name (optional)",
     placeholderName: "Person's name",
@@ -401,7 +412,6 @@ const I18N = {
     labelBirthTime: "Birth Time (local)",
     labelHouseSystem: "House System",
     optionPlacidus: "Placidus (Solar Fire compatible)",
-    optionWholeSign: "Whole Sign",
     labelBirthPlace: "Birth Place",
     placeholderCity: "Type a city name...",
     btnCalculate: "⚷ Calculate Natal Chart",
@@ -418,7 +428,7 @@ const I18N = {
     resultsPanelTitle: "Planet Positions · Essential Dignity",
     thPlanet: "Planet", thDegree: "Degree", thSign: "Sign", thHouse: "House", thScoreCol: "Score",
     analysisTitle: "Classical Analysis Note",
-    houseSectionTitle: "House Cusps · Whole Sign",
+    houseSectionTitle: "House Cusps",
     errNoDateTime: "Birth date and time are required.",
     errNoCity: "Please select a birth place. Type a city name and click one from the list.",
     errFileProtocol: "⚠️ Open this file from a web server to use the API connection. Falling back to the JS calculator for now...",
@@ -470,6 +480,8 @@ const I18N = {
     premiumBadge: "✨ Premium Member",
     subscribeErrAuth: "You need to be logged in for this.",
     subscribeErrGeneric: "Couldn't start checkout, please try again.",
+    btnShowTechnical: "Show Technical Details",
+    btnHideTechnical: "Hide Technical Details",
   },
 };
 function t(key){
@@ -482,6 +494,21 @@ function applyStaticText(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ el.placeholder=t(el.dataset.i18nPlaceholder); });
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.locale===currentLocale));
+  updateTechToggleLabel();
+}
+
+// Ev Sistemi seçici ve Essential Dignity referans paneli varsayılan kapalı -
+// çoğu kullanıcı için gürültü; ileri düzey kullanıcı "Teknik Detayları Göster"
+// ile açabilir. body.show-tech-details sınıfı CSS'te bu alanları gösterir.
+let techDetailsVisible=false;
+function toggleTechnicalDetails(){
+  techDetailsVisible=!techDetailsVisible;
+  document.body.classList.toggle('show-tech-details',techDetailsVisible);
+  updateTechToggleLabel();
+}
+function updateTechToggleLabel(){
+  const el=document.getElementById('techToggleLabel');
+  if(el)el.textContent=t(techDetailsVisible?'btnHideTechnical':'btnShowTechnical');
 }
 // Son başarıyla hesaplanan doğum verisi — dil değişince backend'i aynı
 // veriyle yeni locale'de tekrar sorgulamak için kullanılır
@@ -1065,9 +1092,16 @@ const PLANETS=[
 ];
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
 const SIGNS_EN=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
-const SIGN_GLYPHS=['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+const SIGN_GLYPHS=['♈︎','♉︎','♊︎','♋︎','♌︎','♍︎','♎︎','♏︎','♐︎','♑︎','♒︎','♓︎'];
 const LORDS=['Mars','Venüs','Merkür','Ay','Güneş','Merkür','Venüs','Mars','Jüpiter','Satürn','Satürn','Jüpiter'];
 const LORDS_EN=['Mars','Venus','Mercury','Moon','Sun','Mercury','Venus','Mars','Jupiter','Saturn','Saturn','Jupiter'];
+
+// Element rengi (Ateş,Toprak,Hava,Su) — burç sırası her zaman bu döngüde gider
+// (Koç/Aslan/Yay=Ateş, Boğa/Başak/Oğlak=Toprak, İkizler/Terazi/Kova=Hava,
+// Yengeç/Akrep/Balık=Su), yani si%4 doğrudan doğru elementi verir. Wheel'deki
+// burç dilimleri ve gezegen tablosundaki burç noktası aynı bu paletten geliyor.
+const ELEMENT_COLORS=['#E74C3C','#E8B854','#52C97A','#3B4FA0'];
+function elementColorOf(si){return ELEMENT_COLORS[si%4];}
 
 // Yerel (backend'den bağımsız) burç/gezegen etiketleri — currentLocale'e göre
 function signName(si){return currentLocale==='en'?SIGNS_EN[si]:SIGNS[si];}
@@ -1125,6 +1159,9 @@ const FL=[['mars','sun','venus'],['mercury','moon','saturn'],['jupiter','mars','
 
 function norm(d){return((d%360)+360)%360;}
 function fmtDeg(d){const dd=Math.floor(d),m=Math.floor((d-dd)*60),s=Math.floor(((d-dd)*60-m)*60);return`${dd}°${m}'${s}"`;}
+// Wheel'deki küçük gezegen etiketleri için kompakt derece/dakika (saniyesiz) -
+// mutlak boylamdan (0-360) burç-içi dereceyi (0-30) çıkarır.
+function fmtDegMinInSign(lon){const inSign=norm(lon)%30,dd=Math.floor(inSign),mm=Math.floor((inSign-dd)*60);return`${dd}°${String(mm).padStart(2,'0')}'`;}
 function jd(y,mo,d,h,mi){if(mo<=2){y--;mo+=12;}const A=Math.floor(y/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(mo+1))+d+h/24+mi/1440+B-1524.5;}
 
 function calcPlanets(JD){
@@ -1389,13 +1426,36 @@ function renderFromAPI(data,name,dateStr,timeStr){
       <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
-      <td>${SIGN_GLYPHS[si]} ${signName(si)}</td>
-      <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${houseLabel(p.house)}</td>
-      <td>${dg.badges}</td>
-      <td>
-        <span style="font-family:monospace;font-size:12px;color:${dg.neg?'#8b1a1a':dg.scoreText==='—'?'#888':'#2d6a2d'}">${dg.scoreText}</span>
+      <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
+      <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(p.house)}</td>
+      <td class="tech-col">${dg.badges}</td>
+      <td class="tech-col">
+        <span style="font-family:monospace;font-size:12px;color:${dg.neg?'#DC2626':dg.scoreText==='—'?'#888':'#15803D'}">${dg.scoreText}</span>
         <div class="score-bar"><div class="score-fill ${dg.neg?'neg':''}" style="width:${dg.pct}%"></div></div>
       </td>`;
+    tb.appendChild(tr);
+  }
+
+  // Asc satırı — backend'in planets[] listesi bir "gezegen" değil (bkz.
+  // stellafix-backend/app/schemas.py: NatalResponse.planets sadece
+  // PlanetOut'lardan oluşuyor, Asc ayrı bir üst-seviye float alan), bu yüzden
+  // yukarıdaki döngüye hiç girmiyor - JS-fallback yolundaki (renderTable)
+  // Asc satırıyla tutarlı olacak şekilde burada manuel ekleniyor. Dignity/puan
+  // sütunları getDignity('asc',...)'ın döndürdüğü placeholder'la birebir aynı
+  // ({d:'—',s:0,c:''}) - Asc bir gezegen olmadığı için dignity'si yok.
+  {
+    const ascSI=signIndexOf(undefined,data.asc_sign,data.asc);
+    const ascDegInSign=norm(data.asc)%30;
+    const ascPObj=PLANETS.find(x=>x.id==='asc');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="planet-glyph" style="color:${ascPObj.color}">Asc</span></td>
+      <td><strong>Asc</strong></td>
+      <td style="font-family:monospace;font-size:12px">${fmtDeg(ascDegInSign)}</td>
+      <td><span style="color:${elementColorOf(ascSI)}">${SIGN_GLYPHS[ascSI]}</span> ${signName(ascSI)}</td>
+      <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(1)}</td>
+      <td class="tech-col"><span class="dignity-badge ">—</span></td>
+      <td class="tech-col"><span style="font-family:monospace;font-size:12px;color:#888">0</span></td>`;
     tb.appendChild(tr);
   }
 
@@ -1418,8 +1478,8 @@ function renderFromAPI(data,name,dateStr,timeStr){
     `${sentPlanetDignity('moon',t('moonLabel'),signName(moonSI),degreeOnly(moon.degree_fmt),moonDg.label,moonDg.scoreText,moon.dignity_score)}<br><br>`+
     `<em style="font-size:12px;color:#888">✓ Swiss Ephemeris · Placidus · Ptolemy terms</em>`;
 
-  // Evler
-  document.getElementById('houseSection').style.display='block';
+  // Evler — görünürlüğü artık #houseSection'ın .tech-details-field sınıfı
+  // (Teknik Detaylar toggle'ı) belirliyor, burada zorla açılmıyor
   const strip=document.getElementById('houseStrip');strip.innerHTML='';
   for(const h of data.houses){
     const si=signIndexOf(h.sign_index,h.sign,h.cusp);
@@ -1470,11 +1530,11 @@ function renderTable(pos,daytime,houses,getH){
     const tr=document.createElement('tr');
     tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
-      <td style="font-family:monospace;font-size:12px">${p.id==='asc'?'—':fmtDeg(deg)}</td>
-      <td>${SIGN_GLYPHS[si]} ${signName(si)}</td>
-      <td style="font-family:'Cinzel',serif;font-size:11px;color:#2a5a8c">${houseLabel(house)}</td>
-      <td><span class="dignity-badge ${dg.c}">${dg.d}</span></td>
-      <td><span style="font-family:monospace;font-size:12px;color:${dg.s>0?'#2d6a2d':dg.s<0?'#8b1a1a':'#888'}">${dg.s>0?'+':''}${dg.s}</span>
+      <td style="font-family:monospace;font-size:12px">${fmtDeg(deg)}</td>
+      <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
+      <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(house)}</td>
+      <td class="tech-col"><span class="dignity-badge ${dg.c}">${dg.d}</span></td>
+      <td class="tech-col"><span style="font-family:monospace;font-size:12px;color:${dg.s>0?'#15803D':dg.s<0?'#DC2626':'#888'}">${dg.s>0?'+':''}${dg.s}</span>
       ${p.id!=='asc'?`<div class="score-bar"><div class="score-fill ${dg.s<0?'neg':''}" style="width:${pct}%"></div></div>`:''}</td>`;
     tb.appendChild(tr);
   }
@@ -1515,30 +1575,71 @@ function declutterRelLons(relLons,minSep){
   return result;
 }
 
+// Ptolemaic majör açılar — wheel'in iç dairesinde çizilen açı çizgileri için
+// (astro.com tarzı). Orb aralıkları birbiriyle çakışmıyor (en geniş orb olan
+// kavuşum/karşıt ±8° bile sextil'in ±4°'lük bandına asla değmiyor), yani bir
+// gezegen çifti en fazla tek bir açıya uyabilir.
+const ASPECT_DEFS=[
+  {angle:0,orb:8,hard:true},    // kavuşum
+  {angle:60,orb:4,hard:false},  // sextil
+  {angle:90,orb:6,hard:true},   // kare
+  {angle:120,orb:6,hard:false}, // üçgen
+  {angle:180,orb:8,hard:true},  // karşıt
+];
+function angleDiff(a,b){
+  let d=Math.abs(norm(a)-norm(b))%360;
+  if(d>180)d=360-d;
+  return d;
+}
+function findAspect(lon1,lon2){
+  const d=angleDiff(lon1,lon2);
+  for(const asp of ASPECT_DEFS){
+    if(Math.abs(d-asp.angle)<=asp.orb)return asp;
+  }
+  return null;
+}
+
 function renderWheel(pos,ascDeg,cusps,mc){
   const svg=document.getElementById('astroWheel');
   const cx=150,cy=150;
   const R_OUT=116,R_SIGN_IN=92,R_HOUSE_OUT=92,R_HOUSE_IN=26,R_PLANET=76;
   const R_TIP=R_OUT+12,R_LABEL=R_OUT+24;
-  const elementColor=['#a8402f','#4a7a4a','#a8841c','#2f6c8f']; // Ateş,Toprak,Hava,Su (burç sırasına göre %4)
   ascDeg=norm(ascDeg);
   let h='';
 
-  h+=`<circle cx="${cx}" cy="${cy}" r="${R_OUT}" fill="none" stroke="#8a6d2f" stroke-width="1.2"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="${R_SIGN_IN}" fill="none" stroke="#c8b882" stroke-width="1"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="${R_HOUSE_IN}" fill="none" stroke="#c8b882" stroke-width="1"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R_OUT}" fill="none" stroke="#C7C2B8" stroke-width="1.2"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R_SIGN_IN}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R_HOUSE_IN}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
 
   // Burç dilimleri — mutlak 30°'lik burç sınırlarına göre, gerçek (kesirli) asc derecesiyle hizalı
   for(let si=0;si<12;si++){
     const a1=wheelAngle(si*30,ascDeg), a2=a1-(30*Math.PI/180);
     const[x1,y1]=wheelPt(cx,cy,R_OUT,a1), [x2,y2]=wheelPt(cx,cy,R_OUT,a2);
     const[xi1,yi1]=wheelPt(cx,cy,R_SIGN_IN,a1), [xi2,yi2]=wheelPt(cx,cy,R_SIGN_IN,a2);
-    const col=elementColor[si%4];
-    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}1a" stroke="#c8b882" stroke-width="0.6"/>`;
-    h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#c8b882" stroke-width="0.6"/>`;
+    const col=elementColorOf(si);
+    // Alfa "59"(~%35) - önceki "33"(~%20) zeminle/diğer öğelerle çakışacak
+    // kadar soluktu, element grupları bir bakışta ayırt edilemiyordu; %35
+    // hâlâ pastel ama net görünür.
+    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}59" stroke="#D9D5CC" stroke-width="0.6"/>`;
+    h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#D9D5CC" stroke-width="0.6"/>`;
     const amid=wheelAngle(si*30+15,ascDeg);
     const[gx,gy]=wheelPt(cx,cy,(R_OUT+R_SIGN_IN)/2,amid);
     h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
+  }
+
+  // Derece tikleri (astro.com tarzı) — mutlak ekliptik dereceye göre, wheel'in
+  // en dış halkasının hemen dışında. 30°'lik burç sınırları zaten kendi
+  // çizgisine sahip (yukarıdaki döngü), o yüzden burada atlanıyor. Sayı
+  // etiketi yok, sadece ince/düşük kontrastlı çizgiler - teknik detay değil,
+  // standart bir harita okuma yardımcısı olduğu için toggle'a bağlı değil,
+  // varsayılan görünümde de gösteriliyor.
+  for(let deg=0;deg<360;deg+=5){
+    if(deg%30===0)continue;
+    const tickA=wheelAngle(deg,ascDeg);
+    const isTen=deg%10===0;
+    const[tix,tiy]=wheelPt(cx,cy,R_OUT,tickA);
+    const[tox,toy]=wheelPt(cx,cy,R_OUT+(isTen?6:3),tickA);
+    h+=`<line x1="${tix}" y1="${tiy}" x2="${tox}" y2="${toy}" stroke="#B5B0A3" stroke-width="${isTen?0.6:0.4}"/>`;
   }
 
   // Ev çizgileri — backend'den gelen gerçek (dengesiz) Placidus cusp dereceleri;
@@ -1553,12 +1654,12 @@ function renderWheel(pos,ascDeg,cusps,mc){
     const a=wheelAngle(lon,ascDeg);
     const[ox,oy]=wheelPt(cx,cy,R_HOUSE_OUT,a), [ix,iy]=wheelPt(cx,cy,R_HOUSE_IN,a);
     const isAngular=(i===0||i===3||i===6||i===9);
-    h+=`<line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${isAngular?'#8b1a1a':'#b8860b'}" stroke-width="${isAngular?1.4:0.7}"/>`;
+    h+=`<line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${isAngular?'#7C3AED':'#D4A574'}" stroke-width="${isAngular?1.4:0.7}"/>`;
     const nextLon=cuspLons[(i+1)%12];
     let span=norm(nextLon-lon); if(span<=0)span=30;
     const labelA=wheelAngle(lon+span/2,ascDeg);
     const[lx,ly]=wheelPt(cx,cy,R_HOUSE_IN+10,labelA);
-    h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="7.5" fill="#8a6d2f" font-family="Cinzel,serif">${i+1}</text>`;
+    h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="7.5" fill="#8a8378" font-family="Inter,sans-serif" font-weight="600">${i+1}</text>`;
   }
 
   // Gezegenler — gerçek boylam üzerinden hesaplanan açı (norm/mod HATASI YOK).
@@ -1566,33 +1667,69 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // ince lider çizgisi her zaman gerçek dereceyi gösteriyor.
   const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
   const trueRelLons=drawnPlanets.map(p=>norm(pos[p.id]-ascDeg));
-  const declRelLons=declutterRelLons(trueRelLons,8);
+  // minSep 8°→11° - font-size 12→15 büyüdüğü için (R_PLANET=76 yarıçapında
+  // aynı oransal boşluğu korumak amacıyla), sıkışık kümelerde glyph'ler
+  // büyüyünce birbirine değmesin diye.
+  const declRelLons=declutterRelLons(trueRelLons,11);
+  // Derece/dakika etiketleri ("24°06'" gibi) glyph'in kendisinden çok daha
+  // geniş bir metin kutusuna sahip - glyph'lerin 11°'lik minSep'i sıkışık
+  // kümelerde etiketler için yetersiz kalıp üst üste binmelerine yol açıyordu
+  // (ölçülüp doğrulandı). Bu yüzden etiketler kendi ayrı, daha geniş declutter
+  // geçişini kullanıyor.
+  const declLabelRelLons=declutterRelLons(trueRelLons,18);
   drawnPlanets.forEach((p,i)=>{
     const trueA=wheelAngle(pos[p.id],ascDeg);
     const declA=wheelAngle(ascDeg+declRelLons[i],ascDeg);
     const[tx,ty]=wheelPt(cx,cy,R_HOUSE_OUT,trueA);
     const[px,py]=wheelPt(cx,cy,R_PLANET,declA);
     h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
-    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${p.color}">${p.glyph}</text>`;
+    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
+    // Derece/dakika etiketi — glyph'in genel yakınında, merkeze doğru biraz
+    // içeride ("altında"), ama kendi (daha geniş) declutter açısında. Glyph
+    // rengiyle uyumlu ama soluk (opacity), küçük punto - ana sembolü gölgede
+    // bırakmasın.
+    const labelA=wheelAngle(ascDeg+declLabelRelLons[i],ascDeg);
+    const[lpx,lpy]=wheelPt(cx,cy,R_PLANET-10,labelA);
+    h+=`<text x="${lpx}" y="${lpy}" text-anchor="middle" dominant-baseline="central" font-size="6" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${fmtDegMinInSign(pos[p.id])}</text>`;
   });
+
+  // Açı çizgileri (Ptolemaic majör açılar) — gezegenlerin GERÇEK (decluttered
+  // değil) boylamları arasında, wheel'in iç dairesinde (R_HOUSE_IN) çizilir,
+  // astro.com tarzı. Sert açılar (kavuşum/kare/karşıt) kırmızı, yumuşak açılar
+  // (sextil/üçgen) mavi. <g class="tech-details-field"> ile mevcut "Teknik
+  // Detayları Göster/Gizle" toggle'ının aynısına bağlı - varsayılan gizli,
+  // diğer teknik alanlarla (Ev Sistemi, Dignity paneli vb.) aynı body.show-
+  // tech-details CSS kancasını kullanıyor.
+  let aspectLines='';
+  for(let i=0;i<drawnPlanets.length;i++){
+    for(let j=i+1;j<drawnPlanets.length;j++){
+      const p1=drawnPlanets[i],p2=drawnPlanets[j];
+      const asp=findAspect(pos[p1.id],pos[p2.id]);
+      if(!asp)continue;
+      const[ax1l,ay1l]=wheelPt(cx,cy,R_HOUSE_IN,wheelAngle(pos[p1.id],ascDeg));
+      const[ax2l,ay2l]=wheelPt(cx,cy,R_HOUSE_IN,wheelAngle(pos[p2.id],ascDeg));
+      aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${asp.hard?'#DC2626':'#2563EB'}" stroke-width="0.8" opacity="0.6"/>`;
+    }
+  }
+  if(aspectLines)h+=`<g class="tech-details-field">${aspectLines}</g>`;
 
   // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
   // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
   const ascA=wheelAngle(ascDeg,ascDeg);
   const[ax1,ay1]=wheelPt(cx,cy,R_HOUSE_IN,ascA), [ax2,ay2]=wheelPt(cx,cy,R_TIP,ascA);
   const[alx,aly]=wheelPt(cx,cy,R_LABEL,ascA);
-  h+=`<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="#8b1a1a" stroke-width="2"/>`;
-  h+=`<text x="${alx}" y="${aly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#8b1a1a" font-family="Cinzel,serif">ASC</text>`;
+  h+=`<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="#DC143C" stroke-width="1.5"/>`;
+  h+=`<text x="${alx}" y="${aly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#DC143C" font-family="Inter,sans-serif" font-weight="700">ASC</text>`;
 
   if(typeof mc==='number'){
     const mcA=wheelAngle(mc,ascDeg);
     const[mx1,my1]=wheelPt(cx,cy,R_HOUSE_IN,mcA), [mx2,my2]=wheelPt(cx,cy,R_TIP,mcA);
     const[mlx,mly]=wheelPt(cx,cy,R_LABEL,mcA);
     h+=`<line x1="${mx1}" y1="${my1}" x2="${mx2}" y2="${my2}" stroke="#1a3a5c" stroke-width="2"/>`;
-    h+=`<text x="${mlx}" y="${mly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a3a5c" font-family="Cinzel,serif">MC</text>`;
+    h+=`<text x="${mlx}" y="${mly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a3a5c" font-family="Inter,sans-serif" font-weight="700">MC</text>`;
   }
 
-  h+=`<circle cx="${cx}" cy="${cy}" r="3" fill="#8a6d2f"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="3" fill="#8a8378"/>`;
   svg.innerHTML=h;
 }
 
@@ -1609,7 +1746,6 @@ function renderAnalysis(pos,daytime,getH){
 }
 
 function renderHouses(houses){
-  document.getElementById('houseSection').style.display='block';
   const s=document.getElementById('houseStrip');s.innerHTML='';
   for(let i=0;i<12;i++){
     const c=document.createElement('div');c.className='house-chip';
