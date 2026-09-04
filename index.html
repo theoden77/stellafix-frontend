@@ -1568,11 +1568,18 @@ function renderWheel(pos,ascDeg,cusps,mc){
     const[x1,y1]=wheelPt(cx,cy,R_OUT,a1), [x2,y2]=wheelPt(cx,cy,R_OUT,a2);
     const[xi1,yi1]=wheelPt(cx,cy,R_SIGN_IN,a1), [xi2,yi2]=wheelPt(cx,cy,R_SIGN_IN,a2);
     const col=elementColorOf(si);
-    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}33" stroke="#D9D5CC" stroke-width="0.6"/>`;
+    // Alfa "59"(~%35) - önceki "33"(~%20) zeminle/diğer öğelerle çakışacak
+    // kadar soluktu, element grupları bir bakışta ayırt edilemiyordu; %35
+    // hâlâ pastel ama net görünür.
+    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}59" stroke="#D9D5CC" stroke-width="0.6"/>`;
     h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#D9D5CC" stroke-width="0.6"/>`;
     const amid=wheelAngle(si*30+15,ascDeg);
     const[gx,gy]=wheelPt(cx,cy,(R_OUT+R_SIGN_IN)/2,amid);
     h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
+    // Glyph'in hemen dışına (dış halkaya yakın), tam doygun element rengiyle
+    // küçük bir nokta - element grubunu bir bakışta pekiştirir.
+    const[dx,dy]=wheelPt(cx,cy,R_OUT-4,amid);
+    h+=`<circle cx="${dx}" cy="${dy}" r="2.6" fill="${col}"/>`;
   }
 
   // Ev çizgileri — backend'den gelen gerçek (dengesiz) Placidus cusp dereceleri;
