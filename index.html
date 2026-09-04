@@ -1436,6 +1436,29 @@ function renderFromAPI(data,name,dateStr,timeStr){
     tb.appendChild(tr);
   }
 
+  // Asc satırı — backend'in planets[] listesi bir "gezegen" değil (bkz.
+  // stellafix-backend/app/schemas.py: NatalResponse.planets sadece
+  // PlanetOut'lardan oluşuyor, Asc ayrı bir üst-seviye float alan), bu yüzden
+  // yukarıdaki döngüye hiç girmiyor - JS-fallback yolundaki (renderTable)
+  // Asc satırıyla tutarlı olacak şekilde burada manuel ekleniyor. Dignity/puan
+  // sütunları getDignity('asc',...)'ın döndürdüğü placeholder'la birebir aynı
+  // ({d:'—',s:0,c:''}) - Asc bir gezegen olmadığı için dignity'si yok.
+  {
+    const ascSI=signIndexOf(undefined,data.asc_sign,data.asc);
+    const ascDegInSign=norm(data.asc)%30;
+    const ascPObj=PLANETS.find(x=>x.id==='asc');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="planet-glyph" style="color:${ascPObj.color}">Asc</span></td>
+      <td><strong>Asc</strong></td>
+      <td style="font-family:monospace;font-size:12px">${fmtDeg(ascDegInSign)}</td>
+      <td><span style="color:${elementColorOf(ascSI)}">${SIGN_GLYPHS[ascSI]}</span> ${signName(ascSI)}</td>
+      <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(1)}</td>
+      <td class="tech-col"><span class="dignity-badge ">—</span></td>
+      <td class="tech-col"><span style="font-family:monospace;font-size:12px;color:#888">0</span></td>`;
+    tb.appendChild(tr);
+  }
+
   // Harita tekerleği — asc tam ekliptik boylam (float), cusps gerçek Placidus dereceleri
   const cusps=(Array.isArray(data.cusps)&&data.cusps.length===12)?data.cusps.map(norm):[];
   renderWheel(pos, data.asc, cusps, typeof data.mc==='number'?norm(data.mc):null);
@@ -1507,7 +1530,7 @@ function renderTable(pos,daytime,houses,getH){
     const tr=document.createElement('tr');
     tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
-      <td style="font-family:monospace;font-size:12px">${p.id==='asc'?'—':fmtDeg(deg)}</td>
+      <td style="font-family:monospace;font-size:12px">${fmtDeg(deg)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
       <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(house)}</td>
       <td class="tech-col"><span class="dignity-badge ${dg.c}">${dg.d}</span></td>
