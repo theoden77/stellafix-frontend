@@ -1626,14 +1626,17 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // ince lider çizgisi her zaman gerçek dereceyi gösteriyor.
   const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
   const trueRelLons=drawnPlanets.map(p=>norm(pos[p.id]-ascDeg));
-  const declRelLons=declutterRelLons(trueRelLons,8);
+  // minSep 8°→11° - font-size 12→15 büyüdüğü için (R_PLANET=76 yarıçapında
+  // aynı oransal boşluğu korumak amacıyla), sıkışık kümelerde glyph'ler
+  // büyüyünce birbirine değmesin diye.
+  const declRelLons=declutterRelLons(trueRelLons,11);
   drawnPlanets.forEach((p,i)=>{
     const trueA=wheelAngle(pos[p.id],ascDeg);
     const declA=wheelAngle(ascDeg+declRelLons[i],ascDeg);
     const[tx,ty]=wheelPt(cx,cy,R_HOUSE_OUT,trueA);
     const[px,py]=wheelPt(cx,cy,R_PLANET,declA);
     h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
-    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${p.color}">${p.glyph}</text>`;
+    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
   });
 
   // Açı çizgileri (Ptolemaic majör açılar) — gezegenlerin GERÇEK (decluttered
