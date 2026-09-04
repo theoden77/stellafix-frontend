@@ -15,7 +15,6 @@
   body{background:var(--parchment);color:var(--ink);font-family:'Inter',sans-serif;min-height:100vh;font-size:16px;}
   .header{background:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--rule);}
   .logo{font-family:'Cinzel',serif;color:var(--lapis);font-size:20px;letter-spacing:2px;font-weight:700;}
-  .logo span{color:var(--ink);opacity:.55;font-weight:400;font-size:10px;display:block;letter-spacing:.4px;margin-top:2px;font-family:'Inter',sans-serif;font-style:normal;}
   .lang-toggle{display:flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;}
   .lang-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--lapis);background:transparent;border:none;padding:7px 13px;cursor:pointer;transition:all .15s;}
   .lang-btn+.lang-btn{border-left:1px solid var(--rule);}
@@ -78,6 +77,7 @@
   .tech-col{display:none;}
   body.show-tech-details .tech-col{display:table-cell;}
   .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;}
+  .element-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
   .dignity-badge{font-size:10px;padding:3px 8px;font-family:'Inter',sans-serif;font-weight:600;letter-spacing:.02em;border-radius:6px;display:inline-block;}
   .d-domicile{background:#EDE9FE;color:#6D28D9;}
   .d-exaltation{background:#DCFCE7;color:#15803D;}
@@ -146,7 +146,7 @@
 <body>
 
 <div class="header">
-  <div class="logo">STELLAFIX<span data-i18n="logoSubtitle">Klasik Batı Astrolojisi · Abu Ma'shar Geleneği</span></div>
+  <div class="logo">STELLAFIX</div>
   <div style="display:flex;align-items:center;gap:14px">
     <button type="button" class="auth-btn" id="authLoginBtn" onclick="openAuthModal()" data-i18n="btnLogin">Giriş Yap</button>
     <div class="auth-account" id="authAccount" style="display:none">
@@ -218,7 +218,6 @@
       <label data-i18n="labelHouseSystem">Ev Sistemi</label>
       <select id="houseSystem">
         <option value="P" data-i18n="optionPlacidus">Placidus (Solar Fire uyumlu)</option>
-        <option value="W" data-i18n="optionWholeSign">Whole Sign (Bütün Burç)</option>
       </select>
     </div>
 
@@ -280,8 +279,8 @@
         <div class="analysis-title" data-i18n="analysisTitle">Klasik Analiz Notu</div>
         <div id="analysisText"></div>
       </div>
-      <div id="houseSection" style="display:none;margin-top:14px">
-        <div class="panel-title" style="margin-bottom:6px" data-i18n="houseSectionTitle">Ev Başlangıçları · Whole Sign</div>
+      <div id="houseSection" class="tech-details-field" style="margin-top:14px">
+        <div class="panel-title" style="margin-bottom:6px" data-i18n="houseSectionTitle">Ev Başlangıçları</div>
         <div class="house-strip" id="houseStrip"></div>
       </div>
     </div>
@@ -327,7 +326,6 @@ let currentLocale = 'tr';
 const I18N = {
   tr: {
     pageTitle: "Stellafix · Klasik Astroloji Demo",
-    logoSubtitle: "Klasik Batı Astrolojisi · Abu Ma'shar Geleneği",
     panelNatalTitle: "Natal Harita Verisi",
     labelName: "Ad (isteğe bağlı)",
     placeholderName: "Kişi adı",
@@ -335,7 +333,6 @@ const I18N = {
     labelBirthTime: "Doğum Saati (yerel)",
     labelHouseSystem: "Ev Sistemi",
     optionPlacidus: "Placidus (Solar Fire uyumlu)",
-    optionWholeSign: "Whole Sign (Bütün Burç)",
     labelBirthPlace: "Doğum Yeri",
     placeholderCity: "Şehir adı yazın...",
     btnCalculate: "⚷ Natal Harita Hesapla",
@@ -352,7 +349,7 @@ const I18N = {
     resultsPanelTitle: "Gezegen Pozisyonları · Essential Dignity",
     thPlanet: "Gezegen", thDegree: "Derece", thSign: "Burç", thHouse: "Ev", thScoreCol: "Puan",
     analysisTitle: "Klasik Analiz Notu",
-    houseSectionTitle: "Ev Başlangıçları · Whole Sign",
+    houseSectionTitle: "Ev Başlangıçları",
     errNoDateTime: "Doğum tarihi ve saati gereklidir.",
     errNoCity: "Lütfen doğum yerini seçin. Şehir adı yazıp listeden tıklayın.",
     errFileProtocol: "⚠️ API bağlantısı için dosyayı bir web sunucusundan açın veya aşağıdaki GitHub Pages linkini kullanın. Şimdilik JS hesabına geçiliyor...",
@@ -409,7 +406,6 @@ const I18N = {
   },
   en: {
     pageTitle: "Stellafix · Classical Astrology Demo",
-    logoSubtitle: "Classical Western Astrology · Abu Ma'shar Tradition",
     panelNatalTitle: "Natal Chart Data",
     labelName: "Name (optional)",
     placeholderName: "Person's name",
@@ -417,7 +413,6 @@ const I18N = {
     labelBirthTime: "Birth Time (local)",
     labelHouseSystem: "House System",
     optionPlacidus: "Placidus (Solar Fire compatible)",
-    optionWholeSign: "Whole Sign",
     labelBirthPlace: "Birth Place",
     placeholderCity: "Type a city name...",
     btnCalculate: "⚷ Calculate Natal Chart",
@@ -434,7 +429,7 @@ const I18N = {
     resultsPanelTitle: "Planet Positions · Essential Dignity",
     thPlanet: "Planet", thDegree: "Degree", thSign: "Sign", thHouse: "House", thScoreCol: "Score",
     analysisTitle: "Classical Analysis Note",
-    houseSectionTitle: "House Cusps · Whole Sign",
+    houseSectionTitle: "House Cusps",
     errNoDateTime: "Birth date and time are required.",
     errNoCity: "Please select a birth place. Type a city name and click one from the list.",
     errFileProtocol: "⚠️ Open this file from a web server to use the API connection. Falling back to the JS calculator for now...",
@@ -1102,6 +1097,13 @@ const SIGN_GLYPHS=['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','
 const LORDS=['Mars','Venüs','Merkür','Ay','Güneş','Merkür','Venüs','Mars','Jüpiter','Satürn','Satürn','Jüpiter'];
 const LORDS_EN=['Mars','Venus','Mercury','Moon','Sun','Mercury','Venus','Mars','Jupiter','Saturn','Saturn','Jupiter'];
 
+// Element rengi (Ateş,Toprak,Hava,Su) — burç sırası her zaman bu döngüde gider
+// (Koç/Aslan/Yay=Ateş, Boğa/Başak/Oğlak=Toprak, İkizler/Terazi/Kova=Hava,
+// Yengeç/Akrep/Balık=Su), yani si%4 doğrudan doğru elementi verir. Wheel'deki
+// burç dilimleri ve gezegen tablosundaki burç noktası aynı bu paletten geliyor.
+const ELEMENT_COLORS=['#E74C3C','#E8B854','#52C97A','#3B4FA0'];
+function elementColorOf(si){return ELEMENT_COLORS[si%4];}
+
 // Yerel (backend'den bağımsız) burç/gezegen etiketleri — currentLocale'e göre
 function signName(si){return currentLocale==='en'?SIGNS_EN[si]:SIGNS[si];}
 function lordName(si){return currentLocale==='en'?LORDS_EN[si]:LORDS[si];}
@@ -1422,7 +1424,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
       <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
-      <td>${SIGN_GLYPHS[si]} ${signName(si)}</td>
+      <td><span class="element-dot" style="background:${elementColorOf(si)}"></span>${SIGN_GLYPHS[si]} ${signName(si)}</td>
       <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(p.house)}</td>
       <td class="tech-col">${dg.badges}</td>
       <td class="tech-col">
@@ -1451,8 +1453,8 @@ function renderFromAPI(data,name,dateStr,timeStr){
     `${sentPlanetDignity('moon',t('moonLabel'),signName(moonSI),degreeOnly(moon.degree_fmt),moonDg.label,moonDg.scoreText,moon.dignity_score)}<br><br>`+
     `<em style="font-size:12px;color:#888">✓ Swiss Ephemeris · Placidus · Ptolemy terms</em>`;
 
-  // Evler
-  document.getElementById('houseSection').style.display='block';
+  // Evler — görünürlüğü artık #houseSection'ın .tech-details-field sınıfı
+  // (Teknik Detaylar toggle'ı) belirliyor, burada zorla açılmıyor
   const strip=document.getElementById('houseStrip');strip.innerHTML='';
   for(const h of data.houses){
     const si=signIndexOf(h.sign_index,h.sign,h.cusp);
@@ -1504,7 +1506,7 @@ function renderTable(pos,daytime,houses,getH){
     tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
       <td style="font-family:monospace;font-size:12px">${p.id==='asc'?'—':fmtDeg(deg)}</td>
-      <td>${SIGN_GLYPHS[si]} ${signName(si)}</td>
+      <td><span class="element-dot" style="background:${elementColorOf(si)}"></span>${SIGN_GLYPHS[si]} ${signName(si)}</td>
       <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(house)}</td>
       <td class="tech-col"><span class="dignity-badge ${dg.c}">${dg.d}</span></td>
       <td class="tech-col"><span style="font-family:monospace;font-size:12px;color:${dg.s>0?'#15803D':dg.s<0?'#DC2626':'#888'}">${dg.s>0?'+':''}${dg.s}</span>
@@ -1553,7 +1555,6 @@ function renderWheel(pos,ascDeg,cusps,mc){
   const cx=150,cy=150;
   const R_OUT=116,R_SIGN_IN=92,R_HOUSE_OUT=92,R_HOUSE_IN=26,R_PLANET=76;
   const R_TIP=R_OUT+12,R_LABEL=R_OUT+24;
-  const elementColor=['#a8402f','#4a7a4a','#a8841c','#2f6c8f']; // Ateş,Toprak,Hava,Su (burç sırasına göre %4)
   ascDeg=norm(ascDeg);
   let h='';
 
@@ -1566,8 +1567,8 @@ function renderWheel(pos,ascDeg,cusps,mc){
     const a1=wheelAngle(si*30,ascDeg), a2=a1-(30*Math.PI/180);
     const[x1,y1]=wheelPt(cx,cy,R_OUT,a1), [x2,y2]=wheelPt(cx,cy,R_OUT,a2);
     const[xi1,yi1]=wheelPt(cx,cy,R_SIGN_IN,a1), [xi2,yi2]=wheelPt(cx,cy,R_SIGN_IN,a2);
-    const col=elementColor[si%4];
-    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}1a" stroke="#D9D5CC" stroke-width="0.6"/>`;
+    const col=elementColorOf(si);
+    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}33" stroke="#D9D5CC" stroke-width="0.6"/>`;
     h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#D9D5CC" stroke-width="0.6"/>`;
     const amid=wheelAngle(si*30+15,ascDeg);
     const[gx,gy]=wheelPt(cx,cy,(R_OUT+R_SIGN_IN)/2,amid);
@@ -1642,7 +1643,6 @@ function renderAnalysis(pos,daytime,getH){
 }
 
 function renderHouses(houses){
-  document.getElementById('houseSection').style.display='block';
   const s=document.getElementById('houseStrip');s.innerHTML='';
   for(let i=0;i<12;i++){
     const c=document.createElement('div');c.className='house-chip';
