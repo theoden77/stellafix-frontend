@@ -1961,31 +1961,51 @@ const PLANET_SYMBOL_FLOOR=PLANET_BAND_IN+1.5;
 // böylece hangi formülle birleştirilirse birleştirilsin pay bir kez ve
 // tutarlı şekilde hesaba katılmış olur.
 const SAFETY=1.4;
+// Gezegen derece etiketinin punto boyutu ARTIK cascade edilmiyor - cusp
+// derecesiyle (CUSP_DEG_R'nin font-size'ı, 6.5) HER ZAMAN aynı, sabit.
+// Önceki sürümde etiket, sembolle AYNI oranda küçülüyordu
+// (labelFontSize=6.5*fontSize/15) - bu, en ufak bir sıkışıklıkta bile
+// etiketi cusp etiketinin ALTINA düşürüyordu (gerçek 20.11.1981 haritasında
+// ölçülüp doğrulandı: etiketler 1-3px'e kadar küçülmüştü, okunamaz
+// durumdaydı). Etiketin punto boyutu artık KENDİ boyutu için bir "taban"
+// (asla altına inilmeyecek minimum) - sıkışıklığı çözmek için SADECE sembol
+// küçülüyor (bkz. FONT_SIZES, artık sadece sembol/glyph içindir). Etiketin
+// sabit boyutu, kademeler arası adımın (step) HİÇBİR ZAMAN sıfıra
+// yaklaşmayan bir tabanı olmasını sağlıyor - sembol ne kadar küçülürse
+// küçülsün etiket-etiket adımı (radialStepFor(FIXED_LABEL_BOX)) sabit
+// kalır; bu taban aşıldığında (n. üye artık sığmıyorsa) sembolü DAHA DA
+// küçültmek yerine leader line'a geçilir (bkz. usableLevels/aşağıdaki not).
+const LABEL_FONT_SIZE=6.5;
+// LABEL_BOX referans punto 6'da ölçüldü (GLYPH_BOX'ın referansı 15'ten
+// FARKLI - bkz. GLYPH_BOX/LABEL_BOX tanımındaki not). Ölçek payı bu yüzden
+// LABEL_FONT_SIZE/6 olmalı, /15 DEĞİL - bu karışıklık gerçek bir çakışmaya
+// yol açtı (tek başına, hiçbir komşusu olmayan bir gezegen bile saf yatayda
+// kendi etiketiyle çakışıyordu, ölçülüp doğrulandı): /15 kullanmak
+// FIXED_LABEL_BOX'ı olması gerekenden ~%60 daha KÜÇÜK hesaplıyordu.
+const FIXED_LABEL_BOX=(()=>{const s=LABEL_FONT_SIZE/6*SAFETY;return{w:LABEL_BOX.w*s,h:LABEL_BOX.h*s};})();
 function planetLevelRadii(memberAngles){
   const n=memberAngles.length;
   function attempt(fontSize){
     const scale=fontSize/15*SAFETY;
     const glyphBox={w:GLYPH_BOX.w*scale,h:GLYPH_BOX.h*scale};
-    const labelBox={w:LABEL_BOX.w*scale,h:LABEL_BOX.h*scale};
     // GAP (bir gezegenin KENDİ etiketi ile KENDİ sembolü arasındaki mesafe)
     // sabit bir sayı DEĞİL - ikisi AYNI ışın üzerinde (aynı açı) olduğundan,
     // gerekli mesafe SADECE o üyenin kendi açısına bağlı (pairRadialStep).
-    // Yatay yönlerde ETİKETİN GENİŞLİĞİ (LABEL_BOX.w=23, glyph'ten çok daha
-    // geniş) baskın çıkıyor - saf yatayda (ör. tam ASC/DSC üzerinde) tek
-        // başına, hiçbir komşusu olmayan bir gezegen bile etiket+sembolünü
-    // çakışmadan sığdırmak için punto küçültmeye ihtiyaç duyabiliyor
-    // (ölçülüp doğrulandı). Bu yüzden n=1 (tek gezegen) ve n>1 (küme) AYNI
-    // kademeli-sığma mantığından geçiyor. Kümedeki HER üyenin kendi açısı
-    // ayrı değerlendirilip en kısıtlayıcısı (maksimum) kullanılır.
+    // Etiket artık SABİT boyutta (FIXED_LABEL_BOX) - sadece sembol (glyph)
+    // kademeli küçülüyor. Kümedeki HER üyenin kendi açısı ayrı
+    // değerlendirilip en kısıtlayıcısı (maksimum) kullanılır.
     let gap=0;
-    for(const a of memberAngles)gap=Math.max(gap,pairRadialStep(a,glyphBox,labelBox));
+    for(const a of memberAngles)gap=Math.max(gap,pairRadialStep(a,glyphBox,FIXED_LABEL_BOX));
     // Kademeler arası adım (n>1 için): bir sonraki kademenin etiketi bu
     // kademenin sembolünden (glyph-glyph), bir sonraki kademenin sembolü bu
     // kademenin sembolünden GAP kadar daha içeride olduğundan asıl kısıtlayıcı
     // çapraz mesafe "bu kademenin sembolü - bir sonraki kademenin etiketi" =
     // step-gap'tir; bu yüzden step >= pairRadialStep(glyph,label)+gap olmalı.
     // Ayrıca aynı-tip çiftler (glyph-glyph, etiket-etiket) için de step yeterli
-    // olmalı. Her üyenin kendi açısı ayrı değerlendirilip en büyüğü alınır.
+    // olmalı - etiket SABİT olduğundan radialStepFor(FIXED_LABEL_BOX) da
+    // sabit bir taban oluşturuyor (sembol küçülse bile step bu tabanın
+    // altına inemez). Her üyenin kendi açısı ayrı değerlendirilip en büyüğü
+    // alınır.
     //
     // +0.8 SABİT pay: komşu kademeler kümenin İÇİNDE farklı üyelere ait
     // olduğundan (ör. sun 60.0°, moon 59.25°) GERÇEKTE birbirinden FARKLI
@@ -1996,7 +2016,7 @@ function planetLevelRadii(memberAngles){
     // birim) kalan sapma, ölçülüp doğrulanan sabit bir payla kapatılıyor.
     let step=0;
     for(const a of memberAngles){
-      step=Math.max(step,radialStepFor(a,glyphBox),radialStepFor(a,labelBox),pairRadialStep(a,glyphBox,labelBox)+gap);
+      step=Math.max(step,radialStepFor(a,glyphBox),radialStepFor(a,FIXED_LABEL_BOX),pairRadialStep(a,glyphBox,FIXED_LABEL_BOX)+gap);
     }
     step+=0.8;
     const level0Fits=(PLANET_LABEL_R0-gap)>=PLANET_SYMBOL_FLOOR;
@@ -2157,10 +2177,10 @@ function renderWheel(pos,ascDeg,cusps,mc){
     // ölçülüp doğrulandı).
     const memberAngles=cluster.map(p=>wheelAngle(pos[p.id],ascDeg));
     const{labelR,symbolR,fontSize,gap,step,usableLevels}=planetLevelRadii(memberAngles);
-    // Etiket punto boyutu cusp derecesiyle AYNI (6.5, tam boyutta) -
-    // tipografik hiyerarşide "gezegen derece etiketi cusp etiketiyle aynı
-    // punto" isteniyordu.
-    const labelFontSize=Math.round(6.5*fontSize/15);
+    // Etiket punto boyutu cusp derecesiyle HER ZAMAN AYNI (LABEL_FONT_SIZE,
+    // 6.5) - sıkışıklığı çözmek için sadece sembol (fontSize, yukarıda)
+    // küçülüyor, bkz. planetLevelRadii'nin başındaki not.
+    const labelFontSize=LABEL_FONT_SIZE;
     // Taşan üyeler (overflow) için de AYNI (gap,step) çifti kullanılır - bu
     // değerler zaten kümedeki TÜM üyelerin (taşanlar dahil - memberAngles
     // hepsini kapsıyor) açılarına göre güvenli hesaplandı (bkz.
