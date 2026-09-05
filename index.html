@@ -1280,7 +1280,7 @@ const PLANETS=[
   {id:'saturn',name:'Satürn',nameEn:'Saturn',glyph:'♄',color:'#787878'},
   {id:'uranus',name:'Uranüs',nameEn:'Uranus',glyph:'♅',color:'#4aa8c8'},
   {id:'neptune',name:'Neptün',nameEn:'Neptune',glyph:'♆',color:'#3a5ac8'},
-  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'♇',color:'#6a3a5c'},
+  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'♇︎',color:'#6a3a5c'},
   {id:'true_node',name:'Ay Düğümü',nameEn:'North Node',glyph:'☊',color:'#a0a060'},
   {id:'asc',name:'Asc',nameEn:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
@@ -1769,6 +1769,31 @@ function declutterRelLons(relLons,minSep){
   return result;
 }
 
+// declutterRelLons SADECE gezegenleri birbirinden ayırır - ASC/MC gibi sabit
+// açı çizgileri (ve bunların dış metin etiketleri) decluttera hiç dahil
+// değildir. Bu yüzden bir gezegen ASC'ye çok yakınsa (ör. chart ruler
+// durumunda sık rastlanır), decluttered konumu yine de doğrudan ASC'nin
+// kendi çizgisinin (R_HOUSE_IN'den R_TIP'e kadar uzanan, glyph/etiket
+// yarıçaplarının tam üzerinden geçen) veya "ASC"/"MC" metin etiketinin
+// üzerine denk gelebiliyordu. Bu fonksiyon, decluttered bir diziyi alıp her
+// noktayı verilen sabit açı(lar)dan en az gapDeg kadar iter, sonra bu itmenin
+// komşu gezegenlerle yeniden çakışma yaratıp yaratmadığını gidermek için
+// aynı minSep ile declutterRelLons'u bir kez daha uygular.
+function pushAwayFromAnchors(relLons,minSep,gapDeg,anchors){
+  const pushed=relLons.map(v=>{
+    let r=norm(v);
+    for(const a of anchors){
+      let d=norm(r-a); if(d>180)d-=360; // a'dan r'ye işaretli en kısa açısal mesafe, (-180,180]
+      if(Math.abs(d)<gapDeg){
+        const dir=d===0?1:Math.sign(d);
+        r=norm(a+dir*gapDeg);
+      }
+    }
+    return r;
+  });
+  return declutterRelLons(pushed,minSep);
+}
+
 // Ptolemaic majör açılar — wheel'in iç dairesinde çizilen açı çizgileri için
 // (astro.com tarzı). Orb aralıkları birbiriyle çakışmıyor (en geniş orb olan
 // kavuşum/karşıt ±8° bile sextil'in ±4°'lük bandına asla değmiyor), yani bir
@@ -1861,16 +1886,32 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // ince lider çizgisi her zaman gerçek dereceyi gösteriyor.
   const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
   const trueRelLons=drawnPlanets.map(p=>norm(pos[p.id]-ascDeg));
-  // minSep 8°→11° - font-size 12→15 büyüdüğü için (R_PLANET=76 yarıçapında
-  // aynı oransal boşluğu korumak amacıyla), sıkışık kümelerde glyph'ler
-  // büyüyünce birbirine değmesin diye.
-  const declRelLons=declutterRelLons(trueRelLons,11);
-  // Derece/dakika etiketleri ("24°06'" gibi) glyph'in kendisinden çok daha
-  // geniş bir metin kutusuna sahip - glyph'lerin 11°'lik minSep'i sıkışık
-  // kümelerde etiketler için yetersiz kalıp üst üste binmelerine yol açıyordu
-  // (ölçülüp doğrulandı). Bu yüzden etiketler kendi ayrı, daha geniş declutter
-  // geçişini kullanıyor.
-  const declLabelRelLons=declutterRelLons(trueRelLons,18);
+  // minSep 8°→11°→17° - yatay eksene yakın kümelerde (ör. ASC her zaman tam
+  // saat 9 yönünde, yani yatay eksende) iki gezegen glyph'i arasındaki asıl
+  // sınırlayıcı boyut GENİŞLİK değil YÜKSEKLİK (glyph bbox'ı ~13.4×16.5px,
+  // font-size 15). 11°'lik eski minSep sadece yatay ayrılan çiftler için
+  // yeterliydi; dikey ayrılan çiftlerde (ASC/DSC'ye yakın kümeler) hâlâ
+  // görsel olarak çakışıyordu. getBBox() ile R_PLANET=76 yarıçapında,
+  // wheel'in tüm açısal konumları taranarak (0-360°, 1°'lik adımlarla) hiç
+  // çakışma üretmeyen en küçük değer ölçüldü: 16.25° - 17° bu eşiğin biraz
+  // üzerinde, güvenlik payı bırakıyor.
+  const GLYPH_MINSEP=17,LABEL_MINSEP=18;
+  let declRelLons=declutterRelLons(trueRelLons,GLYPH_MINSEP);
+  // Derece/dakika etiketleri ("24°06'" gibi) glyph'ten farklı bir metin
+  // kutusu boyutuna sahip (R_PLANET-10=66 yarıçapında, font-size 6) - aynı
+  // getBBox() taramasıyla etiketler için ayrı bir güvenli minSep ölçüldü
+  // (16.5°); 18° zaten bunun üzerinde, ayrıca değiştirilmedi. Etiketler kendi
+  // ayrı declutter geçişini kullanıyor çünkü glyph'lerden farklı bir yarıçap
+  // ve punto kullanıyorlar, o yüzden aynı minSep'i paylaşmaları gerekmiyor.
+  let declLabelRelLons=declutterRelLons(trueRelLons,LABEL_MINSEP);
+  // ASC (relLon=0) ve varsa MC, gezegen kümesinden bağımsız sabit açı
+  // çizgileri - declutter bunları hesaba katmadığından, çok yakın bir
+  // gezegen kümesi (ör. Asc yakınındaki bir Satürn+Plüton) yine de doğrudan
+  // ASC/MC çizgisinin veya metin etiketinin üzerine denk gelebiliyordu.
+  const angleAnchors=[0];
+  if(typeof mc==='number')angleAnchors.push(norm(mc-ascDeg));
+  declRelLons=pushAwayFromAnchors(declRelLons,GLYPH_MINSEP,GLYPH_MINSEP,angleAnchors);
+  declLabelRelLons=pushAwayFromAnchors(declLabelRelLons,LABEL_MINSEP,LABEL_MINSEP,angleAnchors);
   drawnPlanets.forEach((p,i)=>{
     const trueA=wheelAngle(pos[p.id],ascDeg);
     const declA=wheelAngle(ascDeg+declRelLons[i],ascDeg);
