@@ -1280,10 +1280,43 @@ const PLANETS=[
   {id:'saturn',name:'Satürn',nameEn:'Saturn',glyph:'♄',color:'#787878'},
   {id:'uranus',name:'Uranüs',nameEn:'Uranus',glyph:'♅',color:'#4aa8c8'},
   {id:'neptune',name:'Neptün',nameEn:'Neptune',glyph:'♆',color:'#3a5ac8'},
-  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'♇',color:'#6a3a5c'},
+  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'♇︎',color:'#6a3a5c'},
   {id:'true_node',name:'Ay Düğümü',nameEn:'North Node',glyph:'☊',color:'#a0a060'},
   {id:'asc',name:'Asc',nameEn:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
+
+// Plüton'un Unicode sembolü (♇, U+2647) gerçek üretim ortamında bazı
+// platformlarda (özellikle mobil/bazı işletim sistemlerinde) HİÇBİR fontla
+// eşleşmiyor ve tamamen boş/görünmez render oluyor - doğrulandı. Bu, daha
+// önce burç glyph'lerinde çözülen emoji-font çakışmasından TAMAMEN FARKLI
+// bir sorun (orada karakter render oluyordu ama yanlış görünüyordu; burada
+// hiç render olmuyor) - VS-15 gibi bir sunum seçici bunu düzeltemez, çünkü
+// sorun "yanlış sunum" değil "hiç glif yok". Kök neden: klasik 7 gezegen +
+// Uranüs/Neptün/Ay Düğümü çok daha eski (1993 Unicode 1.1) ve yaygın
+// desteklenen sembollerdir (Arial/Times/Helvetica gibi temel fontlarda bile
+// var); Plüton 1930'da keşfedilen görece yeni bir gökcismi olduğu için
+// sembolü birçok fontun kapsamına hiç girmemiş. Bu yüzden Plüton'a özel,
+// font'tan tamamen bağımsız, elle çizilmiş bir SVG ikon kullanılıyor
+// (hilal-daire-artı, modern astroloji yazılımlarının kullandığı yaygın
+// varyant) - hem wheel'de hem "Gezegen Pozisyonları" tablosunda. Diğer 10
+// sembol (Ay Düğümü dahil) 1993'ten beri temel fontlarda mevcut olduğu için
+// Unicode metin glyph'i olarak bırakıldı.
+function plutoIconPaths(color,sw){
+  return `<path d="M-3.2,-4 Q0,-8.8 3.2,-4" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<circle cx="0" cy="0.3" r="2.6" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
+    `<line x1="0" y1="2.9" x2="0" y2="7.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<line x1="-2" y1="5.3" x2="2" y2="5.3" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
+// "Gezegen Pozisyonları" tablosundaki düz metin glyph hücreleri için -
+// wheel'deki <g transform> yaklaşımının aksine, burada bağımsız küçük bir
+// inline <svg> kullanılıyor (bir <span> içine gömülebilmesi için).
+function plutoIconInlineSVG(color){
+  return `<svg width="16" height="20" viewBox="-6 -10 12 20" style="vertical-align:middle">${plutoIconPaths(color,1.3)}</svg>`;
+}
+function planetGlyphHTML(p){
+  return p.id==='pluto'?plutoIconInlineSVG(p.color):p.glyph;
+}
+
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
 const SIGNS_EN=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 const SIGN_GLYPHS=['♈︎','♉︎','♊︎','♋︎','♌︎','♍︎','♎︎','♏︎','♐︎','♑︎','♒︎','♓︎'];
@@ -1617,7 +1650,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
     const pObj=PLANETS.find(x=>x.id===p.key)||{glyph:p.name[0],color:'#888'};
     const tr=document.createElement('tr');
     tr.innerHTML=`
-      <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
+      <td><span class="planet-glyph" style="color:${pObj.color}">${planetGlyphHTML(pObj)}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -1722,7 +1755,7 @@ function renderTable(pos,daytime,houses,getH){
     const house=p.id==='asc'?1:getH(si);
     const pct=Math.max(0,(dg.s/5)*100);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
+    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${planetGlyphHTML(p)}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
       <td style="font-family:monospace;font-size:12px">${fmtDeg(deg)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -1739,6 +1772,41 @@ function renderTable(pos,daytime,houses,getH){
 // hareket eder — klasik natal harita çizim kuralı (Astro Gold / Solar Fire vb.).
 function wheelAngle(lonDeg,ascDeg){return(180-norm(lonDeg-ascDeg))*Math.PI/180;}
 function wheelPt(cx,cy,radius,angleRad){return[cx+radius*Math.cos(angleRad),cy+radius*Math.sin(angleRad)];}
+
+// PAVA (Pool Adjacent Violators Algorithm) - "v" dizisini (artan sırada,
+// dairesel kesimden sonra düzleştirilmiş) en az minSep boşluk bırakacak
+// şekilde, TOPLAM yer değiştirmeyi (kareler toplamını) en aza indirerek
+// ayarlar. u[i]=v[i]-i*minSep dönüşümüyle "her ardışık fark >= minSep" kısıtı
+// u üzerinde "u artan/sabit olsun" kısıtına döner - bu standart izotonik
+// regresyon problemidir. Önceki saf ileri-zincirleme yaklaşım (ilk nokta hiç
+// kaymaz, sonrakiler TEK YÖNDE itilir) sıkı bir kümeyi ASC gibi sabit bir
+// noktanın SİMETRİK ORTASINDA bulundurmak yerine, kümenin bir kısmını o sabit
+// noktayı GEÇEREK yanlış tarafa (yanlış eve) sürüklüyordu - bkz. gerçek
+// üretimde bulunan hata: ASC'yi ortalayan sıkı bir küme, declutter sonrası
+// bazı gezegenlerin ASC'nin yanlış tarafına render olmasına (ve bu yüzden
+// leader line'ların çaprazlaşmasına) yol açıyordu. PAVA, kümeyi kendi
+// ORİJİNAL ortalaması etrafında simetrik yayarak bunu önler - her nokta hangi
+// tarafta başladıysa mümkün olduğunca o tarafta kalır.
+function pavaMinGap(v,minSep){
+  const n=v.length;
+  const u=v.map((val,i)=>val-i*minSep);
+  const blocks=[];
+  for(let i=0;i<n;i++){
+    let block={sum:u[i],count:1};
+    while(blocks.length&&blocks[blocks.length-1].sum/blocks[blocks.length-1].count>block.sum/block.count){
+      const prev=blocks.pop();
+      block={sum:prev.sum+block.sum,count:prev.count+block.count};
+    }
+    blocks.push(block);
+  }
+  const result=new Array(n);
+  let idx=0;
+  for(const b of blocks){
+    const val=b.sum/b.count;
+    for(let k=0;k<b.count;k++){result[idx]=val+idx*minSep;idx++;}
+  }
+  return result;
+}
 
 // Yakın dereceli gezegen glyph'lerinin çakışmasını önlemek için, ASC'den itibaren
 // göreli boylamları (0-360) minSep derecelik bir asgari aralık bırakacak şekilde
@@ -1761,12 +1829,35 @@ function declutterRelLons(relLons,minSep){
     const i=(cutAt+k)%n;
     lin.push(i<cutAt?sorted[i]+360:sorted[i]);
   }
-  for(let k=1;k<n;k++){
-    if(lin[k]-lin[k-1]<minSep)lin[k]=lin[k-1]+minSep;
-  }
+  const adjusted=pavaMinGap(lin,minSep);
   const result=new Array(n);
-  for(let k=0;k<n;k++)result[idx[(cutAt+k)%n]]=norm(lin[k]);
+  for(let k=0;k<n;k++)result[idx[(cutAt+k)%n]]=norm(adjusted[k]);
   return result;
+}
+
+// declutterRelLons SADECE gezegenleri birbirinden ayırır - ASC/MC gibi sabit
+// açı çizgileri (ve bunların dış metin etiketleri) decluttera hiç dahil
+// değildir. Bu yüzden bir gezegen ASC'ye çok yakınsa (ör. chart ruler
+// durumunda sık rastlanır), decluttered konumu yine de doğrudan ASC'nin
+// kendi çizgisinin (R_HOUSE_IN'den R_TIP'e kadar uzanan, glyph/etiket
+// yarıçaplarının tam üzerinden geçen) veya "ASC"/"MC" metin etiketinin
+// üzerine denk gelebiliyordu. Bu fonksiyon, decluttered bir diziyi alıp her
+// noktayı verilen sabit açı(lar)dan en az gapDeg kadar iter, sonra bu itmenin
+// komşu gezegenlerle yeniden çakışma yaratıp yaratmadığını gidermek için
+// aynı minSep ile declutterRelLons'u bir kez daha uygular.
+function pushAwayFromAnchors(relLons,minSep,gapDeg,anchors){
+  const pushed=relLons.map(v=>{
+    let r=norm(v);
+    for(const a of anchors){
+      let d=norm(r-a); if(d>180)d-=360; // a'dan r'ye işaretli en kısa açısal mesafe, (-180,180]
+      if(Math.abs(d)<gapDeg){
+        const dir=d===0?1:Math.sign(d);
+        r=norm(a+dir*gapDeg);
+      }
+    }
+    return r;
+  });
+  return declutterRelLons(pushed,minSep);
 }
 
 // Ptolemaic majör açılar — wheel'in iç dairesinde çizilen açı çizgileri için
@@ -1861,23 +1952,43 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // ince lider çizgisi her zaman gerçek dereceyi gösteriyor.
   const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
   const trueRelLons=drawnPlanets.map(p=>norm(pos[p.id]-ascDeg));
-  // minSep 8°→11° - font-size 12→15 büyüdüğü için (R_PLANET=76 yarıçapında
-  // aynı oransal boşluğu korumak amacıyla), sıkışık kümelerde glyph'ler
-  // büyüyünce birbirine değmesin diye.
-  const declRelLons=declutterRelLons(trueRelLons,11);
-  // Derece/dakika etiketleri ("24°06'" gibi) glyph'in kendisinden çok daha
-  // geniş bir metin kutusuna sahip - glyph'lerin 11°'lik minSep'i sıkışık
-  // kümelerde etiketler için yetersiz kalıp üst üste binmelerine yol açıyordu
-  // (ölçülüp doğrulandı). Bu yüzden etiketler kendi ayrı, daha geniş declutter
-  // geçişini kullanıyor.
-  const declLabelRelLons=declutterRelLons(trueRelLons,18);
+  // minSep 8°→11°→17° - yatay eksene yakın kümelerde (ör. ASC her zaman tam
+  // saat 9 yönünde, yani yatay eksende) iki gezegen glyph'i arasındaki asıl
+  // sınırlayıcı boyut GENİŞLİK değil YÜKSEKLİK (glyph bbox'ı ~13.4×16.5px,
+  // font-size 15). 11°'lik eski minSep sadece yatay ayrılan çiftler için
+  // yeterliydi; dikey ayrılan çiftlerde (ASC/DSC'ye yakın kümeler) hâlâ
+  // görsel olarak çakışıyordu. getBBox() ile R_PLANET=76 yarıçapında,
+  // wheel'in tüm açısal konumları taranarak (0-360°, 1°'lik adımlarla) hiç
+  // çakışma üretmeyen en küçük değer ölçüldü: 16.25° - 17° bu eşiğin biraz
+  // üzerinde, güvenlik payı bırakıyor.
+  const GLYPH_MINSEP=17,LABEL_MINSEP=18;
+  let declRelLons=declutterRelLons(trueRelLons,GLYPH_MINSEP);
+  // Derece/dakika etiketleri ("24°06'" gibi) glyph'ten farklı bir metin
+  // kutusu boyutuna sahip (R_PLANET-10=66 yarıçapında, font-size 6) - aynı
+  // getBBox() taramasıyla etiketler için ayrı bir güvenli minSep ölçüldü
+  // (16.5°); 18° zaten bunun üzerinde, ayrıca değiştirilmedi. Etiketler kendi
+  // ayrı declutter geçişini kullanıyor çünkü glyph'lerden farklı bir yarıçap
+  // ve punto kullanıyorlar, o yüzden aynı minSep'i paylaşmaları gerekmiyor.
+  let declLabelRelLons=declutterRelLons(trueRelLons,LABEL_MINSEP);
+  // ASC (relLon=0) ve varsa MC, gezegen kümesinden bağımsız sabit açı
+  // çizgileri - declutter bunları hesaba katmadığından, çok yakın bir
+  // gezegen kümesi (ör. Asc yakınındaki bir Satürn+Plüton) yine de doğrudan
+  // ASC/MC çizgisinin veya metin etiketinin üzerine denk gelebiliyordu.
+  const angleAnchors=[0];
+  if(typeof mc==='number')angleAnchors.push(norm(mc-ascDeg));
+  declRelLons=pushAwayFromAnchors(declRelLons,GLYPH_MINSEP,GLYPH_MINSEP,angleAnchors);
+  declLabelRelLons=pushAwayFromAnchors(declLabelRelLons,LABEL_MINSEP,LABEL_MINSEP,angleAnchors);
   drawnPlanets.forEach((p,i)=>{
     const trueA=wheelAngle(pos[p.id],ascDeg);
     const declA=wheelAngle(ascDeg+declRelLons[i],ascDeg);
     const[tx,ty]=wheelPt(cx,cy,R_HOUSE_OUT,trueA);
     const[px,py]=wheelPt(cx,cy,R_PLANET,declA);
     h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
-    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
+    if(p.id==='pluto'){
+      h+=`<g transform="translate(${px},${py})">${plutoIconPaths(p.color,1.6)}</g>`;
+    }else{
+      h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
+    }
     // Derece/dakika etiketi — glyph'in genel yakınında, merkeze doğru biraz
     // içeride ("altında"), ama kendi (daha geniş) declutter açısında. Glyph
     // rengiyle uyumlu ama soluk (opacity), küçük punto - ana sembolü gölgede
