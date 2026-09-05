@@ -1920,11 +1920,15 @@ function radialStepFor(angleRad,box){
 // ve etiket iç-offset'ini hesaplar. Tek gezegen varsayılan yarıçapında
 // (rDefault) kalır.
 //
-// Punto önce TAM boyutta (15) denenir; gereken adım ev halkasının içine
-// sığmıyorsa (kaç üye olursa olsun - sabit bir "4+" eşiği değil, gerçek
-// sığma testi) bir kademe küçük puntoya (12) geçilir. Bu, hem "okunabilirlik
-// korunsun" (mümkün olduğunca büyük punto) hem "hepsi kendi evinde kalsın"
-// (asla halka dışına taşmasın) isteğini birlikte karşılıyor.
+// Punto sırayla TAM boyuttan (15) başlayarak denenir; gereken adım ev
+// halkasının içine sığmıyorsa (kaç üye olursa olsun - sabit bir "4+" eşiği
+// değil, gerçek sığma testi) bir sonraki (daha küçük) puntoya geçilir. Bu,
+// hem "okunabilirlik korunsun" (mümkün olduğunca büyük punto) hem "hepsi
+// kendi evinde kalsın" (asla halka dışına taşmasın) hem de "çok sıkışık
+// kümelerde (4+ gezegen dar bir açıda) etiketler görsel olarak
+// çakışmasın/karışmasın" isteğini birlikte karşılıyor - dört punto kademesi
+// (15→12→9→6, bkz. FONT_SIZES) en uç kümelerde bile sığma şansını artırıyor.
+const FONT_SIZES=[15,12,9,6];
 function stackRadii(n,rDefault,rOuter,rHouseInFloor,angleRad){
   if(n===1)return{radii:[rDefault],fontSize:15,labelOffset:9};
   // rHouseInFloor, glyph'in DEĞİL etiketin (glyph'ten labelOffset kadar
@@ -1934,8 +1938,8 @@ function stackRadii(n,rDefault,rOuter,rHouseInFloor,angleRad){
   // üye arasındaki adımı sessizce daraltıp çakışmaya yol açıyordu, ölçülüp
   // doğrulandı).
   function attempt(fontSize){
-    const labelOffset=fontSize===12?7:9;
     const scale=fontSize/15;
+    const labelOffset=Math.round(9*scale);
     const rInner=rHouseInFloor+labelOffset;
     // %25 güvenlik payı (kutu boyutları yaklaşık ölçümlere dayanıyor -
     // farklı gezegen glyph'leri arasında küçük genişlik farkları var, bkz.
@@ -1954,17 +1958,14 @@ function stackRadii(n,rDefault,rOuter,rHouseInFloor,angleRad){
     )*1.25+labelOffset;
     return{fontSize,labelOffset,rInner,step,fits:(n-1)*step<=rOuter-rInner};
   }
-  let plan=attempt(15);
-  if(!plan.fits)plan=attempt(12);
-  // Uç bir durumda (4-5 gezegen tam yatay eksende, birkaç derece içinde
-  // sıkışmış - gerçek bir doğum haritasında son derece nadir) küçük punto
-  // bile sığmayabilir. "Kendi evinde kal" kuralı glyph aralığından önce
-  // gelir: adım zorla sıkıştırılır. Bu senaryoda GLYPH'ler yine de net ve
-  // ayrık kalır (asıl öncelik - hangi gezegenlerin orada olduğu belli olur);
-  // sadece küçük derece/dakika etiketleri sıkışıp okunması zorlaşabilir -
-  // etiketleri daha da küçültmenin (okunmaz hale gelmeden) bu düzeydeki bir
-  // sıkışmayı çözemeyeceği ölçüldü, bu yüzden bilinen bir sınır olarak kabul
-  // edildi.
+  let plan=attempt(FONT_SIZES[0]);
+  for(let i=1;i<FONT_SIZES.length&&!plan.fits;i++)plan=attempt(FONT_SIZES[i]);
+  // Dört kademe (15→12→9→6), 5 gezegenin tam yatay eksende (en zor yön -
+  // etiket genişliği belirleyici olur) sadece birkaç derece içine sıkıştığı
+  // en uç senaryoyu bile getBBox() ile çakışmasız hale getirdi (ölçülüp
+  // doğrulandı). Yine de teorik bir son çare olarak: hiçbir kademe
+  // sığmazsa (FONT_SIZES'ın en küçüğü bile), "kendi evinde kal" kuralı
+  // glyph aralığından önce gelir - adım zorla sıkıştırılır.
   let step=plan.fits?plan.step:(rOuter-plan.rInner)/(n-1);
   const start=rOuter;
   return{radii:Array.from({length:n},(_,i)=>start-i*step),fontSize:plan.fontSize,labelOffset:plan.labelOffset};
@@ -2108,7 +2109,7 @@ function renderWheel(pos,ascDeg,cusps,mc){
       // ev numarası halkasına taşmaması stackRadii'de (rInner hesabında)
       // garanti ediliyor, burada ayrıca clamp gerekmiyor.
       const labelR=r-labelOffset;
-      const labelFontSize=fontSize===12?5:6;
+      const labelFontSize=Math.round(6*fontSize/15);
       const[lpx,lpy]=wheelPt(cx,cy,labelR,memberA);
       h+=`<text x="${lpx}" y="${lpy}" text-anchor="middle" dominant-baseline="central" font-size="${labelFontSize}" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${fmtDegSignMinInSign(pos[p.id])}</text>`;
     });
