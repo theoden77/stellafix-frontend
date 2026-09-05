@@ -1773,6 +1773,41 @@ function renderTable(pos,daytime,houses,getH){
 function wheelAngle(lonDeg,ascDeg){return(180-norm(lonDeg-ascDeg))*Math.PI/180;}
 function wheelPt(cx,cy,radius,angleRad){return[cx+radius*Math.cos(angleRad),cy+radius*Math.sin(angleRad)];}
 
+// PAVA (Pool Adjacent Violators Algorithm) - "v" dizisini (artan sırada,
+// dairesel kesimden sonra düzleştirilmiş) en az minSep boşluk bırakacak
+// şekilde, TOPLAM yer değiştirmeyi (kareler toplamını) en aza indirerek
+// ayarlar. u[i]=v[i]-i*minSep dönüşümüyle "her ardışık fark >= minSep" kısıtı
+// u üzerinde "u artan/sabit olsun" kısıtına döner - bu standart izotonik
+// regresyon problemidir. Önceki saf ileri-zincirleme yaklaşım (ilk nokta hiç
+// kaymaz, sonrakiler TEK YÖNDE itilir) sıkı bir kümeyi ASC gibi sabit bir
+// noktanın SİMETRİK ORTASINDA bulundurmak yerine, kümenin bir kısmını o sabit
+// noktayı GEÇEREK yanlış tarafa (yanlış eve) sürüklüyordu - bkz. gerçek
+// üretimde bulunan hata: ASC'yi ortalayan sıkı bir küme, declutter sonrası
+// bazı gezegenlerin ASC'nin yanlış tarafına render olmasına (ve bu yüzden
+// leader line'ların çaprazlaşmasına) yol açıyordu. PAVA, kümeyi kendi
+// ORİJİNAL ortalaması etrafında simetrik yayarak bunu önler - her nokta hangi
+// tarafta başladıysa mümkün olduğunca o tarafta kalır.
+function pavaMinGap(v,minSep){
+  const n=v.length;
+  const u=v.map((val,i)=>val-i*minSep);
+  const blocks=[];
+  for(let i=0;i<n;i++){
+    let block={sum:u[i],count:1};
+    while(blocks.length&&blocks[blocks.length-1].sum/blocks[blocks.length-1].count>block.sum/block.count){
+      const prev=blocks.pop();
+      block={sum:prev.sum+block.sum,count:prev.count+block.count};
+    }
+    blocks.push(block);
+  }
+  const result=new Array(n);
+  let idx=0;
+  for(const b of blocks){
+    const val=b.sum/b.count;
+    for(let k=0;k<b.count;k++){result[idx]=val+idx*minSep;idx++;}
+  }
+  return result;
+}
+
 // Yakın dereceli gezegen glyph'lerinin çakışmasını önlemek için, ASC'den itibaren
 // göreli boylamları (0-360) minSep derecelik bir asgari aralık bırakacak şekilde
 // hafifçe iter — dairesel dikiş (0/360) sorununu önlemek için en geniş boşluğun
@@ -1794,11 +1829,9 @@ function declutterRelLons(relLons,minSep){
     const i=(cutAt+k)%n;
     lin.push(i<cutAt?sorted[i]+360:sorted[i]);
   }
-  for(let k=1;k<n;k++){
-    if(lin[k]-lin[k-1]<minSep)lin[k]=lin[k-1]+minSep;
-  }
+  const adjusted=pavaMinGap(lin,minSep);
   const result=new Array(n);
-  for(let k=0;k<n;k++)result[idx[(cutAt+k)%n]]=norm(lin[k]);
+  for(let k=0;k<n;k++)result[idx[(cutAt+k)%n]]=norm(adjusted[k]);
   return result;
 }
 
