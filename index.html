@@ -140,6 +140,56 @@
   .ref-table{width:100%;border-collapse:collapse;font-size:14px;}
   .ref-table th{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--ink);opacity:.55;padding:7px 8px;border-bottom:2px solid var(--rule);text-align:left;text-transform:uppercase;}
   .ref-table td{padding:7px 8px;border-bottom:1px solid var(--parchment-dark);}
+
+  /* HERO BAND — the only dark section on an otherwise light site */
+  .hero-band{background:linear-gradient(160deg,#0F0B1E 0%,#2D1B4E 100%);position:relative;overflow:hidden;padding:56px 24px 90px;text-align:center;}
+  .hero-band::before{
+    content:'';position:absolute;inset:0;pointer-events:none;opacity:.8;background-repeat:repeat;background-size:220px 220px;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,.5) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 75% 15%, rgba(255,255,255,.4) 50%, transparent 51%),
+      radial-gradient(1px 1px at 50% 60%, rgba(255,255,255,.35) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 90% 70%, rgba(255,255,255,.3) 50%, transparent 51%),
+      radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,.4) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 35% 90%, rgba(255,255,255,.25) 50%, transparent 51%),
+      radial-gradient(1px 1px at 60% 40%, rgba(255,255,255,.3) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 85% 45%, rgba(255,255,255,.35) 50%, transparent 51%);
+  }
+  .hero-band::after{content:'';position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(to bottom, transparent, var(--parchment));pointer-events:none;}
+  .hero-inner{position:relative;max-width:640px;margin:0 auto;}
+  .hero-title{font-family:'Cinzel',serif;color:#fff;font-size:28px;font-weight:700;letter-spacing:.02em;margin-bottom:14px;}
+  .hero-subtitle{color:rgba(255,255,255,.78);font-size:15px;line-height:1.6;}
+  @media(max-width:700px){.hero-title{font-size:22px;}}
+
+  /* SKY TODAY WIDGET */
+  .sky-today-wrap{max-width:640px;margin:-56px auto 0;padding:0 16px;position:relative;z-index:2;display:flex;justify-content:center;}
+  .sky-today-card{display:none;align-items:center;gap:14px;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:16px 22px;box-shadow:0 8px 28px rgba(30,27,46,.14);max-width:520px;}
+  .sky-today-icon{font-size:34px;line-height:1;flex-shrink:0;}
+  .sky-today-text{font-size:14px;color:var(--ink);line-height:1.5;}
+  .sky-today-sun{font-size:12px;color:var(--ink);opacity:.6;margin-top:4px;}
+
+  /* CATEGORY PREVIEW */
+  .category-preview{max-width:900px;margin:28px auto 0;padding:0 16px;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}
+  .category-badge{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--rule);border-radius:20px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+  .category-badge:hover{border-color:var(--lapis);background:var(--lapis-pale);color:var(--lapis);}
+  .category-badge .cb-icon{font-size:15px;}
+
+  /* STATIC EDUCATIONAL CONTENT (bottom of page) */
+  .edu-section{max-width:1000px;margin:44px auto 0;padding:0 16px 40px;}
+  .edu-block{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(30,27,46,.05);}
+  .edu-block:last-child{margin-bottom:0;}
+  .edu-block-title{font-family:'Cinzel',serif;color:var(--lapis);font-size:17px;font-weight:700;margin-bottom:14px;}
+  .zodiac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+  .zodiac-item{display:flex;align-items:center;gap:8px;background:var(--parchment);border:1px solid var(--rule);border-radius:10px;padding:9px 12px;font-size:13px;}
+  .zodiac-item .zi-glyph{font-size:17px;}
+  .zodiac-item .zi-name{font-weight:600;}
+  .zodiac-item .zi-range{opacity:.65;font-size:12px;}
+  .zodiac-disclaimer{font-size:12px;color:var(--ink);opacity:.55;margin-top:12px;font-style:italic;}
+  .history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:700px){.history-grid{grid-template-columns:1fr;}}
+  .history-card{background:var(--parchment);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:14px 16px;}
+  .history-card-name{font-weight:700;color:var(--ink);margin-bottom:6px;font-size:14px;}
+  .history-card-text{font-size:13px;line-height:1.6;color:var(--ink);opacity:.85;}
 </style>
 </head>
 <body>
@@ -189,12 +239,31 @@
   </div>
 </div>
 
+<div class="hero-band">
+  <div class="hero-inner">
+    <div class="hero-title" data-i18n="heroTitle">Klasik Astrolojiyle Kendini Keşfet</div>
+    <div class="hero-subtitle" data-i18n="heroSubtitle">Doğum haritan, gökyüzünün seni ilk nefesinde çizdiği kişisel bir harita.</div>
+  </div>
+</div>
+
+<div class="sky-today-wrap">
+  <div class="sky-today-card" id="skyTodayCard">
+    <div class="sky-today-icon" id="skyTodayIcon">🌙</div>
+    <div>
+      <div class="sky-today-text" id="skyTodayText"></div>
+      <div class="sky-today-sun" id="skyTodaySun"></div>
+    </div>
+  </div>
+</div>
+
+<div class="category-preview" id="categoryPreview"></div>
+
 <div class="container">
   <div class="tech-toggle-bar">
     <button type="button" class="tech-toggle-btn" id="techToggleBtn" onclick="toggleTechnicalDetails()">⚙ <span id="techToggleLabel"></span></button>
   </div>
   <!-- INPUT -->
-  <div class="panel natal-panel">
+  <div class="panel natal-panel" id="natalPanel">
     <div class="panel-title" data-i18n="panelNatalTitle">Natal Harita Verisi</div>
 
     <div class="form-group">
@@ -310,6 +379,35 @@
   </div>
 </div>
 
+<div class="edu-section">
+  <div class="edu-block">
+    <div class="edu-block-title" data-i18n="eduZodiacTitle">Burçlar ve Tarihleri</div>
+    <div class="zodiac-grid" id="zodiacGrid"></div>
+    <div class="zodiac-disclaimer" data-i18n="eduZodiacDisclaimer">Tarihler yaklaşıktır, yıldan yıla birkaç saat kayabilir.</div>
+  </div>
+  <div class="edu-block">
+    <div class="edu-block-title" data-i18n="eduHistoryTitle">Klasik Astroloji Geleneği</div>
+    <div class="history-grid">
+      <div class="history-card">
+        <div class="history-card-name" data-i18n="bioAbuMasharName">Ebû Ma'şer el-Belhî</div>
+        <div class="history-card-text" data-i18n="bioAbuMasharText"></div>
+      </div>
+      <div class="history-card">
+        <div class="history-card-name" data-i18n="bioBonattiName">Guido Bonatti</div>
+        <div class="history-card-text" data-i18n="bioBonattiText"></div>
+      </div>
+      <div class="history-card">
+        <div class="history-card-name" data-i18n="bioLillyName">William Lilly</div>
+        <div class="history-card-text" data-i18n="bioLillyText"></div>
+      </div>
+      <div class="history-card">
+        <div class="history-card-name" data-i18n="bioDoserName">Öner Döşer</div>
+        <div class="history-card-text" data-i18n="bioDoserText"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // BACKEND API
@@ -402,6 +500,51 @@ const I18N = {
     subscribeErrGeneric: "Abonelik işlemi başlatılamadı, tekrar dene.",
     btnShowTechnical: "Teknik Detayları Göster",
     btnHideTechnical: "Teknik Detayları Gizle",
+    heroTitle: "Klasik Astrolojiyle Kendini Keşfet",
+    heroSubtitle: "Doğum haritan, gökyüzünün seni ilk nefesinde çizdiği kişisel bir harita — kadim bir bilgelikle bugün ne anlattığını birlikte keşfedelim.",
+    moonPhase_new_moon: "yeni ay evresinde",
+    moonPhase_waxing_crescent: "büyüyen hilal evresinde",
+    moonPhase_first_quarter: "ilk dördün evresinde",
+    moonPhase_waxing_gibbous: "büyüyen evrede",
+    moonPhase_full_moon: "dolunay evresinde",
+    moonPhase_waning_gibbous: "küçülen evrede",
+    moonPhase_last_quarter: "son dördün evresinde",
+    moonPhase_waning_crescent: "küçülen hilal evresinde",
+    moonTheme_0: "içgüdüsel atılganlık ve hız öne çıkıyor",
+    moonTheme_1: "somutluk ve sabır öne çıkıyor",
+    moonTheme_2: "merak ve iletişim öne çıkıyor",
+    moonTheme_3: "duygusal derinlik ve aidiyet öne çıkıyor",
+    moonTheme_4: "özgüven ve ifade gücü öne çıkıyor",
+    moonTheme_5: "düzen ve dikkatli analiz öne çıkıyor",
+    moonTheme_6: "denge ve uyum arayışı öne çıkıyor",
+    moonTheme_7: "yoğunluk ve derinlemesine bakış öne çıkıyor",
+    moonTheme_8: "iyimserlik ve keşif isteği öne çıkıyor",
+    moonTheme_9: "sorumluluk ve azim öne çıkıyor",
+    moonTheme_10: "bağımsızlık ve özgün fikirler öne çıkıyor",
+    moonTheme_11: "hayal gücü ve empati öne çıkıyor",
+    signDate_0: "21 Mart - 19 Nisan",
+    signDate_1: "20 Nisan - 20 Mayıs",
+    signDate_2: "21 Mayıs - 20 Haziran",
+    signDate_3: "21 Haziran - 22 Temmuz",
+    signDate_4: "23 Temmuz - 22 Ağustos",
+    signDate_5: "23 Ağustos - 22 Eylül",
+    signDate_6: "23 Eylül - 22 Ekim",
+    signDate_7: "23 Ekim - 21 Kasım",
+    signDate_8: "22 Kasım - 21 Aralık",
+    signDate_9: "22 Aralık - 19 Ocak",
+    signDate_10: "20 Ocak - 18 Şubat",
+    signDate_11: "19 Şubat - 20 Mart",
+    eduZodiacTitle: "Burçlar ve Tarihleri",
+    eduZodiacDisclaimer: "Tarihler yaklaşıktır, yıldan yıla birkaç saat kayabilir.",
+    eduHistoryTitle: "Klasik Astroloji Geleneği",
+    bioAbuMasharName: "Ebû Ma'şer el-Belhî",
+    bioAbuMasharText: "Ebû Ma'şer el-Belhî (787-886), Abbasi sarayında yaşamış, Horasan kökenli önemli bir astrologdu. Kırklı yaşlarında astrolojiye yönelmiş, yazdığı kapsamlı el kitapları Orta Çağ boyunca Latinceye çevrilerek Avrupa astrolojisini derinden etkilemiştir. Gök cisimlerinin presesyonuna dayanan \"astrolojik çağlar\" fikrini ilk tanımlayanlardan biri olarak bilinir.",
+    bioBonattiName: "Guido Bonatti",
+    bioBonattiText: "Guido Bonatti (yaklaşık 1207-1296), İtalya'nın Forlì kentinden, 13. yüzyılın en tanınmış astroloğu kabul edilen bir matematikçi ve astrologdu. İmparator II. Friedrich ve çeşitli İtalyan şehir devletlerine danışmanlık yapmıştır. Başyapıtı \"Liber Astronomiae\", döneminin Arapça kaynaklı astrolojik bilgisini bir araya getiren kapsamlı bir eser olarak yüzyıllarca başvuru kaynağı olmuştur.",
+    bioLillyName: "William Lilly",
+    bioLillyText: "William Lilly (1602-1681), 17. yüzyıl İngiltere'sinin en tanınmış astroloğuydu ve Londra'da mesleki bir danışmanlık pratiği yürütmüştür. 1647'de yayımladığı \"Christian Astrology\" adlı eseri, İngilizce yazılmış ilk kapsamlı astroloji kitabı olup horary (soru) astrolojisinin klasik referans metni haline gelmiştir. 1666 Londra Yangını'nı önceden işaret ettiği söylenen yorumlarıyla da tanınır.",
+    bioDoserName: "Öner Döşer",
+    bioDoserText: "Öner Döşer (1966, İstanbul), Türkiye'de klasik ve Ortaçağ astrolojisinin tanınmış isimlerinden biridir. 1996'da astrolojiyle ilgilenmeye başlamış, Ortaçağ astrolojisi alanında Robert Zoller'den eğitim almıştır. AstroArt Astroloji Okulu'nun kurucusu olup çok sayıda astroloji kitabı yazmış, düzenli olarak astroloji eğitimleri ve Uluslararası Astroloji Günleri etkinliğini yürütmektedir.",
   },
   en: {
     pageTitle: "Stellafix · Classical Astrology Demo",
@@ -482,6 +625,51 @@ const I18N = {
     subscribeErrGeneric: "Couldn't start checkout, please try again.",
     btnShowTechnical: "Show Technical Details",
     btnHideTechnical: "Hide Technical Details",
+    heroTitle: "Discover Yourself Through Classical Astrology",
+    heroSubtitle: "Your birth chart is a personal map the sky drew at your very first breath — let's explore together what its ancient wisdom says about you today.",
+    moonPhase_new_moon: "a new moon",
+    moonPhase_waxing_crescent: "a waxing crescent",
+    moonPhase_first_quarter: "a first quarter",
+    moonPhase_waxing_gibbous: "a waxing gibbous",
+    moonPhase_full_moon: "a full moon",
+    moonPhase_waning_gibbous: "a waning gibbous",
+    moonPhase_last_quarter: "a last quarter",
+    moonPhase_waning_crescent: "a waning crescent",
+    moonTheme_0: "instinctive drive and urgency come forward",
+    moonTheme_1: "steadiness and patience come forward",
+    moonTheme_2: "curiosity and communication come forward",
+    moonTheme_3: "emotional depth and belonging come forward",
+    moonTheme_4: "confidence and self-expression come forward",
+    moonTheme_5: "order and careful analysis come forward",
+    moonTheme_6: "balance and harmony-seeking come forward",
+    moonTheme_7: "intensity and deep focus come forward",
+    moonTheme_8: "optimism and a wish to explore come forward",
+    moonTheme_9: "responsibility and persistence come forward",
+    moonTheme_10: "independence and original ideas come forward",
+    moonTheme_11: "imagination and empathy come forward",
+    signDate_0: "March 21 - April 19",
+    signDate_1: "April 20 - May 20",
+    signDate_2: "May 21 - June 20",
+    signDate_3: "June 21 - July 22",
+    signDate_4: "July 23 - August 22",
+    signDate_5: "August 23 - September 22",
+    signDate_6: "September 23 - October 22",
+    signDate_7: "October 23 - November 21",
+    signDate_8: "November 22 - December 21",
+    signDate_9: "December 22 - January 19",
+    signDate_10: "January 20 - February 18",
+    signDate_11: "February 19 - March 20",
+    eduZodiacTitle: "Zodiac Signs and Dates",
+    eduZodiacDisclaimer: "Dates are approximate and can shift by a few hours from year to year.",
+    eduHistoryTitle: "The Classical Astrology Tradition",
+    bioAbuMasharName: "Abu Ma'shar al-Balkhi",
+    bioAbuMasharText: "Abu Ma'shar al-Balkhi (787-886) was a Persian scholar at the Abbasid court in Baghdad, regarded as one of the most influential astrologers of his era. He turned to astrology relatively late in life, and his comprehensive manuals were translated into Latin and profoundly shaped astrology in medieval Europe. He is credited as one of the first to define the astrological ages, such as the Age of Pisces and the Age of Aquarius, based on the precession of the equinoxes.",
+    bioBonattiName: "Guido Bonatti",
+    bioBonattiText: "Guido Bonatti (c. 1207-1296) was an Italian mathematician and astrologer from Forlì, considered the most celebrated astrologer of the 13th century. He served as an advisor to Emperor Frederick II and to several Italian city-states. His major work, the Liber Astronomiae, compiled the astrological knowledge of his time drawn from Arabic sources and remained a standard reference for centuries.",
+    bioLillyName: "William Lilly",
+    bioLillyText: "William Lilly (1602-1681) was the most prominent English astrologer of the 17th century, practicing as a professional consulting astrologer in London. His 1647 book Christian Astrology was the first major astrology textbook written in English and remains the classic reference work on horary astrology. He is also known for commentary widely said to have anticipated the Great Fire of London in 1666.",
+    bioDoserName: "Öner Döşer",
+    bioDoserText: "Öner Döşer (b. 1966, Istanbul) is a well-known figure in classical and medieval astrology in Turkey. He began studying astrology in 1996 and trained in medieval astrology under Robert Zoller. He founded the AstroArt Astrology School, has authored numerous books on astrology, and regularly organizes astrology education programs and the International Astrology Days event.",
   },
 };
 function t(key){
@@ -495,6 +683,9 @@ function applyStaticText(){
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ el.placeholder=t(el.dataset.i18nPlaceholder); });
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.locale===currentLocale));
   updateTechToggleLabel();
+  renderCategoryPreview();
+  renderZodiacGrid();
+  renderSkyToday();
 }
 
 // Ev Sistemi seçici ve Essential Dignity referans paneli varsayılan kapalı -
@@ -1777,6 +1968,80 @@ const CATEGORIES=[
   {id:'health',group:'life',titleKey:'catHealthTitle',descKey:'catHealthDesc'},
   {id:'eclipse_nearest',group:'special',titleKey:'catEclipseTitle',descKey:'catEclipseDesc'},
 ];
+const CATEGORY_ICONS={
+  weekly_review:'📅', monthly_review:'🗓️', yearly_review:'📆',
+  personality:'🧭', career:'💼', finance:'💰', health:'🌿',
+  eclipse_nearest:'🌑',
+};
+
+// ============================================================
+// HOMEPAGE — kategori önizleme rozetleri, natal form'a kaydırma
+// ============================================================
+function renderCategoryPreview(){
+  const wrap=document.getElementById('categoryPreview');
+  if(!wrap)return;
+  wrap.innerHTML=CATEGORIES.map(c=>
+    `<button type="button" class="category-badge" onclick="scrollToNatalForm()">`+
+    `<span class="cb-icon">${CATEGORY_ICONS[c.id]||'✦'}</span><span>${t(c.titleKey)}</span>`+
+    `</button>`
+  ).join('');
+}
+function scrollToNatalForm(){
+  const el=document.getElementById('natalPanel');
+  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ============================================================
+// HOMEPAGE — statik "Burçlar ve Tarihleri" ızgarası (locale değişince
+// yeniden çizilir, hem burç adı hem tarih aralığı diline göre değişir)
+// ============================================================
+function renderZodiacGrid(){
+  const wrap=document.getElementById('zodiacGrid');
+  if(!wrap)return;
+  wrap.innerHTML=SIGN_GLYPHS.map((g,i)=>
+    `<div class="zodiac-item"><span class="zi-glyph">${g}</span><span class="zi-name">${signName(i)}</span><span class="zi-range">${t('signDate_'+i)}</span></div>`
+  ).join('');
+}
+
+// ============================================================
+// HOMEPAGE — "Bugünün Gökyüzü" widget'ı. Backend /api/v1/sky-today
+// kimlik doğrulaması gerektirmez ve doğal dilde metin döndürmez — cümle
+// tamamen frontend'in kendi i18n şablonlarından (moonPhase_*/moonTheme_*)
+// kuruluyor. Burç eşleşmesi İngilizce isim string'i değil, moon_sign_index/
+// sun_sign_index (0=Koç...11=Balık) üzerinden yapılıyor, böylece locale'den
+// bağımsız ve backend'in İngilizce isimlendirmesine kırılgan değil.
+// Dekoratif bir widget olduğundan istek başarısız olursa sessizce gizli kalır.
+// ============================================================
+const MOON_PHASE_ICONS={
+  new_moon:'🌑', waxing_crescent:'🌒', first_quarter:'🌓', waxing_gibbous:'🌔',
+  full_moon:'🌕', waning_gibbous:'🌖', last_quarter:'🌗', waning_crescent:'🌘',
+};
+let lastSkyTodayData=null;
+async function loadSkyToday(){
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/sky-today`);
+    if(!resp.ok)return;
+    lastSkyTodayData=await resp.json();
+    renderSkyToday();
+  }catch(e){
+    // sessizce vazgeç — ana form akışını etkilemesin
+  }
+}
+function renderSkyToday(){
+  const data=lastSkyTodayData;
+  const card=document.getElementById('skyTodayCard');
+  if(!data||!card)return;
+  const moonSign=signName(data.moon_sign_index);
+  const sunSign=signName(data.sun_sign_index);
+  const phase=t('moonPhase_'+data.moon_phase);
+  const theme=t('moonTheme_'+data.moon_sign_index);
+  document.getElementById('skyTodayText').textContent = currentLocale==='en'
+    ? `The Moon is in ${moonSign} today, ${phase} — ${theme}.`
+    : `Ay bugün ${moonSign} burcunda, ${phase} - ${theme}.`;
+  document.getElementById('skyTodaySun').textContent = `${t('sunLabel')}: ${sunSign}`;
+  document.getElementById('skyTodayIcon').textContent = MOON_PHASE_ICONS[data.moon_phase]||'🌙';
+  card.style.display='flex';
+}
 
 let lastChartId=null;
 let interpretSessionId=null;
@@ -1960,6 +2225,7 @@ document.getElementById('birthDate').addEventListener('change',onDateChange);
 applyStaticText();
 updateAuthUI();
 checkMagicLinkToken();
+loadSkyToday();
 </script>
 </body>
 </html>
