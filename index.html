@@ -1864,26 +1864,32 @@ function clusterPlanetsByOrb(planets,pos,orb){
 // sonra) glyph'ten daha GENİŞ ama daha KISA.
 const GLYPH_BOX={w:13.5,h:16.5},LABEL_BOX={w:23,h:7.5};
 
-// Solar Fire tarzı 4 bağımsız radyal katman. R, burç halkasının iç sınırı
-// (eski R_SIGN_IN/R_HOUSE_OUT) - dış yarıçap referansı. Her katman kendi
-// içerik türüne (A: ev cusp dereceleri, B: gezegenler, C: ev numaraları,
-// D: açı çizgileri+sembolleri) ayrılmış, birbirine asla karışmaz - bu,
-// önceki "derece etiketi ile gezegen sembolü aynı arkta" tasarımının
-// (her gezegenin açısal ayak izini ikiye katlayan) yerini alıyor.
-const R=92;
-const LAYER_A_OUT=R,LAYER_A_IN=R*0.91;
-const LAYER_B_OUT=R*0.91,LAYER_B_IN=R*0.65;
-const LAYER_C_OUT=R*0.65,LAYER_C_IN=R*0.41;
-const LAYER_D_OUT=R*0.41,LAYER_D_IN=0;
+// Solar Fire tarzı radyal katmanlar. R, wheel'in GERÇEK dış yarıçapı (eski
+// R_OUT) - element renkli burç kuşağı da dahil TÜM katmanlar artık R'nin
+// kesirleri olarak tanımlanıyor (ilk sürümde kuşak bu şemanın DIŞINDA
+// bırakılmıştı, bu da her şeyi bir kademe içeri kaydırıp gezegen bandını
+// ev numaralarıyla aynı dar bölgeye sıkıştırmıştı - ölçülüp doğrulandı,
+// düzeltildi):
+//   0.94R-1.00R : element renkli burç kuşağı (İNCE rim) + burç glifleri,
+//                 derece tikleri dış kenarda
+//   ~0.90R      : ev cusp dereceleri, kuşağın hemen içinde, cusp çizgisinin
+//                 üstünde
+//   0.60R-0.86R : GEZEGEN BANDI - haritanın en geniş bandı (%26)
+//   ~0.52R      : ev numaraları (1-12)
+//   <0.45R      : açı çizgileri + açı sembolleri
+const R=116;
+const SIGN_BAND_OUT=R,SIGN_BAND_IN=R*0.94;
+const CUSP_DEG_R=R*0.90;
+const PLANET_BAND_OUT=R*0.86,PLANET_BAND_IN=R*0.60;
+const HOUSE_NUM_R=R*0.52;
+const ASPECT_OUT=R*0.45,ASPECT_IN=0;
 // B bandının dış kenarına olabildiğince yakın (küçük bir kenar payıyla) -
 // "~0.80R" yerine bandın tamamına yakınını kullanmak, etiket-sembol çifti
 // arasındaki gerekli mesafe için daha fazla yer bırakıyor (aşağıdaki not'a
 // bakın: bu mesafe sabit ~0.10R değil, gezegenin GERÇEK açısına göre
 // değişiyor ve yatay yönlerde etiketin GENİŞLİĞİ - LABEL_BOX.w=23 - yüzünden
-// çok daha büyük olabiliyor). Kenar payı 4'ten 1.5'e düşürüldü - dar B bandı
-// (%26'lık) içinde her ekstra birim, moderate bir kümede bile ek bir
-// kademenin sığıp sığmayacağını belirliyor (ölçülüp doğrulandı).
-const PLANET_LABEL_R0=LAYER_B_OUT-1.5;
+// çok daha büyük olabiliyor).
+const PLANET_LABEL_R0=PLANET_BAND_OUT-1.5;
 
 // Saf radyal istifleme (aynı açı, farklı yarıçap) için gereken adımı hesaplar.
 // İki nokta yalnızca RADYAL doğrultuda ayrılıyorsa, bu doğrultunun yatay/dikey
@@ -1931,7 +1937,7 @@ function pairRadialStep(angleRad,boxA,boxB){
 // çiftinin KENDİ İÇİNDEKİ zorunlu boşluğu - bkz. planetLevelRadii - bandın
 // büyük bir kısmını tek başına tüketiyor); 4 punto ek bir kademe olarak bunu
 // büyük ölçüde iyileştiriyor.
-const FONT_SIZES=[15,12,9,6,4];
+const FONT_SIZES=[15,12,9,6,4,3];
 
 // Bir kümedeki (n≥1 gezegen) her üyenin KENDİ gerçek açısında kalacağı,
 // sadece RADYAL KADEMESİNİN (level) değiştiği yeni mimari için: her kademenin
@@ -1948,7 +1954,7 @@ const FONT_SIZES=[15,12,9,6,4];
 // yüzden her kutu boyutu için TÜM üye açıları arasındaki maksimum gereken
 // mesafe alınır - bu, kümedeki HİÇBİR üyenin (kendi açısında) yetersiz
 // mesafe almamasını garanti eder.
-const PLANET_SYMBOL_FLOOR=LAYER_B_IN+1.5;
+const PLANET_SYMBOL_FLOOR=PLANET_BAND_IN+1.5;
 // %25 güvenlik payı - kutu boyutları yaklaşık ölçümlere dayanıyor (farklı
 // gezegen glyph'leri arasında küçük genişlik farkları var), doğrudan kutu
 // boyutuna uygulanıyor (pairRadialStep/radialStepFor çağrılarından ÖNCE) -
@@ -2040,52 +2046,55 @@ function findAspect(lon1,lon2){
 function renderWheel(pos,ascDeg,cusps,mc){
   const svg=document.getElementById('astroWheel');
   const cx=150,cy=150;
-  // Burç halkası (dıştan) - katmanlı mimarinin DIŞINDA, değişmedi.
-  const R_OUT=116;
-  const R_TIP=R_OUT+12,R_LABEL=R_OUT+24;
+  const R_TIP=R+12,R_LABEL=R+24;
   ascDeg=norm(ascDeg);
   let h='';
 
-  h+=`<circle cx="${cx}" cy="${cy}" r="${R_OUT}" fill="none" stroke="#C7C2B8" stroke-width="1.2"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="${LAYER_A_OUT}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="${LAYER_B_IN}" fill="none" stroke="#E3DFD5" stroke-width="0.7"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="${LAYER_D_OUT}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#C7C2B8" stroke-width="1.2"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${SIGN_BAND_IN}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${PLANET_BAND_IN}" fill="none" stroke="#E3DFD5" stroke-width="0.7"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${ASPECT_OUT}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
 
-  // Burç dilimleri — mutlak 30°'lik burç sınırlarına göre, gerçek (kesirli) asc derecesiyle hizalı
+  // Element renkli burç kuşağı — 0.94R-1.00R, İNCE bir rim (eski sürümde bu
+  // kuşak katman şemasının DIŞINDA sayılmıştı, bu yüzden tüm iç katmanlar
+  // bir kademe dışarı taşınabilirdi; artık kuşak da R'nin bir kesri - bkz.
+  // yukarıdaki sabitler). Mutlak 30°'lik burç sınırlarına göre, gerçek
+  // (kesirli) asc derecesiyle hizalı.
   for(let si=0;si<12;si++){
     const a1=wheelAngle(si*30,ascDeg), a2=a1-(30*Math.PI/180);
-    const[x1,y1]=wheelPt(cx,cy,R_OUT,a1), [x2,y2]=wheelPt(cx,cy,R_OUT,a2);
-    const[xi1,yi1]=wheelPt(cx,cy,LAYER_A_OUT,a1), [xi2,yi2]=wheelPt(cx,cy,LAYER_A_OUT,a2);
+    const[x1,y1]=wheelPt(cx,cy,R,a1), [x2,y2]=wheelPt(cx,cy,R,a2);
+    const[xi1,yi1]=wheelPt(cx,cy,SIGN_BAND_IN,a1), [xi2,yi2]=wheelPt(cx,cy,SIGN_BAND_IN,a2);
     const col=elementColorOf(si);
     // Alfa "59"(~%35) - önceki "33"(~%20) zeminle/diğer öğelerle çakışacak
     // kadar soluktu, element grupları bir bakışta ayırt edilemiyordu; %35
     // hâlâ pastel ama net görünür.
-    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${LAYER_A_OUT},${LAYER_A_OUT} 0 0,1 ${xi1},${yi1}" fill="${col}59" stroke="#D9D5CC" stroke-width="0.6"/>`;
+    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${SIGN_BAND_IN},${SIGN_BAND_IN} 0 0,1 ${xi1},${yi1}" fill="${col}59" stroke="#D9D5CC" stroke-width="0.6"/>`;
     h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#D9D5CC" stroke-width="0.6"/>`;
     const amid=wheelAngle(si*30+15,ascDeg);
-    const[gx,gy]=wheelPt(cx,cy,(R_OUT+LAYER_A_OUT)/2,amid);
+    const[gx,gy]=wheelPt(cx,cy,(R+SIGN_BAND_IN)/2,amid);
     h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
   }
 
   // Derece tikleri (astro.com tarzı) — mutlak ekliptik dereceye göre, wheel'in
-  // en dış halkasının hemen dışında. 30°'lik burç sınırları zaten kendi
-  // çizgisine sahip (yukarıdaki döngü), o yüzden burada atlanıyor. Sayı
-  // etiketi yok, sadece ince/düşük kontrastlı çizgiler - teknik detay değil,
-  // standart bir harita okuma yardımcısı olduğu için toggle'a bağlı değil,
-  // varsayılan görünümde de gösteriliyor.
+  // en dış halkasının hemen dışında (kuşağın dış kenarında). 30°'lik burç
+  // sınırları zaten kendi çizgisine sahip (yukarıdaki döngü), o yüzden burada
+  // atlanıyor. Sayı etiketi yok, sadece ince/düşük kontrastlı çizgiler -
+  // teknik detay değil, standart bir harita okuma yardımcısı olduğu için
+  // toggle'a bağlı değil, varsayılan görünümde de gösteriliyor.
   for(let deg=0;deg<360;deg+=5){
     if(deg%30===0)continue;
     const tickA=wheelAngle(deg,ascDeg);
     const isTen=deg%10===0;
-    const[tix,tiy]=wheelPt(cx,cy,R_OUT,tickA);
-    const[tox,toy]=wheelPt(cx,cy,R_OUT+(isTen?6:3),tickA);
+    const[tix,tiy]=wheelPt(cx,cy,R,tickA);
+    const[tox,toy]=wheelPt(cx,cy,R+(isTen?6:3),tickA);
     h+=`<line x1="${tix}" y1="${tiy}" x2="${tox}" y2="${toy}" stroke="#B5B0A3" stroke-width="${isTen?0.6:0.4}"/>`;
   }
 
   // Ev çizgileri — backend'den gelen gerçek (dengesiz) Placidus cusp dereceleri;
   // yoksa (ör. Whole Sign veya offline hesap) 30°'lik eşit dilimlere düş.
-  // Çizgi artık LAYER_A_OUT'tan (R) LAYER_D_OUT'a (açı diski sınırı) kadar
-  // uzanır - A/B/C katmanlarının hepsini kapsayan bir "ev ayracı" (spoke).
+  // Çizgi burç kuşağının iç kenarından (SIGN_BAND_IN) açı diski sınırına
+  // (ASPECT_OUT) kadar uzanır - cusp derecesi, gezegen bandı ve ev numarası
+  // katmanlarının hepsini kapsayan bir "ev ayracı" (spoke).
   let cuspLons=(Array.isArray(cusps)&&cusps.length===12)?cusps.map(norm):null;
   if(!cuspLons){
     const ascSignStart=Math.floor(ascDeg/30)*30;
@@ -2094,34 +2103,43 @@ function renderWheel(pos,ascDeg,cusps,mc){
   for(let i=0;i<12;i++){
     const lon=cuspLons[i];
     const a=wheelAngle(lon,ascDeg);
-    const[ox,oy]=wheelPt(cx,cy,LAYER_A_OUT,a), [ix,iy]=wheelPt(cx,cy,LAYER_D_OUT,a);
+    const[ox,oy]=wheelPt(cx,cy,SIGN_BAND_IN,a), [ix,iy]=wheelPt(cx,cy,ASPECT_OUT,a);
     const isAngular=(i===0||i===3||i===6||i===9);
     h+=`<line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${isAngular?'#7C3AED':'#D4A574'}" stroke-width="${isAngular?1.4:0.7}"/>`;
 
-    // KATMAN A (0.91R-1.00R): SADECE ev cusp derecesi, cusp çizgisinin TAM
-    // ÜSTÜNDE (cusp'ın kendi açısında, ev orta noktasında DEĞİL) - eski
-    // tasarımda gezegen etiketiyle aynı arkı paylaşan bu bilgi artık
-    // tamamen ayrı, kendi bandına sahip.
-    const[cax,cay]=wheelPt(cx,cy,(LAYER_A_IN+LAYER_A_OUT)/2,a);
-    h+=`<text x="${cax}" y="${cay}" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="${isAngular?'#7C3AED':'#8a8378'}" font-family="Inter,sans-serif" font-weight="600">${fmtDegSignMinInSign(lon)}</text>`;
+    // Ev cusp derecesi (~0.90R): cusp çizgisinin hemen içinde, kuşağın
+    // altında. Nötr gri ton, kalın değil - gezegenlerin görsel önceliğini
+    // gölgede bırakmasın (bkz. tipografik hiyerarşi notu, planet bandı
+    // aşağıda). Işının TAM üzerinde ortalanırsa metin çizgiyi "üstü çizili"
+    // gösteriyor (ölçülüp doğrulandı) - bu yüzden TEĞETSEL yönde küçük bir
+    // pay ile çizginin yanına kaydırılıyor (radyal konumu/açısı DEĞİŞMİYOR,
+    // sadece görsel olarak çizginin üstünden çekiliyor).
+    const nudge=4;
+    const[cbx,cby]=wheelPt(cx,cy,CUSP_DEG_R,a);
+    const cax=cbx-nudge*Math.sin(a),cay=cby+nudge*Math.cos(a);
+    h+=`<text x="${cax}" y="${cay}" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="#8a8378" font-family="Inter,sans-serif" font-weight="400">${fmtDegSignMinInSign(lon)}</text>`;
 
-    // KATMAN C (0.41R-0.65R): SADECE ev numarası, bandın dış kenarında -
-    // ev orta noktasında (mid-span), gezegenlerle asla aynı bantta değil.
+    // Ev numarası (~0.52R): cusp etiketinden küçük punto, soluk (opacity) -
+    // tipografik hiyerarşide gezegen < cusp derecesi < hiçbiri değil, ev
+    // numarası en az öncelikli metin öğesi.
     const nextLon=cuspLons[(i+1)%12];
     let span=norm(nextLon-lon); if(span<=0)span=30;
     const labelA=wheelAngle(lon+span/2,ascDeg);
-    const[lx,ly]=wheelPt(cx,cy,LAYER_C_OUT-3,labelA);
-    h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="7.5" fill="#8a8378" font-family="Inter,sans-serif" font-weight="600">${i+1}</text>`;
+    const[lx,ly]=wheelPt(cx,cy,HOUSE_NUM_R,labelA);
+    h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="5.5" fill="#8a8378" opacity="0.55" font-family="Inter,sans-serif" font-weight="500">${i+1}</text>`;
   }
 
-  // KATMAN B (0.65R-0.91R): SADECE gezegenler. Her gezegen HER ZAMAN kendi
-  // gerçek açısal konumunda kalır (leader line/offset yok), bu yüzden her
-  // zaman kendi evinin içindedir - "kendi evinde kal" kuralı artık
-  // yapısal olarak garanti (ayrı bir clamp mekanizmasına gerek yok).
-  // Etiket (dış alt-katman, ~0.80R) ve sembol (iç alt-katman, ~0.70R) AYNI
-  // açıda, radyal olarak hizalı - eski "aynı arkta yan yana" tasarımının
-  // aksine, bir gezegenin açısal ayak izi artık sadece etiket genişliği
-  // kadar (glyph'in kendi genişliği etiketten zaten daha dar).
+  // GEZEGEN BANDI (0.60R-0.86R) — haritanın en geniş bandı (%26), sadece
+  // gezegenler. Her gezegen HER ZAMAN kendi gerçek açısal konumunda kalır
+  // (leader line/offset yok), bu yüzden her zaman kendi evinin içindedir -
+  // "kendi evinde kal" kuralı yapısal olarak garanti (ayrı bir clamp
+  // mekanizmasına gerek yok). Etiket (dış alt-katman, ~0.80R) ve sembol (iç
+  // alt-katman, ~0.68R) AYNI açıda, radyal olarak hizalı - bir gezegenin
+  // açısal ayak izi sadece etiket genişliği kadar (glyph'in kendi genişliği
+  // etiketten zaten daha dar). Tipografik hiyerarşide gezegen sembolü
+  // wheel'in EN BÜYÜK öğesi (font-size 15, sign glifinin 12'sinden ve cusp
+  // derecesinin 6.5'inden daha büyük) - referans yazılımlarda (Solar Fire)
+  // gezegen haritanın en baskın öğesidir.
   //
   // Birden fazla gezegen birbirine çok yakınsa (CLUSTER_ORB=17° - bkz. bir
   // önceki round'da R_PLANET=76'da getBBox() ile ölçülen görsel çakışma
@@ -2139,16 +2157,19 @@ function renderWheel(pos,ascDeg,cusps,mc){
     // ölçülüp doğrulandı).
     const memberAngles=cluster.map(p=>wheelAngle(pos[p.id],ascDeg));
     const{labelR,symbolR,fontSize,gap,step,usableLevels}=planetLevelRadii(memberAngles);
-    const labelFontSize=Math.round(6*fontSize/15);
+    // Etiket punto boyutu cusp derecesiyle AYNI (6.5, tam boyutta) -
+    // tipografik hiyerarşide "gezegen derece etiketi cusp etiketiyle aynı
+    // punto" isteniyordu.
+    const labelFontSize=Math.round(6.5*fontSize/15);
     // Taşan üyeler (overflow) için de AYNI (gap,step) çifti kullanılır - bu
     // değerler zaten kümedeki TÜM üyelerin (taşanlar dahil - memberAngles
     // hepsini kapsıyor) açılarına göre güvenli hesaplandı (bkz.
-    // planetLevelRadii). B bandı içindeki dizi PLANET_LABEL_R0'dan içeri
-    // doğru gittiği gibi, taşan üyeler için AYNI adımla R_OUT'un DIŞINA
-    // doğru devam ettirilir - matematiksel olarak birebir aynı garantiler
-    // geçerli (ölçülüp doğrulandı: sabit ±5/13 birimlik eski şema açıdan
-    // bağımsızdı ve gerçek çakışmalara yol açıyordu).
-    const overflowBase=R_OUT+14;
+    // planetLevelRadii). Gezegen bandı içindeki dizi PLANET_LABEL_R0'dan
+    // içeri doğru gittiği gibi, taşan üyeler için AYNI adımla wheel'in
+    // DIŞINA doğru devam ettirilir - matematiksel olarak birebir aynı
+    // garantiler geçerli (ölçülüp doğrulandı: sabit ±5/13 birimlik eski
+    // şema açıdan bağımsızdı ve gerçek çakışmalara yol açıyordu).
+    const overflowBase=R+14;
     cluster.forEach((p,i)=>{
       const memberA=wheelAngle(pos[p.id],ascDeg); // HER ZAMAN gerçek açı
       if(i<usableLevels){
@@ -2185,8 +2206,8 @@ function renderWheel(pos,ascDeg,cusps,mc){
     });
   });
 
-  // KATMAN D (0-0.41R): SADECE açı çizgileri + açı sembolleri. Gezegenlerin
-  // gerçek boylamları arasında, açı diskinin (LAYER_D_OUT) sınırında çizilir,
+  // AÇI DİSKİ (<0.45R): SADECE açı çizgileri + açı sembolleri. Gezegenlerin
+  // gerçek boylamları arasında, açı diskinin (ASPECT_OUT) sınırında çizilir,
   // astro.com tarzı. Sert açılar (kavuşum/kare/karşıt) kırmızı, yumuşak
   // açılar (sextil/üçgen) mavi; her açının orta noktasına küçük bir sembol
   // (☌ □ △ ✶ ☍) konur. <g class="tech-details-field"> ile mevcut "Teknik
@@ -2197,8 +2218,8 @@ function renderWheel(pos,ascDeg,cusps,mc){
       const p1=drawnPlanets[i],p2=drawnPlanets[j];
       const asp=findAspect(pos[p1.id],pos[p2.id]);
       if(!asp)continue;
-      const[ax1l,ay1l]=wheelPt(cx,cy,LAYER_D_OUT,wheelAngle(pos[p1.id],ascDeg));
-      const[ax2l,ay2l]=wheelPt(cx,cy,LAYER_D_OUT,wheelAngle(pos[p2.id],ascDeg));
+      const[ax1l,ay1l]=wheelPt(cx,cy,ASPECT_OUT,wheelAngle(pos[p1.id],ascDeg));
+      const[ax2l,ay2l]=wheelPt(cx,cy,ASPECT_OUT,wheelAngle(pos[p2.id],ascDeg));
       const col=asp.hard?'#DC2626':'#2563EB';
       aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${col}" stroke-width="0.8" opacity="0.6"/>`;
       const midx=(ax1l+ax2l)/2,midy=(ay1l+ay2l)/2;
@@ -2210,14 +2231,26 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
   // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
   const ascA=wheelAngle(ascDeg,ascDeg);
-  const[ax1,ay1]=wheelPt(cx,cy,LAYER_D_OUT,ascA), [ax2,ay2]=wheelPt(cx,cy,R_TIP,ascA);
+  const[ax1,ay1]=wheelPt(cx,cy,ASPECT_OUT,ascA), [ax2,ay2]=wheelPt(cx,cy,R_TIP,ascA);
   const[alx,aly]=wheelPt(cx,cy,R_LABEL,ascA);
   h+=`<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="#DC143C" stroke-width="1.5"/>`;
   h+=`<text x="${alx}" y="${aly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#DC143C" font-family="Inter,sans-serif" font-weight="700">ASC</text>`;
 
   if(typeof mc==='number'){
-    const mcA=wheelAngle(mc,ascDeg);
-    const[mx1,my1]=wheelPt(cx,cy,LAYER_D_OUT,mcA), [mx2,my2]=wheelPt(cx,cy,R_TIP,mcA);
+    // MC her zaman 10. ev cusp'ıyla (cuspLons[9]) AYNI çizgi olmalı - Placidus'ta
+    // (ve diğer quadrant ev sistemlerinde) MC, TANIM GEREĞİ 10. ev cusp'ıdır
+    // (Swiss Ephemeris backend'i bunu doğrudan bu şekilde hesaplıyor - bkz.
+    // app/astrology/core.py: swe.houses()'in ascmc[1]'i). Önceki sürüm MC'nin
+    // açısını backend'in AYRI `mc` alanından hesaplıyordu; `mc` ve `cusps[9]`
+    // teorik olarak hep eşit olsa da, iki AYRI alana güvenmek onları hafifçe
+    // tutarsız veren herhangi bir üst akış hatasına karşı kırılgandı ve gerçek
+    // bir raporda tam olarak bu şekilde gözlemlendi (eğik mor cusp çizgisi +
+    // sabit gibi görünen ayrı lacivert MC çizgisi) - kök neden backend'de değil
+    // (Placidus için ikisi zaten hep eşit çıkıyor), test verisindeydi, ama
+    // render kendi içinde tek bir kaynağa (cuspLons[9]) bağlanarak bu tür bir
+    // tutarsızlığın GEOMETRİK OLARAK MÜMKÜN olmasının önüne geçiyor.
+    const mcA=wheelAngle(cuspLons[9],ascDeg);
+    const[mx1,my1]=wheelPt(cx,cy,ASPECT_OUT,mcA), [mx2,my2]=wheelPt(cx,cy,R_TIP,mcA);
     const[mlx,mly]=wheelPt(cx,cy,R_LABEL,mcA);
     h+=`<line x1="${mx1}" y1="${my1}" x2="${mx2}" y2="${my2}" stroke="#1a3a5c" stroke-width="2"/>`;
     h+=`<text x="${mlx}" y="${mly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a3a5c" font-family="Inter,sans-serif" font-weight="700">MC</text>`;
