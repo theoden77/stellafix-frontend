@@ -1284,6 +1284,39 @@ const PLANETS=[
   {id:'true_node',name:'Ay Düğümü',nameEn:'North Node',glyph:'☊',color:'#a0a060'},
   {id:'asc',name:'Asc',nameEn:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
+
+// Plüton'un Unicode sembolü (♇, U+2647) gerçek üretim ortamında bazı
+// platformlarda (özellikle mobil/bazı işletim sistemlerinde) HİÇBİR fontla
+// eşleşmiyor ve tamamen boş/görünmez render oluyor - doğrulandı. Bu, daha
+// önce burç glyph'lerinde çözülen emoji-font çakışmasından TAMAMEN FARKLI
+// bir sorun (orada karakter render oluyordu ama yanlış görünüyordu; burada
+// hiç render olmuyor) - VS-15 gibi bir sunum seçici bunu düzeltemez, çünkü
+// sorun "yanlış sunum" değil "hiç glif yok". Kök neden: klasik 7 gezegen +
+// Uranüs/Neptün/Ay Düğümü çok daha eski (1993 Unicode 1.1) ve yaygın
+// desteklenen sembollerdir (Arial/Times/Helvetica gibi temel fontlarda bile
+// var); Plüton 1930'da keşfedilen görece yeni bir gökcismi olduğu için
+// sembolü birçok fontun kapsamına hiç girmemiş. Bu yüzden Plüton'a özel,
+// font'tan tamamen bağımsız, elle çizilmiş bir SVG ikon kullanılıyor
+// (hilal-daire-artı, modern astroloji yazılımlarının kullandığı yaygın
+// varyant) - hem wheel'de hem "Gezegen Pozisyonları" tablosunda. Diğer 10
+// sembol (Ay Düğümü dahil) 1993'ten beri temel fontlarda mevcut olduğu için
+// Unicode metin glyph'i olarak bırakıldı.
+function plutoIconPaths(color,sw){
+  return `<path d="M-3.2,-4 Q0,-8.8 3.2,-4" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<circle cx="0" cy="0.3" r="2.6" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
+    `<line x1="0" y1="2.9" x2="0" y2="7.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<line x1="-2" y1="5.3" x2="2" y2="5.3" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
+// "Gezegen Pozisyonları" tablosundaki düz metin glyph hücreleri için -
+// wheel'deki <g transform> yaklaşımının aksine, burada bağımsız küçük bir
+// inline <svg> kullanılıyor (bir <span> içine gömülebilmesi için).
+function plutoIconInlineSVG(color){
+  return `<svg width="16" height="20" viewBox="-6 -10 12 20" style="vertical-align:middle">${plutoIconPaths(color,1.3)}</svg>`;
+}
+function planetGlyphHTML(p){
+  return p.id==='pluto'?plutoIconInlineSVG(p.color):p.glyph;
+}
+
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
 const SIGNS_EN=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 const SIGN_GLYPHS=['♈︎','♉︎','♊︎','♋︎','♌︎','♍︎','♎︎','♏︎','♐︎','♑︎','♒︎','♓︎'];
@@ -1617,7 +1650,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
     const pObj=PLANETS.find(x=>x.id===p.key)||{glyph:p.name[0],color:'#888'};
     const tr=document.createElement('tr');
     tr.innerHTML=`
-      <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
+      <td><span class="planet-glyph" style="color:${pObj.color}">${planetGlyphHTML(pObj)}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -1722,7 +1755,7 @@ function renderTable(pos,daytime,houses,getH){
     const house=p.id==='asc'?1:getH(si);
     const pct=Math.max(0,(dg.s/5)*100);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
+    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${planetGlyphHTML(p)}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
       <td style="font-family:monospace;font-size:12px">${fmtDeg(deg)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -1918,7 +1951,11 @@ function renderWheel(pos,ascDeg,cusps,mc){
     const[tx,ty]=wheelPt(cx,cy,R_HOUSE_OUT,trueA);
     const[px,py]=wheelPt(cx,cy,R_PLANET,declA);
     h+=`<line x1="${tx}" y1="${ty}" x2="${px}" y2="${py}" stroke="${p.color}" stroke-width="0.5" opacity="0.45"/>`;
-    h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
+    if(p.id==='pluto'){
+      h+=`<g transform="translate(${px},${py})">${plutoIconPaths(p.color,1.6)}</g>`;
+    }else{
+      h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="15" fill="${p.color}">${p.glyph}</text>`;
+    }
     // Derece/dakika etiketi — glyph'in genel yakınında, merkeze doğru biraz
     // içeride ("altında"), ama kendi (daha geniş) declutter açısında. Glyph
     // rengiyle uyumlu ama soluk (opacity), küçük punto - ana sembolü gölgede
