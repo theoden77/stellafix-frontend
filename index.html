@@ -179,11 +179,14 @@
   .edu-block{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(30,27,46,.05);}
   .edu-block:last-child{margin-bottom:0;}
   .edu-block-title{font-family:'Cinzel',serif;color:var(--lapis);font-size:17px;font-weight:700;margin-bottom:14px;}
-  .zodiac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+  .zodiac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px;}
+  @media(max-width:700px){.zodiac-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:420px){.zodiac-grid{grid-template-columns:1fr;}}
   .zodiac-item{display:flex;align-items:center;gap:8px;background:var(--parchment);border:1px solid var(--rule);border-radius:10px;padding:9px 12px;font-size:13px;}
-  .zodiac-item .zi-glyph{font-size:17px;}
-  .zodiac-item .zi-name{font-weight:600;}
-  .zodiac-item .zi-range{opacity:.65;font-size:12px;}
+  .zodiac-item .zi-glyph{font-size:17px;flex-shrink:0;}
+  .zodiac-item .zi-text{display:flex;flex-wrap:wrap;column-gap:6px;row-gap:1px;align-items:baseline;min-width:0;}
+  .zodiac-item .zi-name{font-weight:600;white-space:nowrap;}
+  .zodiac-item .zi-range{opacity:.65;font-size:12px;white-space:nowrap;}
   .zodiac-disclaimer{font-size:12px;color:var(--ink);opacity:.55;margin-top:12px;font-style:italic;}
   .history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:700px){.history-grid{grid-template-columns:1fr;}}
@@ -1999,7 +2002,7 @@ function renderZodiacGrid(){
   const wrap=document.getElementById('zodiacGrid');
   if(!wrap)return;
   wrap.innerHTML=SIGN_GLYPHS.map((g,i)=>
-    `<div class="zodiac-item"><span class="zi-glyph">${g}</span><span class="zi-name">${signName(i)}</span><span class="zi-range">${t('signDate_'+i)}</span></div>`
+    `<div class="zodiac-item"><span class="zi-glyph">${g}</span><span class="zi-text"><span class="zi-name">${signName(i)}</span><span class="zi-range">${t('signDate_'+i)}</span></span></div>`
   ).join('');
 }
 
