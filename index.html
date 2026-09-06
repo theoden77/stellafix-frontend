@@ -6,6 +6,29 @@
 <title>Stellafix · Klasik Astroloji Demo</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+  /* StellaSymbols: gezegen/burc/acisi sembolleri icin self-hosted webfont subseti.
+     Kaynak: Noto Sans Symbols + Noto Sans Symbols 2 (Google/Noto Project, SIL OFL 1.1
+     - https://github.com/notofonts/symbols). Sadece kullanilan kod noktalari
+     (11 gezegen + Ay Dugumu + 12 burc + 5 acisi isareti) pyftsubset ile ayiklandi
+     (~5KB toplam), base64 data: URI olarak gomuldu - ag isteği gerekmez, tek
+     dosyalik mimariyle uyumlu. Webfont yuklenemezse (cok nadir - CSS parse hatasi
+     vb.) 'Segoe UI Symbol'/'Apple Symbols'/sistem sans-serif zinciri devrede kalir;
+     Plüton icin ayrica JS calisma-zamani tespiti + elle cizilmis SVG ikon üçüncü
+     savunma hatti olarak asagida (bkz. plutoUnicodeSupported/plutoIconPaths) durur.
+     unicode-range iki @font-face'i kod noktasina gore kesin olarak ayirir - iki
+     font parcasi arasinda cakisma yok. */
+  @font-face{
+    font-family:'StellaSymbols';
+    src:url(data:font/woff2;base64,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) format('woff2');
+    unicode-range:U+260A,U+260C-260D,U+263D,U+263F-2646,U+2648-2653;
+    font-display:swap;
+  }
+  @font-face{
+    font-family:'StellaSymbols';
+    src:url(data:font/woff2;base64,d09GMgABAAAAAAPgAA8AAAAAByQAAAOLAAICDAAAAAAAAAAAAAAAAAAAAAAAAAAAGyAcPAZgAFQRCAqDbINAATYCJAMYCw4ABCAFhCoHIBckGA4b5QVRlCzKRICfCSZeN8qIUrRpTSGRom5oHcRxXWmkZz5eiQBbI2fhAdERSSJLZWEAhaludR0LWwukGo8SFEqC+//teu98s8JLvNDsDyd/Yf6V30auZjZswaKiTg+oaFKb55vb+xysXm2rC3lMEMFarNXcPen94X6m/9uyMBpHOtCJvEU1bxbRgAm+4ajvDg9brBr0yM62YZyJESOmaS8xdm8BlbrNItamyQU9MhQFMEawaKPObehsqxeBfaU2k5Vz11MFzhvH5U5zUdychsLRI8Sr0Qfs1vXDKWQUFPMt8k9tLqsWHqz4OC8y7x9NHoubgQCxPV1EvzZEJDRrF9CswxJQrVyUR+6uuLyyd9U850VREPndH3tvfffrzeOXJAJeSRCK/xqUgmpU4TrwBQBkQBQlQco5pebmgbH6kSXqzuF8rjtrq04/5eH8pl+/fk3se/3mTT/z8tUr2Pvy5UsP87iIfZ2uPhou2ItgkL733uVxP/MQrtyJH4tNeT3T8WC//0y63BMJX4ZeSM1qVrOa1azmpI/oD68U1dP/yty/R8jb/xJbXNCvUmXIL/uoKNeWH788iI/fOHbjSydMcrg3a2WobJZirDaKboMPMNMxLm2zUgxCbxGqt4mDQfE2tdoCgQ/oECtTEejRHHqIzMVzj2D/jGjZZGbXj3/YNZlKppGCpCh+jGS2wEeDLLuwkJXJLbRB1D5eLivRcbUstpbLtU4tmwAmVkJYV2EdPK9vRW1dhxXlivpYl1vfZZTuToX2kno9nIshQAxK0K06NgJGPRhbV7Slb7V0LXsABMRY3Xp5fkl0eNO3nk4fAC9+Ll0DvLO8Iv41/Q+U/u/gAaUiCHx1zrJpwvz7OAVCbS2NR0RLQVyMgqbRqdQzLARtlO97DlIdcy0J4TLHvLpcgRsgi4JRJ0VRrWeiZMNTUTafKVGJvZg+e6nJnLWqomqbupyMLAwhCZFIiEtWCmJRgVUgNnUVeSlJGCLXhGVV1DUgq2VhWFXDRgICGTlYVlMCX1JFiUB5VVPaypZhDYKfb1OSUFHUwNo52ymurOEZxmli8iSHlIwmNa4e4hNq2fUoWtaEFrWaTjqJAhJvELtPQjnikbqJ1TkVZeg8hxAMS4trCjUrZ8G3lr6ZCN96i87LrsOzxuJyE1in97RTSosbpv3FUI/4+r+6PowL/H7f+QL8yaB3b0jGHRxTqDAOAAA=) format('woff2');
+    unicode-range:U+2609,U+25A1,U+25B3,U+2736,U+2BD3;
+    font-display:swap;
+  }
   *{margin:0;padding:0;box-sizing:border-box;}
   :root{
     --ink:#1E1B2E;--parchment:#FAFAF8;--parchment-dark:#EDEAE3;
@@ -76,7 +99,7 @@
   .planet-table tr:hover td{background:var(--parchment);}
   .tech-col{display:none;}
   body.show-tech-details .tech-col{display:table-cell;}
-  .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;}
+  .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;font-family:'StellaSymbols','Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif;}
   .dignity-badge{font-size:10px;padding:3px 8px;font-family:'Inter',sans-serif;font-weight:600;letter-spacing:.02em;border-radius:6px;display:inline-block;}
   .d-domicile{background:#EDE9FE;color:#6D28D9;}
   .d-exaltation{background:#DCFCE7;color:#15803D;}
@@ -137,9 +160,20 @@
   .chat-remaining{font-size:11px;color:var(--ink);opacity:.5;margin-top:8px;font-style:normal;}
   .chat-remaining.exhausted{color:var(--crimson);opacity:1;font-style:normal;}
   #astroWheel{width:100%;max-width:440px;cursor:zoom-in;}
-  .wheel-lightbox-backdrop{position:fixed;inset:0;background:rgba(30,27,46,.75);display:flex;align-items:center;justify-content:center;z-index:600;padding:24px;}
-  .wheel-lightbox-content{position:relative;background:#fff;border-radius:16px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
-  .wheel-lightbox-content svg{display:block;width:min(82vw,82vh);height:min(82vw,82vh);cursor:default;}
+  /* 8. tur: tipografi R'nin kesri olarak küçültüldü - küçük satır-içi wheel'de
+     (440px) gezegen etiketleri artık okunamayacak kadar küçük render olur.
+     Detay zaten lightbox'ta (büyütülmüş render, aşağıya bakın) var, bu yüzden
+     küçük wheel'de SADECE sembol+tik gösterilip etiketler gizleniyor - aynı
+     SVG içeriği paylaşıldığından (lightbox innerHTML klonu) bu kural sadece
+     #astroWheel'in kendi ID'siyle kapsamlanıyor, lightbox etkilenmiyor. */
+  #astroWheel [data-role="label"]{display:none;}
+  .wheel-lightbox-backdrop{position:fixed;inset:0;background:rgba(30,27,46,.75);display:flex;align-items:center;justify-content:center;z-index:600;padding:10px;}
+  .wheel-lightbox-content{position:relative;background:#fff;border-radius:16px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  /* 8. tur: tipografi R'nin kesri olarak küçültüldü (referans oranlarına
+     uydurmak için) - okunabilirlik artık render BOYUTUNDAN geliyor, bu
+     yüzden lightbox viewport'un izin verdiği kadar büyütüldü (82vw/82vh'den
+     96vw/96vh'ye, + iç dolgu payları küçültüldü). */
+  .wheel-lightbox-content svg{display:block;width:min(96vw,96vh);height:min(96vw,96vh);cursor:default;}
   .wheel-lightbox-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:28px;line-height:1;color:var(--ink);cursor:pointer;padding:4px 8px;}
   .wheel-lightbox-close:hover{color:var(--lapis);}
   .ref-table{width:100%;border-collapse:collapse;font-size:14px;}
@@ -1309,41 +1343,85 @@ const PLANETS=[
   {id:'saturn',name:'Satürn',nameEn:'Saturn',glyph:'♄',color:'#787878'},
   {id:'uranus',name:'Uranüs',nameEn:'Uranus',glyph:'♅',color:'#4aa8c8'},
   {id:'neptune',name:'Neptün',nameEn:'Neptune',glyph:'♆',color:'#3a5ac8'},
-  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'♇︎',color:'#6a3a5c'},
+  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'⯓',color:'#6a3a5c'},
   {id:'true_node',name:'Ay Düğümü',nameEn:'North Node',glyph:'☊',color:'#a0a060'},
   {id:'asc',name:'Asc',nameEn:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
 
-// Plüton'un Unicode sembolü (♇, U+2647) gerçek üretim ortamında bazı
-// platformlarda (özellikle mobil/bazı işletim sistemlerinde) HİÇBİR fontla
-// eşleşmiyor ve tamamen boş/görünmez render oluyor - doğrulandı. Bu, daha
-// önce burç glyph'lerinde çözülen emoji-font çakışmasından TAMAMEN FARKLI
-// bir sorun (orada karakter render oluyordu ama yanlış görünüyordu; burada
-// hiç render olmuyor) - VS-15 gibi bir sunum seçici bunu düzeltemez, çünkü
-// sorun "yanlış sunum" değil "hiç glif yok". Kök neden: klasik 7 gezegen +
-// Uranüs/Neptün/Ay Düğümü çok daha eski (1993 Unicode 1.1) ve yaygın
-// desteklenen sembollerdir (Arial/Times/Helvetica gibi temel fontlarda bile
-// var); Plüton 1930'da keşfedilen görece yeni bir gökcismi olduğu için
-// sembolü birçok fontun kapsamına hiç girmemiş. Bu yüzden Plüton'a özel,
-// font'tan tamamen bağımsız, elle çizilmiş bir SVG ikon kullanılıyor
-// (hilal-daire-artı, modern astroloji yazılımlarının kullandığı yaygın
-// varyant) - hem wheel'de hem "Gezegen Pozisyonları" tablosunda. Diğer 10
-// sembol (Ay Düğümü dahil) 1993'ten beri temel fontlarda mevcut olduğu için
-// Unicode metin glyph'i olarak bırakıldı.
-function plutoIconPaths(color,sw){
-  return `<path d="M-3.2,-4 Q0,-8.8 3.2,-4" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
-    `<circle cx="0" cy="0.3" r="2.6" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
-    `<line x1="0" y1="2.9" x2="0" y2="7.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
-    `<line x1="-2" y1="5.3" x2="2" y2="5.3" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+// 11. tur: Plüton U+2BD3 Unicode karakterine geçirildi (kullanıcının
+// doğrudan karşılaştırma görüntüsüyle doğrulanmış karar - bu ortamda hedef
+// şekli mevcut SVG'den daha temiz render ediyor). 12. tur: bu kararın
+// PLATFORM RİSKİ var - U+2647 gibi U+2BD3 de "Miscellaneous Symbols and
+// Arrows" bloğunda, Segoe UI Symbol/Apple Symbols/Noto Sans Symbols 2
+// üçünün de bulunmadığı bir platformda (özellikle parçalı Android font
+// dağılımı) tofu kutusu riski taşıyor. Stellafix uluslararası hedeflediği
+// için bu risk kabul edilemez - bu yüzden RUNTIME TESPİT + elle çizilmiş
+// SVG'ye OTOMATİK DÜŞÜŞ eklendi (SVG kod yolu silinmedi, bkz. plutoIconPaths
+// aşağıda).
+//
+// TESPİT YÖNTEMİ VE DÜRÜST SINIRLARI (ölçülüp test edildi): U+2BD3'ün
+// GERÇEK render edilmiş ink kutusunu (canvas measureText'in advance-width'i
+// DEĞİL - SVG <text>'in getBBox'ı, gerçek wheel render yoluyla AYNI),
+// KASITLI OLARAK hiçbir fontta atanmamış bir Unicode "noncharacter"
+// (U+FFFF) referansıyla karşılaştırıyoruz. Genişlik belirgin farklıysa
+// (U+2BD3 muhtemelen gerçek bir glif render ediyor) desteklenmiş sayılıyor.
+// SINIR: bu sandbox'ta test edildi - font-family'yi KASITLI OLARAK var
+// olmayan bir isme (hatta 'serif'/'monospace' gibi jenerik ailelere)
+// değiştirmek bile U+2BD3'ün ölçümünü DEĞİŞTİRMEDİ (her durumda tam 1em
+// genişlik) - bu, işletim sisteminin (bu konteynerdeki fontconfig) kendi
+// evrensel fallback zincirinin, sayfanın font-family listesinden BAĞIMSIZ
+// olarak devreye girdiğini gösteriyor. Yani bu ortamda GERÇEK bir "font
+// eksik" senaryosunu simüle edip doğrulayamadım - tespit fonksiyonu makul
+// bir sezgisel yöntem ama gerçek bir font-eksik cihazda (ör. Noto Symbols
+// paketi olmayan bir Android) davranışı BU oturumda doğrulanamadı. Native
+// bir "bu font bu karakteri kapsıyor mu" API'si yok (document.fonts.check()
+// sistem fontlarında tarayıcılar arası tutarsız) - bu yüzden bu, mevcut en
+// iyi pratik yöntem, ama %100 garanti değil. Sonuç SAYFA YÜKLENİNCE BİR KEZ
+// hesaplanıp önbelleğe alınıyor.
+let _plutoUnicodeSupported=null;
+function plutoUnicodeSupported(){
+  if(_plutoUnicodeSupported!==null)return _plutoUnicodeSupported;
+  try{
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.style.position='absolute';svg.style.opacity='0';svg.style.pointerEvents='none';
+    document.body.appendChild(svg);
+    const bboxOf=ch=>{
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('font-size','40');
+      t.setAttribute('font-family',SYMBOL_FONT_FAMILY);
+      t.textContent=ch;
+      svg.appendChild(t);
+      const b=t.getBBox();
+      svg.removeChild(t);
+      return b;
+    };
+    const target=bboxOf('⯓');
+    const nonch=bboxOf(String.fromCharCode(0xFFFF));
+    document.body.removeChild(svg);
+    _plutoUnicodeSupported=target.width>0&&Math.abs(target.width-nonch.width)>1;
+  }catch(e){
+    _plutoUnicodeSupported=false;
+  }
+  return _plutoUnicodeSupported;
 }
-// "Gezegen Pozisyonları" tablosundaki düz metin glyph hücreleri için -
-// wheel'deki <g transform> yaklaşımının aksine, burada bağımsız küçük bir
-// inline <svg> kullanılıyor (bir <span> içine gömülebilmesi için).
+// Elle çizilmiş SVG ikon (hilal-daire-artı, U+2BD3'ün gösterdiği aynı şekil)
+// - artık birincil yol değil, SADECE plutoUnicodeSupported() false dönerse
+// (yukarıdaki tespit U+2BD3'ün bu platformda gerçek bir glif render
+// etmediğini düşünürse) devreye giren YEDEK yol. Font'tan tamamen bağımsız.
+function plutoIconPaths(color,sw){
+  return `<path d="M-3.6,-4.6 Q0,-9.6 3.6,-4.6" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<circle cx="0" cy="-2.2" r="2.1" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
+    `<line x1="0" y1="-0.1" x2="0" y2="6.8" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<line x1="-2.6" y1="3.6" x2="2.6" y2="3.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
 function plutoIconInlineSVG(color){
   return `<svg width="16" height="20" viewBox="-6 -10 12 20" style="vertical-align:middle">${plutoIconPaths(color,1.3)}</svg>`;
 }
+// "Gezegen Pozisyonları" tablosu için - Plüton'un Unicode desteklenip
+// desteklenmediğine göre glif ya da SVG ikon döner, diğer gezegenler
+// dokunulmadan kendi glyph'ini döner.
 function planetGlyphHTML(p){
-  return p.id==='pluto'?plutoIconInlineSVG(p.color):p.glyph;
+  return(p.id==='pluto'&&!plutoUnicodeSupported())?plutoIconInlineSVG(p.color):p.glyph;
 }
 
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
@@ -1810,177 +1888,448 @@ function renderTable(pos,daytime,houses,getH){
 function wheelAngle(lonDeg,ascDeg){return(180-norm(lonDeg-ascDeg))*Math.PI/180;}
 function wheelPt(cx,cy,radius,angleRad){return[cx+radius*Math.cos(angleRad),cy+radius*Math.sin(angleRad)];}
 
-// Gezegenler artık offset+leader line ile gerçek konumlarından uzaklaştırılmıyor
-// - her biri KENDİ gerçek açısal konumunda render edilir, bu yüzden her zaman
-// kendi evinin içinde kalır (leader line'a gerek kalmaz). Birden fazla gezegen
-// birbirine çok yakınsa, yanlara dağıtmak yerine aynı radyal doğrultuda (AYNI
-// AÇIDA) farklı yarıçaplarda İSTİFLENİR. Bu, dairesel tek-bağlantılı
-// (single-linkage) kümeleme: boylama göre sıralanmış gezegenler arasındaki
-// ardışık fark verilen orb'u aşınca küme biter.
-function clusterPlanetsByOrb(planets,pos,orb){
-  const n=planets.length;
-  if(n===0)return[];
-  const items=planets.map(p=>({p,lon:norm(pos[p.id])})).sort((a,b)=>a.lon-b.lon);
-  const gaps=items.map((it,i)=>{
-    const next=items[(i+1)%n];
-    let gap=next.lon-it.lon; if(i===n-1)gap+=360;
-    return gap;
-  });
-  const breaks=[];
-  for(let i=0;i<n;i++)if(gaps[i]>orb)breaks.push(i);
-  if(breaks.length===0)return[items.map(it=>it.p)];
-  const clusters=[];
-  for(let bi=0;bi<breaks.length;bi++){
-    const start=(breaks[bi]+1)%n;
-    const end=breaks[(bi+1)%breaks.length];
-    const cluster=[];
-    let idx=start;
-    while(true){
-      cluster.push(items[idx].p);
-      if(idx===end)break;
-      idx=(idx+1)%n;
-    }
-    clusters.push(cluster);
-  }
-  return clusters;
-}
-
-// Bir kümenin tüm üyeleri render için TEK bir ortak açı kullanır (üyelerin
-// kendi gerçek açıları küme genişliği kadar - en fazla CLUSTER_ORB - birbirinden
-// farklı olabilir; bu fark, salt radyal ayrımın (aynı açı varsayımıyla
-// hesaplanan) sağladığı boşluğu bozacak kadar büyük olabiliyordu - ölçülüp
-// doğrulandı). Dairesel ortalama: ilk üyeyi referans alıp diğerlerinin işaretli
-// en kısa açısal farkını (±180° içinde) ortalıyor - küme zaten dar olduğundan
-// (<CLUSTER_ORB) bu hiçbir zaman 0/360 sarmalına takılmaz.
-function clusterMeanLon(cluster,pos){
-  const first=norm(pos[cluster[0].id]);
-  let sum=0;
-  cluster.forEach(p=>{
-    let d=norm(pos[p.id]-first); if(d>180)d-=360;
-    sum+=d;
-  });
-  return norm(first+sum/cluster.length);
-}
-
-// Bir kümenin ortak açısı, kümenin bir ev sınırını aşan (nadir ama mümkün)
-// durumlarda bir üyeyi KENDİ evinin dışına düşürebilir - bu, "kendi evinde
-// kal" kuralını ihlal eder ve "aynı açıda istifle" kuralından daha
-// önceliklidir. Bu iki fonksiyon, bir üyenin gerçek boylamına göre hangi
-// evde olduğunu bulur (houseIndexOf) ve ortak küme açısını gerekirse o evin
-// sınırları içinde kalacak şekilde kelepçeler (clampLonToHouse).
+// Bir boylamın hangi evde olduğunu bulur - gezegenleri EVE göre gruplamak
+// için gerekli (7. tur: blok, o evin dilimine yerleştiriliyor).
 function houseIndexOf(lon,cuspLons){
+  const l=norm(lon);
   for(let i=0;i<12;i++){
     const start=cuspLons[i],end=cuspLons[(i+1)%12];
     const span=norm(end-start)||360;
-    if(norm(lon-start)<span)return i;
+    if(norm(l-start)<span)return i;
   }
   return 11;
-}
-function clampLonToHouse(lon,cuspLons,houseIdx){
-  const start=cuspLons[houseIdx],end=cuspLons[(houseIdx+1)%12];
-  const span=norm(end-start)||360;
-  const margin=Math.min(0.5,span/4);
-  let rel=norm(lon-start);
-  // rel span'in dışındaysa (ev sınırlarının tamamen dışında bir açı), bu iki
-  // farklı anlama gelebilir: ya start'ın hemen ÖNCESİ (rel 360'a yakın,
-  // dairesel olarak "geriye sarmış") ya da end'in hemen SONRASI (rel span'e
-  // yakın ama üstünde). "Dış" yayın (span..360) ORTA noktasına göre hangisine
-  // daha yakınsa ona göre karar veriliyor.
-  if(rel>=span){
-    const midOutside=(span+360)/2;
-    rel=rel<midOutside?span:0;
-  }
-  const relClamped=Math.min(Math.max(rel,margin),span-margin);
-  return norm(start+relClamped);
 }
 
 // Glyph ve etiket kutularının yaklaşık boyutları (SVG birimi, taban punto
 // için - font-size 15 glyph / font-size 6 etiket), gerçek DOM ölçümlerinden
 // (getBBox) alındı. Etiket metni ("16°♍51'" gibi, burç sembolü eklendikten
 // sonra) glyph'ten daha GENİŞ ama daha KISA.
-const GLYPH_BOX={w:13.5,h:16.5},LABEL_BOX={w:23,h:7.5};
+const GLYPH_BOX={w:13.5,h:16.5};
+// Etiket HER ZAMAN tam format ("16°♍51'" - derece+burç+dakika). Round 1-6'nın
+// kısaltma kademeleri (short/deg) bu turda kaldırıldı: kapasite artık içerik
+// uzunluğundan değil, KARTEZYEN blok mimarisinden geliyor (bkz. aşağı).
+const LABEL_BOX_FULL={w:23,h:7.5};
 
-// Saf radyal istifleme (aynı açı, farklı yarıçap) için gereken adımı hesaplar.
-// İki nokta yalnızca RADYAL doğrultuda ayrılıyorsa, bu doğrultunun yatay/dikey
-// bileşenlerine göre kutular ya x ekseninde ya da y ekseninde ayrılır - ikisi
-// birden gerekmez. Doğrultu yataya yakınsa (ör. ASC/DSC civarı) kutunun
-// GENİŞLİĞİ, dikeye yakınsa (ör. MC/IC civarı) YÜKSEKLİĞİ belirleyici olur.
-// Sabit tek bir adım (ör. eski 17°'lik minSep) sadece BİR yöne göre
-// ayarlanmıştı - yatay-ağırlıklı yönlerde geniş etiket kutuları hâlâ
-// çakışıyordu (ölçülüp doğrulandı). Bu fonksiyon her kümenin GERÇEK açısına
-// göre gereken minimum adımı hesaplar.
-function radialStepFor(angleRad,box){
-  const c=Math.abs(Math.cos(angleRad)),s=Math.abs(Math.sin(angleRad));
-  const byX=c>1e-6?box.w/c:Infinity;
-  const byY=s>1e-6?box.h/s:Infinity;
-  return Math.min(byX,byY);
-}
+// Solar Fire tarzı radyal katmanlar. R, wheel'in GERÇEK dış yarıçapı - element
+// renkli burç kuşağı da dahil TÜM katmanlar R'nin kesirleri:
+//   0.94R-1.00R : element renkli burç kuşağı (İNCE rim) + burç glifleri,
+//                 derece tikleri dış kenarda
+//   ~0.90R      : ev cusp dereceleri, kuşağın hemen içinde, cusp çizgisinin
+//                 üstünde
+//   0.56R-0.86R : GEZEGEN BANDI - haritanın en geniş bandı (%30, 12. turda
+//                 %26'dan büyütüldü - bkz. aşağı)
+//   ~0.52R      : ev numaraları (1-12)
+//   <0.45R      : açı çizgileri + açı sembolleri
+const R=116;
+const SIGN_BAND_OUT=R,SIGN_BAND_IN=R*0.94;
+const CUSP_DEG_R=R*0.90;
+// 12. tur: 1981 ev-1 üçlüsü ve 1962 Kova stelliumu bandı aşıyordu (ölçüldü).
+// Seçenek A (bant 0.26R->0.30R, tam etiket korunarak) 1981'i kurtarıyor;
+// 0.36R'ye çıkmak (referans %26 oranından fazla kopmak pahasına) 1962'yi de
+// kurtarırdı ama bu REDDEDİLDİ - katmanların çoğunu yutuyor. Sadece içe
+// (PLANET_BAND_IN 0.60R->0.56R) büyütüldü, dış sınır (0.86R) SABİT - böylece
+// burç/cusp katmanlarına olan mesafe değişmedi, sadece ev numarası halkasına
+// olan pay daralıyor (0.08R->0.04R, gözle kontrol edildi, bkz. rapor).
+const PLANET_BAND_OUT=R*0.86,PLANET_BAND_IN=R*0.56;
+const HOUSE_NUM_R=R*0.52;
+const ASPECT_OUT=R*0.45,ASPECT_IN=0;
 
-// Bir kümedeki gezegenlerin yarıçaplarını (dıştan içe), ortak punto boyutunu
-// ve etiket iç-offset'ini hesaplar. Tek gezegen varsayılan yarıçapında
-// (rDefault) kalır.
+// 7. TUR - KÖKTEN MİMARİ DEĞİŞİKLİK: referans yazılım (Solar Fire) gezegenleri
+// KUTUPSAL değil KARTEZYEN yerleştiriyor. Önceki altı turun ortak kök sorunu
+// buydu: kutupsal yerleşimde (her gezegen kendi gerçek açısında, sadece
+// yarıçapı/kademesi değişiyor) bir SATIRIN radyal maliyeti AÇIYA BAĞLIYDI -
+// yatay/ASC-DSC yönünde etiketin GENİŞLİĞİ (~23 birim) doğrudan radyal
+// derinliğe düşüyordu, bu da 26 birimlik banda zar zor TEK satır sığdırıyordu
+// (ölçülüp doğrulandı: gerçek ev genişliklerinde - 25-36° - hiçbir turda 2.
+// satır hiçbir zaman açılmadı). Kartezyen mimaride bunun yerine bir EVİN tüm
+// üyeleri TEK bir metin BLOĞU oluşturur: sembol sütunu + etiket sütunu yan
+// yana, her gezegen bir SATIR, TÜM metin yatay ve SABİT satır yüksekliğiyle
+// (~7-8 birim, AÇIDAN BAĞIMSIZ) alt alta dizilir. Blok evin dilimi içine,
+// üyelerin ortalama açısı civarında yerleştirilir. Artık ne leader line var
+// (gezegenin tam derecesi zaten etikette yazılı, ek olarak bandın iç kenarına
+// gerçek açıda küçük bir tik çizilir) ne de içerik kısaltma kademesi
+// (kapasite artık blok yüksekliğinden geliyor, punto/içerikten değil).
 //
-// Punto sırayla TAM boyuttan (15) başlayarak denenir; gereken adım ev
-// halkasının içine sığmıyorsa (kaç üye olursa olsun - sabit bir "4+" eşiği
-// değil, gerçek sığma testi) bir sonraki (daha küçük) puntoya geçilir. Bu,
-// hem "okunabilirlik korunsun" (mümkün olduğunca büyük punto) hem "hepsi
-// kendi evinde kalsın" (asla halka dışına taşmasın) hem de "çok sıkışık
-// kümelerde (4+ gezegen dar bir açıda) etiketler görsel olarak
-// çakışmasın/karışmasın" isteğini birlikte karşılıyor - dört punto kademesi
-// (15→12→9→6, bkz. FONT_SIZES) en uç kümelerde bile sığma şansını artırıyor.
-const FONT_SIZES=[15,12,9,6];
-function stackRadii(n,rDefault,rOuter,rHouseInFloor,angleRad){
-  if(n===1)return{radii:[rDefault],fontSize:15,labelOffset:9};
-  // rHouseInFloor, glyph'in DEĞİL etiketin (glyph'ten labelOffset kadar
-  // içeride render edilir) inebileceği en alt yarıçap - "en içteki üyenin
-  // etiketi ev numarası halkasına girmesin" kısıtı adım hesaplanmadan ÖNCE
-  // hesaba katılıyor (post-hoc Math.max yerine - o yaklaşım en içteki iki
-  // üye arasındaki adımı sessizce daraltıp çakışmaya yol açıyordu, ölçülüp
-  // doğrulandı).
-  function attempt(fontSize){
-    const scale=fontSize/15;
-    const labelOffset=Math.round(9*scale);
-    const rInner=rHouseInFloor+labelOffset;
-    // %25 güvenlik payı (kutu boyutları yaklaşık ölçümlere dayanıyor -
-    // farklı gezegen glyph'leri arasında küçük genişlik farkları var, bkz.
-    // daha önceki round'da ölçülen 11.2-13.4px aralığı; test sırasında %15
-    // payın bazı açılarda hâlâ bir piksel altı çakışma bıraktığı görüldü).
-    // +labelOffset: iç içteki üyenin GLYPH'i ile bir dıştaki üyenin ETİKETİ
-    // (glyph'inden labelOffset kadar İÇERİ çekilmiş) arasındaki asıl mesafe
-    // step-labelOffset'e düşüyor - salt glyph-glyph/etiket-etiket adımı bu
-    // çapraz çifti hesaba katmıyordu, gerçek bir çakışmaya yol açıyordu
-    // (ölçülüp doğrulandı). Adımı labelOffset kadar büyütmek dört
-    // kombinasyonun (glyph-glyph, etiket-etiket, dış-glyph/iç-etiket,
-    // iç-glyph/dış-etiket) hepsini aynı anda güvenli kılıyor.
-    const step=Math.max(
-      radialStepFor(angleRad,{w:GLYPH_BOX.w*scale,h:GLYPH_BOX.h*scale}),
-      radialStepFor(angleRad,{w:LABEL_BOX.w*scale,h:LABEL_BOX.h*scale})
-    )*1.25+labelOffset;
-    return{fontSize,labelOffset,rInner,step,fits:(n-1)*step<=rOuter-rInner};
-  }
-  let plan=attempt(FONT_SIZES[0]);
-  for(let i=1;i<FONT_SIZES.length&&!plan.fits;i++)plan=attempt(FONT_SIZES[i]);
-  // Dört kademe (15→12→9→6), 5 gezegenin tam yatay eksende (en zor yön -
-  // etiket genişliği belirleyici olur) sadece birkaç derece içine sıkıştığı
-  // en uç senaryoyu bile getBBox() ile çakışmasız hale getirdi (ölçülüp
-  // doğrulandı). Yine de teorik bir son çare olarak: hiçbir kademe
-  // sığmazsa (FONT_SIZES'ın en küçüğü bile), "kendi evinde kal" kuralı
-  // glyph aralığından önce gelir - adım zorla sıkıştırılır.
-  let step=plan.fits?plan.step:(rOuter-plan.rInner)/(n-1);
-  const start=rOuter;
-  return{radii:Array.from({length:n},(_,i)=>start-i*step),fontSize:plan.fontSize,labelOffset:plan.labelOffset};
+// Bir kutunun (metin HER ZAMAN yatay çizilir, rotate() yok) belirli bir
+// açıdaki radyal/teğetsel doğrultuya izdüşümü - artık TEK bir gezegene değil,
+// bir evin TÜM bloğuna (sabit genişlik, N ile büyüyen yükseklik) uygulanıyor.
+function radialExtent(angleRad,box){return Math.abs(Math.cos(angleRad))*box.w+Math.abs(Math.sin(angleRad))*box.h;}
+function tangentialExtent(angleRad,box){return Math.abs(Math.sin(angleRad))*box.w+Math.abs(Math.cos(angleRad))*box.h;}
+
+// 8. TUR - TİPOGRAFİ R'NİN KESRİ OLARAK YENİDEN TANIMLANDI: 6. turdaki "sembol
+// mutlak sabit punto (13), wheel'in en büyük öğesi" kuralı YANLIŞTI - kabul
+// kriterlerini karşılamamasının nedeni geometri değil ölçekti. Referans
+// yazılımın (Solar Fire) gerçek görselinden ölçülen oranlar: sembol punto
+// ≈0.05R, etiket GENİŞLİĞİ ≈0.15R, bant derinliği 0.26R (bizimkiyle AYNI).
+// Bant oranımız zaten doğruydu; yazımız 2-3 kat büyüktü. Bu oranlarla blok
+// genişliği ≈0.21R'ye iner - 0.26R'lik banda HER açıda sığar (aşağıdaki
+// placeHouseBlock'taki radyal/teğetsel kontrolle ayrıca doğrulanıyor).
+const SYMBOL_FONT_SIZE=0.05*R;
+// Etiket GENİŞLİĞİ hedefi 0.15R - LABEL_BOX_FULL'ün referans punto 6'daki
+// genişliği (23) üzerinden bu genişliğe ulaşacak punto geriye çözülüyor.
+const LABEL_FONT_SIZE=0.15*R*6/LABEL_BOX_FULL.w;
+// Cusp derece etiketi artık gezegen etiketiyle AYNI punto (6. turdaki ayrı
+// sabit 6.5 değeri geri alındı - okunabilirlik artık oran kaynaklı).
+const CUSP_LABEL_FONT_SIZE=LABEL_FONT_SIZE;
+// B bandının kendi duvarına karşı küçük bir sabit güvenlik payı (ölçüm/
+// yuvarlama toleransı - eskisi gibi açıya bağlı bir "gap/step" değil, çünkü
+// blok içi satır aralığı zaten sabit ve deterministik).
+const WALL_PAD=1.0;
+// 11. tur: Inter bu Unicode aralığını (astrolojik semboller) kapsamıyor,
+// tarayıcı sistem sans-serif fallback'ine düşüyor - hangi glif kullanılacağı
+// platforma göre değişebiliyor. Tüm gezegen sembollerine (Plüton dahil,
+// artık özel SVG'si yok) ortak, sembol kapsamı geniş bir font stack veriliyor
+// ki platformlar arası tutarlı olsun.
+// 12. tur: platform riskini KÖKTEN çözmek için ilk savunma hattı artık kendi
+// host ettiğimiz 'StellaSymbols' webfont subseti (bkz. <style> içindeki
+// @font-face - Noto Sans Symbols/Symbols 2'den ayıklanmış ~5KB, base64 gömülü,
+// ağ isteği gerektirmez). Sıradaki üç isim (Segoe UI Symbol/Apple Symbols/
+// Noto Sans Symbols 2) İKİNCİ savunma hattı - webfont her nasılsa
+// yüklenemezse (ör. tarayıcının data: URI font desteği yoksa) devreye girer.
+// Plüton için ayrıca ÜÇÜNCÜ bir hat var: plutoUnicodeSupported() çalışma
+// zamanında U+2BD3'ün gerçekten çizilip çizilmediğini ölçer, çizilmiyorsa
+// elle çizilmiş SVG ikona (plutoIconPaths) düşer - bkz. planetGlyphHTML.
+const SYMBOL_FONT_FAMILY="'StellaSymbols','Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif";
+// Derece+burç+dakika etiketleri (cusp ve gezegen etiketleri) rakamlar için
+// Inter'i, içine gömülü burç glifi için ise (Inter kapsamadığından) yukarıdaki
+// sembol zincirini kullanır - tek font-family listesinde glif bazlı fallback.
+const LABEL_FONT_FAMILY="Inter,"+SYMBOL_FONT_FAMILY;
+// Bazı gezegen glifleri aynı punto+fontta GÖRSEL OLARAK farklı optik boyut/
+// dikey hizaya sahip olabilir (fontun kendi glif tasarımına bağlı) - bu
+// yüzden per-karakter telafi mekanizması burada duruyor. ÖLÇÜLDÜ (getBBox,
+// SYMBOL_FONT_FAMILY uygulandıktan sonra): Plüton'un (U+2BD3) gerçek glif
+// yüksekliği (6.459) diğer 10 sembolle TAM eşit, genişliği ise en GENİŞİ
+// (5.80, diğerleri 4.35-5.20) - önceki turdaki "biraz küçük" gözlemi, o
+// karşılaştırmanın BU font stack'i olmadan (Inter fallback'iyle, farklı bir
+// sistem fontuna düşerek) çekilmiş olmasından kaynaklanıyordu. Explicit
+// font-family ile ek telafiye gerek KALMADI - varsayılan (scale:1, dy:0)
+// hiçbir şeyi değiştirmiyor.
+const SYMBOL_ADJUST_DEFAULT={scale:1,dy:0};
+const SYMBOL_ADJUST={};
+
+function boxAt(box,fontSize,refFontSize){const s=fontSize/refFontSize;return{w:box.w*s,h:box.h*s};}
+
+// Bir evin BLOK kutusu: sembol sütunu genişliği + sütun arası boşluk + etiket
+// sütunu genişliği (SABİT, N'den bağımsız); yükseklik ise N*satır yüksekliği
+// + aradaki boşluklar (N ile DOĞRUSAL büyür - kutupsaldaki gibi açıya bağlı
+// katlanarak değil). Sütun arası boşluk ve satır arası boşluk da R'nin
+// kesri (mutlak sabit değil) - referans oranıyla tutarlı kalsın diye.
+function blockBoxFor(n){
+  const glyphBox=boxAt(GLYPH_BOX,SYMBOL_FONT_SIZE,15);
+  const labelBox=boxAt(LABEL_BOX_FULL,LABEL_FONT_SIZE,6);
+  const colGap=0.02*R,rowGap=0.01*R;
+  const rowH=Math.max(glyphBox.h,labelBox.h);
+  const w=glyphBox.w+colGap+labelBox.w;
+  const h=n*rowH+Math.max(0,n-1)*rowGap;
+  return{glyphBox,labelBox,colGap,rowGap,rowH,w,h};
 }
 
-// Ptolemaic majör açılar — wheel'in iç dairesinde çizilen açı çizgileri için
-// (astro.com tarzı). Orb aralıkları birbiriyle çakışmıyor (en geniş orb olan
-// kavuşum/karşıt ±8° bile sextil'in ±4°'lük bandına asla değmiyor), yani bir
-// gezegen çifti en fazla tek bir açıya uyabilir.
+// 14. tur - SEMBOL-ONLY SON ÇARE: bir taşma alt-bloğu (tam etiketli haliyle)
+// bandın kapasitesini AŞARSA, etiket sütunu tamamen kaldırılıp sadece sembol
+// sütunu bırakılır (etiket sütunu genişliğin ~%78'ini oluşturuyor - LABEL_BOX_FULL
+// GLYPH_BOX'tan çok daha geniş - bu yüzden düşürmek tangentialExtent'i
+// büyük ölçüde küçültür). Derece bilgisi zaten tablo görünümünde tam olarak
+// var - burada etiketi göstermemek bilgi kaybı değil, sadece bu kısıtlı alanda
+// tekrar. Sadece SIĞMAYAN üyeler (taşma grubu) buraya düşer, sığanlar tam
+// etiketli kalır (bkz. placeBlockForSpan).
+function symbolOnlyBoxFor(n){
+  const glyphBox=boxAt(GLYPH_BOX,SYMBOL_FONT_SIZE,15);
+  const rowGap=0.01*R;
+  const rowH=glyphBox.h;
+  const w=glyphBox.w;
+  const h=n*rowH+Math.max(0,n-1)*rowGap;
+  return{glyphBox,labelBox:{w:0,h:0},colGap:0,rowGap,rowH,w,h,symbolOnly:true};
+}
+
+// (houseIndexOf yukarıda zaten tanımlı - üyeleri EVE göre gruplamak için
+// kullanılıyor, blok bu evin dilimine yerleştiriliyor.)
+
+// Bir üye kümesinin (evin tüm üyeleri ya da ana bloğa sığan bir alt kümesi)
+// B bandının ORTA yarıçapına, üyelerin ORTALAMA göreli derecesindeki açıya
+// yerleştirilmiş halinin radyal/teğetsel sığma ölçümü.
+function evalBlockFit(list,span,start,ascDeg){
+  const box=blockBoxFor(list.length);
+  const meanRel=list.reduce((s,x)=>s+x.rel,0)/list.length;
+  const centerLon=norm(start+meanRel);
+  const centerR=(PLANET_BAND_IN+PLANET_BAND_OUT)/2;
+  const centerA=wheelAngle(centerLon,ascDeg);
+  const radialHalf=radialExtent(centerA,box)/2+WALL_PAD;
+  const tangentialHalf=tangentialExtent(centerA,box)/2;
+  const bandHalfDepth=(PLANET_BAND_OUT-PLANET_BAND_IN)/2;
+  const arcHalfLen=(span*Math.PI/180)*centerR/2;
+  const fitsRadial=radialHalf<=bandHalfDepth;
+  const fitsTangential=tangentialHalf<=arcHalfLen;
+  return{box,centerA,centerR,centerLon,radialHalf,fitsRadial,fitsTangential,fits:fitsRadial&&fitsTangential};
+}
+
+// Bir blok yerleşimi (tek bir ev YA DA komşu evlerin BİRLEŞMİŞ yayı - bkz.
+// planBlocksForChart): üyeler boylama göre sıralanır (blok içinde yukarı-
+// aşağı sıra bu olacak), blok B bandının ORTA yarıçapına, üyelerin ORTALAMA
+// göreli derecesindeki açıya yerleştirilir. Blok hiçbir zaman döndürülmez -
+// bu yüzden o açıdaki radyal/teğetsel izdüşümü (radialExtent/tangentialExtent
+// ile), B bandının derinliğini ve verilen yayı (yay uzunluğuna çevrilmiş)
+// AŞMAMALI. Aşıyorsa (`fits:false`) bu GERÇEK bir kapasite sınırı.
+//
+// 12. tur - kararlaştırılan istisna: bant %30'a büyütüldükten sonra bile
+// nadir bir uç durum TÜM üyeleriyle sığmayabilir. Bunu kurtarmak için
+// haritaların çoğunluğunu bozacak bir bant büyütmesi (0.36R) YAPILMADI -
+// bunun yerine SON ÇARE bir taşma mekanizması: ana blok, sığana kadar
+// üyeleri en dıştan (boylamda en uçtaki) içe doğru TAŞMA listesine
+// ayırarak küçültülür (yazı tipi/punto SABİT kalır, sadece üye SAYISI
+// azalır); taşan üyeler bandın İÇ duvarına yaslanan AYRI, kompakt bir alt-
+// blokta, kendi GERÇEK açılarından İÇE doğru kısa bir leader line ile
+// bağlanarak gösterilir (bkz. renderWheel). Bu şekilde sıkışıklık ÇAKIŞMAYA
+// dönüşmez: her iki alt-blok da B bandı içinde kalır ve örtüşmez.
+//
+// forceExtraOverflow: bloğun KENDİ yayına sığması yetmeyebilir - komşu
+// bloğuyla GERÇEKTEN (dünya koordinatlarında) çakışabilir, çünkü
+// radialExtent/tangentialExtent kontrolü sadece "bu blok KENDİ yayının
+// açısal payına sığıyor mu" sorusuna cevap verir, komşunun aynı anda nereye
+// yerleştiğini bilmez. Bu yüzden çapraz-ev çakışma çözümü (planBlocksForChart
+// içinde, önce KÜME BİRLEŞTİRME - bkz. aşağı - sonra gerekirse bu parametre
+// ile ek taşma) gerektiğinde bu bloğu ekstra üye(ler) taşmaya zorlar.
+//
+// 13. tur - KÜME BİRLEŞTİRME (Solar Fire referansı): referans yazılımda blok
+// EVİN değil KÜMENİN birimi - bir Terazi bloğu 12. ve 1. evi kesse bile TEK
+// sütun olarak, boylam sırasına göre dizilir, ev sınırında bölünmez. Bu
+// yüzden çapraz-ev çakışması artık ÖNCE komşu evlerin bloklarını TEK blok
+// olarak birleştirip (bkz. planBlocksForChart) çözülüyor - taşma mekanizması
+// sadece birleşmiş blok da hâlâ sığmazsa devreye giren İKİNCİL bir çare.
+function placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,forceExtraOverflow=0){
+  const sorted=members.map(p=>{
+    const lon=norm(pos[p.id]);
+    return{p,lon,rel:norm(lon-start),house:houseIndexOf(lon,cuspLons)};
+  }).sort((a,b)=>a.rel-b.rel);
+  const n=sorted.length;
+  const full=evalBlockFit(sorted,span,start,ascDeg);
+  const targetMax=Math.max(1,n-forceExtraOverflow);
+  if(full.fits&&forceExtraOverflow===0){
+    return{sorted,mainMembers:sorted,overflowMembers:[],overflowFit:null,box:full.box,centerA:full.centerA,centerR:full.centerR,fitsRadial:full.fitsRadial,fitsTangential:full.fitsTangential,fits:full.fits};
+  }
+  if(n<=1){
+    return{sorted,mainMembers:sorted,overflowMembers:[],overflowFit:null,box:full.box,centerA:full.centerA,centerR:full.centerR,fitsRadial:full.fitsRadial,fitsTangential:full.fitsTangential,fits:full.fits};
+  }
+  // Ana blok sığana (VE targetMax'ı aşmayana) kadar boyutunu k=n-1,n-2,...
+  // şeklinde küçült; her k için sıralı listenin ORTADAKİ k üyesini tutan
+  // dengeli alt küme denenir (baş ve sondan sırayla düşürülür) - böylece
+  // dışarıda kalanlar boylamda uçtaki (ortalamadan en uzak) üyeler olur, ana
+  // blok her adımda yeniden ortalanır.
+  let mainList=sorted,mainFit=full;
+  while(mainList.length>1&&(mainList.length>targetMax||!mainFit.fits)){
+    const drop=sorted.length-(mainList.length-1);
+    const dropStart=Math.floor(drop/2);
+    const candidate=sorted.slice(dropStart,dropStart+(mainList.length-1));
+    const fit=evalBlockFit(candidate,span,start,ascDeg);
+    mainList=candidate;mainFit=fit;
+  }
+  const mainSet=new Set(mainList);
+  const overflowMembers=sorted.filter(x=>!mainSet.has(x));
+  // Taşma alt-bloğunun verilen KUTU ile sığıp sığmadığını hesaplar - bandın
+  // İÇ duvarına ("içe doğru") yaslanır, ana bloğun aynı açısal merkezinde
+  // (centerA). Üye sayısı fazlaysa bloğun kendi yüksekliği bandın
+  // TAMAMINDAN bile büyük olabilir - bu durumda iç duvara yaslamak dış
+  // duvarı AŞIRIR (ölçülüp yakalandı); böyle bir pathological durumda
+  // bandın ORTASINA alınır (aşımı simetrik dağıt, tek yöne yığma).
+  function evalOverflowFit(ofBox){
+    const ofRadialHalf=radialExtent(mainFit.centerA,ofBox)/2+WALL_PAD;
+    const bandMidR=(PLANET_BAND_IN+PLANET_BAND_OUT)/2;
+    const hugsInnerWall=(PLANET_BAND_IN+ofRadialHalf)<=(PLANET_BAND_OUT-ofRadialHalf);
+    const ofCenterR=hugsInnerWall?PLANET_BAND_IN+ofRadialHalf:bandMidR;
+    const ofOuterEdge=ofCenterR+ofRadialHalf;
+    const ofInnerEdge=ofCenterR-ofRadialHalf;
+    const fitsBand=ofOuterEdge<=PLANET_BAND_OUT&&ofInnerEdge>=PLANET_BAND_IN;
+    // Ana blok ile GERÇEK (dünya koordinatlarında) dikdörtgen kesişimi -
+    // radialExtent'in "aynı açıda, salt yarıçap ayrımı" varsayımı, iki blok
+    // FARKLI açılarda merkezlenmişse (birleşmiş kümede olabiliyor) veya blok
+    // yeterince büyükse yanıltıcı olabilir (ölçülüp yakalandı: analitik
+    // kontrol "sığıyor" derken gerçek getBBox testinde hâlâ çakışma vardı).
+    // subBlockRect/rectsOverlap DOM testiyle birebir aynı yöntemi kullanıyor.
+    const mainRect=subBlockRect(mainFit.centerA,mainFit.centerR,mainFit.box);
+    const ofRect=subBlockRect(mainFit.centerA,ofCenterR,ofBox);
+    const fitsRadialVsMain=fitsBand&&!rectsOverlap(mainRect,ofRect);
+    // Taşma bloğu içe itildiğinde yarıçap küçüldüğü için o yarıçaptaki yay
+    // uzunluğu da küçülür (arcHalfLen yarıçapla orantılı) - bu yüzden
+    // teğetsel sığmayı da AYRICA, kendi (küçültülmüş) yarıçapında kontrol
+    // etmek gerekiyor; ana bloktan sığdı diye taşma bloğu da sığar denemez.
+    const ofTangentialHalf=tangentialExtent(mainFit.centerA,ofBox)/2;
+    const ofArcHalfLen=(span*Math.PI/180)*ofCenterR/2;
+    const fitsTangentialOwn=ofTangentialHalf<=ofArcHalfLen;
+    return{box:ofBox,centerA:mainFit.centerA,centerR:ofCenterR,fitsRadialVsMain,fitsTangentialOwn,fits:fitsRadialVsMain&&fitsTangentialOwn};
+  }
+  // Taşma bloğunu ana bloğun YANINA (aynı yarıçapta, açısal olarak kaydırılmış)
+  // yerleştirmeyi dener - "içe yasla" ile aynı radyal dilimi PAYLAŞMAK yerine,
+  // birleşmiş kümenin (geniş yay - 12+ derece) kullanılmayan açısal boşluğunu
+  // kullanır. Ölçülüp doğrulandı (1962): birleşmiş büyük bir grupta (7 üye)
+  // TÜM üyeler tek bir dikey sütunda üst üste dizilse bile (sembol-only,
+  // etiketsiz) toplam yükseklik bandın derinliğinden BÜYÜK olabiliyor - bu
+  // durumda "içe yasla" mekanizması ne kadar daraltılırsa daraltılsın asla
+  // sığmaz (matematiksel bir tavan), oysa geniş birleşik yayda bolca
+  // KULLANILMAYAN açısal alan var. Ana bloğun ortalama boylamundan (mainFit.
+  // centerLon) uzaklaşarak (küme sınırları içinde kalarak) ilk GERÇEKTEN
+  // (rectsOverlap ile) çakışmayan konumu arar.
+  function findBesidePlacement(ofBox){
+    const centerR=mainFit.centerR;
+    const mainRect=subBlockRect(mainFit.centerA,centerR,mainFit.box);
+    const stepDeg=0.5,maxOffset=span/2;
+    for(const side of[1,-1]){
+      for(let d=stepDeg;d<=maxOffset;d+=stepDeg){
+        const candLon=norm(mainFit.centerLon+side*d);
+        const rel=norm(candLon-start);
+        if(rel>span)continue;
+        const candA=wheelAngle(candLon,ascDeg);
+        const ofRect=subBlockRect(candA,centerR,ofBox);
+        if(rectsOverlap(mainRect,ofRect))continue;
+        const radialHalf=radialExtent(candA,ofBox)/2+WALL_PAD;
+        if(radialHalf>(PLANET_BAND_OUT-PLANET_BAND_IN)/2)continue;
+        const tangentialHalf=tangentialExtent(candA,ofBox)/2;
+        const arcHalfLen=(span*Math.PI/180)*centerR/2;
+        // Üyenin kendi dilim ucundan taşmadığını da kabaca doğrula (rel
+        // sınırın içinde VE yeterli teğetsel pay var).
+        if(tangentialHalf>arcHalfLen)continue;
+        return{box:ofBox,centerA:candA,centerR,fitsRadialVsMain:true,fitsTangentialOwn:true,fits:true};
+      }
+    }
+    return null;
+  }
+  let overflowFit=null;
+  if(overflowMembers.length){
+    const fullLabelFit=evalOverflowFit(blockBoxFor(overflowMembers.length));
+    // 14. tur: tam etiketli taşma bloğu bile bandın kapasitesini aşarsa
+    // (ölçülüp doğrulanan gerçek bir durum - bkz. 1962), etiket sütununu
+    // TAMAMEN kaldırıp sadece sembol sütunuyla tekrar dene - etiket
+    // (LABEL_BOX_FULL) sembolden (GLYPH_BOX) çok daha geniş olduğundan bu
+    // teğetsel/radyal ayak izini büyük ölçüde küçültür. Derece bilgisi zaten
+    // alttaki gezegen tablosunda tam olarak var - burada kaybolmuyor, sadece
+    // bu dar alanda TEKRARLANMIYOR. Sadece bu SIĞMAYAN grup için - sığan
+    // ana blok üyeleri her zaman tam etiketli kalır.
+    if(fullLabelFit.fits){
+      overflowFit=fullLabelFit;
+    }else{
+      const symbolOnlyBox=symbolOnlyBoxFor(overflowMembers.length);
+      const innerHug=evalOverflowFit(symbolOnlyBox);
+      // Sembol-only bile İÇE yaslanınca sığmıyorsa (ana blok zaten radyal
+      // alanın çoğunu kullanıyor - dikey satır sayısı fiziksel tavanı
+      // aşıyor), aynı yarıçapta YANA kaydırmayı dene - bkz. yukarı.
+      overflowFit=innerHug.fits?innerHug:(findBesidePlacement(symbolOnlyBox)||innerHug);
+    }
+  }
+  return{sorted,mainMembers:mainList,overflowMembers,overflowFit,box:mainFit.box,centerA:mainFit.centerA,centerR:mainFit.centerR,fitsRadial:mainFit.fitsRadial,fitsTangential:mainFit.fitsTangential,fits:full.fits};
+}
+
+// wheel'in sabit SVG merkezi (viewBox="0 0 300 300") - blokların dünya
+// koordinatındaki dikdörtgenini hesaplamak için (çapraz-küme çakışma testi).
+const WHEEL_CX=150,WHEEL_CY=150;
+function subBlockRect(centerA,centerR,box){
+  const[bx,by]=wheelPt(WHEEL_CX,WHEEL_CY,centerR,centerA);
+  return{left:bx-box.w/2,right:bx+box.w/2,top:by-box.h/2,bottom:by+box.h/2};
+}
+function rectsOverlap(a,b){return!(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top);}
+
+// Bir evin (KENDİ cusp'larından türetilmiş yayla) tek başına bloğu.
+function placeHouseBlock(members,pos,cuspLons,h,ascDeg,forceExtraOverflow=0){
+  const start=cuspLons[h],end=cuspLons[(h+1)%12];
+  const span=norm(end-start)||360;
+  return placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,forceExtraOverflow);
+}
+
+// İki küme (her biri bitişik, artan ev indeksi listesi - mod 12) cusp
+// sırasında birbirine bitişik mi? (Aralarında boş bile olsa başka bir ev
+// YOK - tam komşu cusp'ı paylaşıyorlar.)
+function areClustersAdjacent(housesA,housesB){
+  const aEnd=housesA[housesA.length-1],bStart=housesB[0];
+  const bEnd=housesB[housesB.length-1],aStart=housesA[0];
+  return(aEnd+1)%12===bStart||(bEnd+1)%12===aStart;
+}
+function mergeAdjacentHouses(housesA,housesB){
+  const aEnd=housesA[housesA.length-1];
+  return(aEnd+1)%12===housesB[0]?housesA.concat(housesB):housesB.concat(housesA);
+}
+function placeClusterBlock(houses,houseGroups,pos,cuspLons,ascDeg){
+  const startH=houses[0],endH=houses[houses.length-1];
+  const start=cuspLons[startH],end=cuspLons[(endH+1)%12];
+  const span=norm(end-start)||360;
+  let members=[];houses.forEach(hh=>members.push(...houseGroups[hh]));
+  return Object.assign({houses},placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,0));
+}
+
+// Chart'taki TÜM evleri bloklar. 13. tur (Solar Fire referansı ile
+// düzeltildi): bir evin KENDİ dilimine sığması (radialExtent/
+// tangentialExtent) GEREKLİ ama YETERLİ değil - iki komşu evin üyeleri
+// ORTAK cusp'a çok yakın kümelenirse, her iki blok da kendi diliminde
+// "sığar" göründüğü halde dünya koordinatlarında GERÇEKTEN çakışabilir.
+// Referans yazılımda blok EVİN değil KÜMENİN birimi: bir blok komşu iki evi
+// kesse bile TEK sütun (boylam sırasına göre) olarak dizilir, ev sınırında
+// bölünmez. Bu yüzden çapraz-ev çakışması artık ÖNCE BİRLEŞTİRME ile
+// çözülüyor: çakışan iki blok cusp sırasında BİTİŞİKSE (aralarında başka ev
+// yok), üyeleri TEK kümede birleştirilip birleşik yay için yeniden yerleşim
+// hesaplanır - gerekirse zincirleme (3+ ev) devam eder. Sadece birleşmiş
+// blok da (nadiren) kendi genişlemiş yayına sığmazsa placeBlockForSpan'ın
+// KENDİ taşma/leader-line mekanizması ikincil çare olarak devreye girer.
+//
+// DENENİP GERİ ALINAN yaklaşım (önceki turda): evleri sırayla daha da
+// taşmaya zorlayan yinelemeli bir "itme" çözücü - üyeleri içe/kenara sıkıştırıp
+// yayı KÜÇÜLTÜYORDU, bu da 1962'nin uç durumunda çakışmayı 10'dan 20'ye
+// çıkardı (iki taşma alt-bloğu birbirine çarpıştı). Birleştirme bunun TAM
+// TERSİ: iki bloğun yayını KÜÇÜLTMÜYOR, TOPLUYOR - referans yazılımın
+// yaptığı gerçek çözüm bu.
+function planBlocksForChart(drawnPlanets,pos,cuspLons,ascDeg){
+  const houseGroups=Array.from({length:12},()=>[]);
+  drawnPlanets.forEach(p=>houseGroups[houseIndexOf(pos[p.id],cuspLons)].push(p));
+  let clusters=[];
+  for(let h=0;h<12;h++)if(houseGroups[h].length)clusters.push([h]);
+  let blocks=clusters.map(houses=>placeClusterBlock(houses,houseGroups,pos,cuspLons,ascDeg));
+
+  function clusterRects(b){
+    const list=[subBlockRect(b.centerA,b.centerR,b.box)];
+    if(b.overflowMembers.length&&b.overflowFit)list.push(subBlockRect(b.overflowFit.centerA,b.overflowFit.centerR,b.overflowFit.box));
+    return list;
+  }
+  const MAX_MERGES=11; // en fazla 12 ev, dolayısıyla en fazla 11 birleştirme adımı olabilir.
+  for(let iter=0;iter<MAX_MERGES;iter++){
+    let mergePair=null;
+    outer:
+    for(let i=0;i<blocks.length;i++){
+      const ri=clusterRects(blocks[i]);
+      for(let j=i+1;j<blocks.length;j++){
+        const rj=clusterRects(blocks[j]);
+        let overlap=false;
+        for(const a of ri)for(const b of rj)if(rectsOverlap(a,b)){overlap=true;break;}
+        if(overlap&&areClustersAdjacent(blocks[i].houses,blocks[j].houses)){mergePair=[i,j];break outer;}
+      }
+    }
+    if(!mergePair)break;
+    const[i,j]=mergePair;
+    const mergedHouses=mergeAdjacentHouses(blocks[i].houses,blocks[j].houses);
+    const mergedBlock=placeClusterBlock(mergedHouses,houseGroups,pos,cuspLons,ascDeg);
+    blocks.splice(j,1);blocks.splice(i,1);blocks.push(mergedBlock);
+  }
+
+  // Son bir çapraz-küme taraması: birleştirme komşu OLMAYAN kümeler arasında
+  // (pratikte olmaması gereken, patolojik) bir çakışmayı çözemez - bunlar
+  // zorlanmadan TEŞHİS olarak bildiriliyor.
+  const crossHouseNote=[];
+  for(let i=0;i<blocks.length;i++)for(let j=i+1;j<blocks.length;j++){
+    const ri=clusterRects(blocks[i]),rj=clusterRects(blocks[j]);
+    for(const a of ri)for(const b of rj)if(rectsOverlap(a,b))crossHouseNote.push(`houses[${blocks[i].houses}]<->houses[${blocks[j].houses}]`);
+  }
+  let allFit=true;
+  blocks.forEach(b=>{if(!b.fits)allFit=false;});
+  return{blocks,allFit,crossHouseNote};
+}
+
+// Ptolemaic majör açılar — wheel'in iç dairesinde (Layer D) çizilen açı
+// çizgileri için (astro.com tarzı). Orb aralıkları birbiriyle çakışmıyor (en
+// geniş orb olan kavuşum/karşıt ±8° bile sextil'in ±4°'lük bandına asla
+// değmiyor), yani bir gezegen çifti en fazla tek bir açıya uyabilir. `symbol`
+// her açının orta noktasına konan işaret - kavuşum (☌) kullanıcının verdiği
+// listede (□ △ ✶ ☍) açıkça sayılmamıştı ama en yaygın/temel açı olduğu için
+// tutarlılık adına eklendi.
 const ASPECT_DEFS=[
-  {angle:0,orb:8,hard:true},    // kavuşum
-  {angle:60,orb:4,hard:false},  // sextil
-  {angle:90,orb:6,hard:true},   // kare
-  {angle:120,orb:6,hard:false}, // üçgen
-  {angle:180,orb:8,hard:true},  // karşıt
+  {angle:0,orb:8,hard:true,symbol:'☌'},    // kavuşum
+  {angle:60,orb:4,hard:false,symbol:'✶'},  // sextil
+  {angle:90,orb:6,hard:true,symbol:'□'},   // kare
+  {angle:120,orb:6,hard:false,symbol:'△'}, // üçgen
+  {angle:180,orb:8,hard:true,symbol:'☍'},  // karşıt
 ];
 function angleDiff(a,b){
   let d=Math.abs(norm(a)-norm(b))%360;
@@ -1998,48 +2347,55 @@ function findAspect(lon1,lon2){
 function renderWheel(pos,ascDeg,cusps,mc){
   const svg=document.getElementById('astroWheel');
   const cx=150,cy=150;
-  const R_OUT=116,R_SIGN_IN=92,R_HOUSE_OUT=92,R_HOUSE_IN=26,R_PLANET=76;
-  const R_TIP=R_OUT+12,R_LABEL=R_OUT+24;
+  const R_TIP=R+12,R_LABEL=R+24;
   ascDeg=norm(ascDeg);
   let h='';
 
-  h+=`<circle cx="${cx}" cy="${cy}" r="${R_OUT}" fill="none" stroke="#C7C2B8" stroke-width="1.2"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="${R_SIGN_IN}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
-  h+=`<circle cx="${cx}" cy="${cy}" r="${R_HOUSE_IN}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#C7C2B8" stroke-width="1.2"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${SIGN_BAND_IN}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${PLANET_BAND_IN}" fill="none" stroke="#E3DFD5" stroke-width="0.7"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${ASPECT_OUT}" fill="none" stroke="#D9D5CC" stroke-width="1"/>`;
 
-  // Burç dilimleri — mutlak 30°'lik burç sınırlarına göre, gerçek (kesirli) asc derecesiyle hizalı
+  // Element renkli burç kuşağı — 0.94R-1.00R, İNCE bir rim (eski sürümde bu
+  // kuşak katman şemasının DIŞINDA sayılmıştı, bu yüzden tüm iç katmanlar
+  // bir kademe dışarı taşınabilirdi; artık kuşak da R'nin bir kesri - bkz.
+  // yukarıdaki sabitler). Mutlak 30°'lik burç sınırlarına göre, gerçek
+  // (kesirli) asc derecesiyle hizalı.
   for(let si=0;si<12;si++){
     const a1=wheelAngle(si*30,ascDeg), a2=a1-(30*Math.PI/180);
-    const[x1,y1]=wheelPt(cx,cy,R_OUT,a1), [x2,y2]=wheelPt(cx,cy,R_OUT,a2);
-    const[xi1,yi1]=wheelPt(cx,cy,R_SIGN_IN,a1), [xi2,yi2]=wheelPt(cx,cy,R_SIGN_IN,a2);
+    const[x1,y1]=wheelPt(cx,cy,R,a1), [x2,y2]=wheelPt(cx,cy,R,a2);
+    const[xi1,yi1]=wheelPt(cx,cy,SIGN_BAND_IN,a1), [xi2,yi2]=wheelPt(cx,cy,SIGN_BAND_IN,a2);
     const col=elementColorOf(si);
     // Alfa "59"(~%35) - önceki "33"(~%20) zeminle/diğer öğelerle çakışacak
     // kadar soluktu, element grupları bir bakışta ayırt edilemiyordu; %35
     // hâlâ pastel ama net görünür.
-    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R_OUT},${R_OUT} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${R_SIGN_IN},${R_SIGN_IN} 0 0,1 ${xi1},${yi1}" fill="${col}59" stroke="#D9D5CC" stroke-width="0.6"/>`;
+    h+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 0,0 ${x2},${y2} L${xi2},${yi2} A${SIGN_BAND_IN},${SIGN_BAND_IN} 0 0,1 ${xi1},${yi1}" fill="${col}59" stroke="#D9D5CC" stroke-width="0.6"/>`;
     h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#D9D5CC" stroke-width="0.6"/>`;
     const amid=wheelAngle(si*30+15,ascDeg);
-    const[gx,gy]=wheelPt(cx,cy,(R_OUT+R_SIGN_IN)/2,amid);
-    h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
+    const[gx,gy]=wheelPt(cx,cy,(R+SIGN_BAND_IN)/2,amid);
+    h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
   }
 
   // Derece tikleri (astro.com tarzı) — mutlak ekliptik dereceye göre, wheel'in
-  // en dış halkasının hemen dışında. 30°'lik burç sınırları zaten kendi
-  // çizgisine sahip (yukarıdaki döngü), o yüzden burada atlanıyor. Sayı
-  // etiketi yok, sadece ince/düşük kontrastlı çizgiler - teknik detay değil,
-  // standart bir harita okuma yardımcısı olduğu için toggle'a bağlı değil,
-  // varsayılan görünümde de gösteriliyor.
+  // en dış halkasının hemen dışında (kuşağın dış kenarında). 30°'lik burç
+  // sınırları zaten kendi çizgisine sahip (yukarıdaki döngü), o yüzden burada
+  // atlanıyor. Sayı etiketi yok, sadece ince/düşük kontrastlı çizgiler -
+  // teknik detay değil, standart bir harita okuma yardımcısı olduğu için
+  // toggle'a bağlı değil, varsayılan görünümde de gösteriliyor.
   for(let deg=0;deg<360;deg+=5){
     if(deg%30===0)continue;
     const tickA=wheelAngle(deg,ascDeg);
     const isTen=deg%10===0;
-    const[tix,tiy]=wheelPt(cx,cy,R_OUT,tickA);
-    const[tox,toy]=wheelPt(cx,cy,R_OUT+(isTen?6:3),tickA);
+    const[tix,tiy]=wheelPt(cx,cy,R,tickA);
+    const[tox,toy]=wheelPt(cx,cy,R+(isTen?6:3),tickA);
     h+=`<line x1="${tix}" y1="${tiy}" x2="${tox}" y2="${toy}" stroke="#B5B0A3" stroke-width="${isTen?0.6:0.4}"/>`;
   }
 
   // Ev çizgileri — backend'den gelen gerçek (dengesiz) Placidus cusp dereceleri;
-  // yoksa (ör. Whole Sign veya offline hesap) 30°'lik eşit dilimlere düş
+  // yoksa (ör. Whole Sign veya offline hesap) 30°'lik eşit dilimlere düş.
+  // Çizgi burç kuşağının iç kenarından (SIGN_BAND_IN) açı diski sınırına
+  // (ASPECT_OUT) kadar uzanır - cusp derecesi, gezegen bandı ve ev numarası
+  // katmanlarının hepsini kapsayan bir "ev ayracı" (spoke).
   let cuspLons=(Array.isArray(cusps)&&cusps.length===12)?cusps.map(norm):null;
   if(!cuspLons){
     const ascSignStart=Math.floor(ascDeg/30)*30;
@@ -2048,89 +2404,120 @@ function renderWheel(pos,ascDeg,cusps,mc){
   for(let i=0;i<12;i++){
     const lon=cuspLons[i];
     const a=wheelAngle(lon,ascDeg);
-    const[ox,oy]=wheelPt(cx,cy,R_HOUSE_OUT,a), [ix,iy]=wheelPt(cx,cy,R_HOUSE_IN,a);
+    const[ox,oy]=wheelPt(cx,cy,SIGN_BAND_IN,a), [ix,iy]=wheelPt(cx,cy,ASPECT_OUT,a);
     const isAngular=(i===0||i===3||i===6||i===9);
     h+=`<line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${isAngular?'#7C3AED':'#D4A574'}" stroke-width="${isAngular?1.4:0.7}"/>`;
+
+    // Ev cusp derecesi (~0.90R): cusp çizgisinin hemen içinde, kuşağın
+    // altında. Nötr gri ton, kalın değil - gezegenlerin görsel önceliğini
+    // gölgede bırakmasın (bkz. tipografik hiyerarşi notu, planet bandı
+    // aşağıda). Işının TAM üzerinde ortalanırsa metin çizgiyi "üstü çizili"
+    // gösteriyor (ölçülüp doğrulandı) - bu yüzden TEĞETSEL yönde küçük bir
+    // pay ile çizginin yanına kaydırılıyor (radyal konumu/açısı DEĞİŞMİYOR,
+    // sadece görsel olarak çizginin üstünden çekiliyor).
+    const nudge=4;
+    const[cbx,cby]=wheelPt(cx,cy,CUSP_DEG_R,a);
+    const cax=cbx-nudge*Math.sin(a),cay=cby+nudge*Math.cos(a);
+    h+=`<text x="${cax}" y="${cay}" text-anchor="middle" dominant-baseline="central" font-size="${CUSP_LABEL_FONT_SIZE}" fill="#8a8378" font-family="${LABEL_FONT_FAMILY}" font-weight="400">${fmtDegSignMinInSign(lon)}</text>`;
+
+    // Ev numarası (~0.52R): cusp etiketinden küçük punto, soluk (opacity) -
+    // tipografik hiyerarşide gezegen < cusp derecesi < hiçbiri değil, ev
+    // numarası en az öncelikli metin öğesi.
     const nextLon=cuspLons[(i+1)%12];
     let span=norm(nextLon-lon); if(span<=0)span=30;
     const labelA=wheelAngle(lon+span/2,ascDeg);
-    const[lx,ly]=wheelPt(cx,cy,R_HOUSE_IN+10,labelA);
-    h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="7.5" fill="#8a8378" font-family="Inter,sans-serif" font-weight="600">${i+1}</text>`;
+    const[lx,ly]=wheelPt(cx,cy,HOUSE_NUM_R,labelA);
+    h+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="5.5" fill="#8a8378" opacity="0.55" font-family="Inter,sans-serif" font-weight="500">${i+1}</text>`;
   }
 
-  // Gezegenler — HER ZAMAN gerçek açısal konumunda (offset/leader line yok),
-  // bu yüzden her zaman kendi evinin içinde kalır. Birbirine çok yakın
-  // gezegenler aynı açıda farklı yarıçaplarda istiflenir - bkz.
-  // clusterPlanetsByOrb/stackRadii.
-  //
-  // NOT: kümeleme eşiği olarak ASPECT_DEFS'teki kavuşum orb'u (8°) DEĞİL,
-  // ayrı bir CLUSTER_ORB kullanılıyor. Astrolojik kavuşum orb'u "bu ikisi
-  // yorum amacıyla aynı yerde sayılır mı" sorusuna cevap veriyor - görsel
-  // çakışmayla ilgisi yok. Gerçek soru "bu ikisi istiflenmezse glyph'leri
-  // görsel olarak çakışır mı" - bunun cevabı R_PLANET=76 yarıçapında bir
-  // önceki round'da getBBox() ile ölçülen eşik (~16.25°). 8°'lik kavuşum
-  // orb'uyla test edildiğinde, tam bu sınırda kalan (kümeye girmeyen ama
-  // 76 birim yarıçapta hâlâ görsel olarak çakışabilecek kadar yakın, ör.
-  // 9-10° uzaklıktaki) gezegenlerde gerçek bir çakışma bulundu ve
-  // doğrulandı - bu yüzden görsel eşik kullanılıyor.
-  const CLUSTER_ORB=17;
-  const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
-  const R_STACK_OUTER=88;
-  const clusters=clusterPlanetsByOrb(drawnPlanets,pos,CLUSTER_ORB);
-  clusters.forEach(cluster=>{
-    // Küme tek üyeliyse gezegenin kendi gerçek açısı kullanılır; birden
-    // fazla üye varsa hepsi TEK bir ortak açıda (kümenin dairesel
-    // ortalaması) hizalanır - "aynı radyal doğrultuda istifleme" ancak
-    // gerçekten aynı açı kullanılırsa çalışır, aksi halde üyelerin küçük
-    // açı farkları radyal ayrımı kısmen iptal edip yine çakışma yaratabilir
-    // (ölçülüp doğrulandı).
-    const clusterLon=cluster.length===1?pos[cluster[0].id]:clusterMeanLon(cluster,pos);
-    const a=wheelAngle(clusterLon,ascDeg);
-    const{radii,fontSize,labelOffset}=stackRadii(cluster.length,R_PLANET,R_STACK_OUTER,R_HOUSE_IN+4,a);
-    cluster.forEach((p,i)=>{
-      const r=radii[i];
-      // "Kendi evinde kal" kuralı "aynı açıda istifle" kuralından ÖNCELİKLİ:
-      // ortak küme açısı bir üyenin KENDİ evinin sınırının dışına düşürüyorsa
-      // (küme bir ev sınırını aşıyorsa - nadir ama mümkün, ölçülüp
-      // doğrulandı), o üye kendi evinin içinde kalacak şekilde ayrıca
-      // kelepçelenir; aksi halde tüm üyeler gibi paylaşılan açıyı kullanır.
-      const houseIdx=cluster.length>1?houseIndexOf(pos[p.id],cuspLons):null;
-      const memberLon=houseIdx===null?clusterLon:clampLonToHouse(clusterLon,cuspLons,houseIdx);
-      const memberA=wheelAngle(memberLon,ascDeg);
-      const[px,py]=wheelPt(cx,cy,r,memberA);
-      if(p.id==='pluto'){
-        h+=`<g transform="translate(${px},${py}) scale(${(fontSize/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
+  // GEZEGEN BANDI (0.60R-0.86R) — haritanın en geniş bandı (%26). 7. TUR:
+  // artık KUTUPSAL değil KARTEZYEN blok mimarisi (bkz. planBlocksForChart/
+  // placeHouseBlock) - her EV tek bir metin bloğu: sembol sütunu + etiket
+  // sütunu yan yana, her gezegen bir SATIR, tüm metin yatay + SABİT satır
+  // yüksekliği. Blok döndürülmez; wheel'in sol yarısında sembol sütunu SOLDA
+  // (dışa bakan taraf), sağ yarısında SAĞDA - "blok yönü dışa baksın" kuralı.
+  // Leader line YOK (gezegenin tam derecesi zaten etikette yazılı); bunun
+  // yerine bandın İÇ kenarına, gezegenin GERÇEK açısında küçük bir tik
+  // çiziliyor (Solar Fire'ın yaptığı gibi).
+  // Bir üye listesini (ana blok ya da taşma alt-bloğu) verilen merkez
+  // noktasına, sabit sembol/etiket puntosuyla, satır satır çizer - blok
+  // türünden bağımsız TEK render yolu (kodun iki kopyasını önler). data-house
+  // artık BLOĞUN değil, HER ÜYENİN kendi gerçek evi (s.house,
+  // placeBlockForSpan'da houseIndexOf ile hesaplanmış) - 13. turdan itibaren
+  // bir blok birden fazla evi kesebiliyor (bkz. planBlocksForChart), bu
+  // yüzden ev kimliği artık bloğa değil üyeye ait.
+  function renderBlockRows(list,bx,by,box,role){
+    const{glyphBox,labelBox,colGap,rowH,rowGap,w:blockW,h:blockH}=box;
+    const leftHalf=bx<cx;
+    let out='';
+    list.forEach((s,i)=>{
+      const rowY=by-blockH/2+rowH/2+i*(rowH+rowGap);
+      let symCx,labCx;
+      if(leftHalf){
+        symCx=bx-blockW/2+glyphBox.w/2;
+        labCx=bx-blockW/2+glyphBox.w+colGap+labelBox.w/2;
       }else{
-        h+=`<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize}" fill="${p.color}">${p.glyph}</text>`;
+        labCx=bx-blockW/2+labelBox.w/2;
+        symCx=bx-blockW/2+labelBox.w+colGap+glyphBox.w/2;
       }
-      // Derece/burç/dakika etiketi ("16°♍51'" gibi) — glyph'in az içinde
-      // (merkeze doğru), aynı açıda. Glyph rengiyle uyumlu ama soluk
-      // (opacity), küçük punto - ana sembolü gölgede bırakmasın. Etiketin
-      // ev numarası halkasına taşmaması stackRadii'de (rInner hesabında)
-      // garanti ediliyor, burada ayrıca clamp gerekmiyor.
-      const labelR=r-labelOffset;
-      const labelFontSize=Math.round(6*fontSize/15);
-      const[lpx,lpy]=wheelPt(cx,cy,labelR,memberA);
-      h+=`<text x="${lpx}" y="${lpy}" text-anchor="middle" dominant-baseline="central" font-size="${labelFontSize}" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${fmtDegSignMinInSign(pos[p.id])}</text>`;
+      const p=s.p;
+      const adj=SYMBOL_ADJUST[p.id]||SYMBOL_ADJUST_DEFAULT;
+      if(p.id==='pluto'&&!plutoUnicodeSupported()){
+        out+=`<g data-planet="${p.id}" data-role="symbol" data-house="${s.house}" data-block="${role}" transform="translate(${symCx},${rowY}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
+      }else{
+        out+=`<text data-planet="${p.id}" data-role="symbol" data-house="${s.house}" data-block="${role}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
+      }
+      if(!box.symbolOnly){
+        out+=`<text data-planet="${p.id}" data-role="label" data-house="${s.house}" data-block="${role}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="${LABEL_FONT_FAMILY}">${fmtDegSignMinInSign(s.lon)}</text>`;
+      }
+      const trueA=wheelAngle(s.lon,ascDeg);
+      if(role==='overflow'){
+        // Son çare: bu üye ana bloğa sığmadı, bandın iç duvarına yaslanan
+        // kompakt alt-blokta gösteriliyor. Kısa tik yerine, gerçek açısındaki
+        // bant-iç-kenarı noktasından bu satırdaki sembolün merkezine kadar
+        // KESİKLİ bir leader line - "gerçek konum -> sıkıştırılmış gösterim"
+        // bağını gözle takip edilebilir kılıyor.
+        const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
+        out+=`<line data-planet="${p.id}" data-role="leader" data-house="${s.house}" x1="${t1x}" y1="${t1y}" x2="${symCx}" y2="${rowY}" stroke="${p.color}" stroke-width="0.6" stroke-dasharray="1.2,1" opacity="0.55"/>`;
+      }else{
+        const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
+        const[t2x,t2y]=wheelPt(cx,cy,PLANET_BAND_IN+3.5,trueA);
+        out+=`<line data-planet="${p.id}" data-role="tick" x1="${t1x}" y1="${t1y}" x2="${t2x}" y2="${t2y}" stroke="${p.color}" stroke-width="1" opacity="0.6"/>`;
+      }
     });
+    return out;
+  }
+
+  const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
+  const{blocks}=planBlocksForChart(drawnPlanets,pos,cuspLons,ascDeg);
+  blocks.forEach(block=>{
+    const{mainMembers,box,centerA,centerR,overflowMembers,overflowFit}=block;
+    const[bx,by]=wheelPt(cx,cy,centerR,centerA);
+    h+=renderBlockRows(mainMembers,bx,by,box,'main');
+    if(overflowMembers&&overflowMembers.length&&overflowFit){
+      const[obx,oby]=wheelPt(cx,cy,overflowFit.centerR,overflowFit.centerA);
+      h+=renderBlockRows(overflowMembers,obx,oby,overflowFit.box,'overflow');
+    }
   });
 
-  // Açı çizgileri (Ptolemaic majör açılar) — gezegenlerin gerçek boylamları
-  // arasında, wheel'in iç dairesinde (R_HOUSE_IN) çizilir,
-  // astro.com tarzı. Sert açılar (kavuşum/kare/karşıt) kırmızı, yumuşak açılar
-  // (sextil/üçgen) mavi. <g class="tech-details-field"> ile mevcut "Teknik
-  // Detayları Göster/Gizle" toggle'ının aynısına bağlı - varsayılan gizli,
-  // diğer teknik alanlarla (Ev Sistemi, Dignity paneli vb.) aynı body.show-
-  // tech-details CSS kancasını kullanıyor.
+  // AÇI DİSKİ (<0.45R): SADECE açı çizgileri + açı sembolleri. Gezegenlerin
+  // gerçek boylamları arasında, açı diskinin (ASPECT_OUT) sınırında çizilir,
+  // astro.com tarzı. Sert açılar (kavuşum/kare/karşıt) kırmızı, yumuşak
+  // açılar (sextil/üçgen) mavi; her açının orta noktasına küçük bir sembol
+  // (☌ □ △ ✶ ☍) konur. <g class="tech-details-field"> ile mevcut "Teknik
+  // Detayları Göster/Gizle" toggle'ının aynısına bağlı - varsayılan gizli.
   let aspectLines='';
   for(let i=0;i<drawnPlanets.length;i++){
     for(let j=i+1;j<drawnPlanets.length;j++){
       const p1=drawnPlanets[i],p2=drawnPlanets[j];
       const asp=findAspect(pos[p1.id],pos[p2.id]);
       if(!asp)continue;
-      const[ax1l,ay1l]=wheelPt(cx,cy,R_HOUSE_IN,wheelAngle(pos[p1.id],ascDeg));
-      const[ax2l,ay2l]=wheelPt(cx,cy,R_HOUSE_IN,wheelAngle(pos[p2.id],ascDeg));
-      aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${asp.hard?'#DC2626':'#2563EB'}" stroke-width="0.8" opacity="0.6"/>`;
+      const[ax1l,ay1l]=wheelPt(cx,cy,ASPECT_OUT,wheelAngle(pos[p1.id],ascDeg));
+      const[ax2l,ay2l]=wheelPt(cx,cy,ASPECT_OUT,wheelAngle(pos[p2.id],ascDeg));
+      const col=asp.hard?'#DC2626':'#2563EB';
+      aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${col}" stroke-width="0.8" opacity="0.6"/>`;
+      const midx=(ax1l+ax2l)/2,midy=(ay1l+ay2l)/2;
+      aspectLines+=`<text x="${midx}" y="${midy}" text-anchor="middle" dominant-baseline="central" font-size="6.5" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}" opacity="0.85">${asp.symbol}</text>`;
     }
   }
   if(aspectLines)h+=`<g class="tech-details-field">${aspectLines}</g>`;
@@ -2138,14 +2525,26 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
   // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
   const ascA=wheelAngle(ascDeg,ascDeg);
-  const[ax1,ay1]=wheelPt(cx,cy,R_HOUSE_IN,ascA), [ax2,ay2]=wheelPt(cx,cy,R_TIP,ascA);
+  const[ax1,ay1]=wheelPt(cx,cy,ASPECT_OUT,ascA), [ax2,ay2]=wheelPt(cx,cy,R_TIP,ascA);
   const[alx,aly]=wheelPt(cx,cy,R_LABEL,ascA);
   h+=`<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="#DC143C" stroke-width="1.5"/>`;
   h+=`<text x="${alx}" y="${aly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#DC143C" font-family="Inter,sans-serif" font-weight="700">ASC</text>`;
 
   if(typeof mc==='number'){
-    const mcA=wheelAngle(mc,ascDeg);
-    const[mx1,my1]=wheelPt(cx,cy,R_HOUSE_IN,mcA), [mx2,my2]=wheelPt(cx,cy,R_TIP,mcA);
+    // MC her zaman 10. ev cusp'ıyla (cuspLons[9]) AYNI çizgi olmalı - Placidus'ta
+    // (ve diğer quadrant ev sistemlerinde) MC, TANIM GEREĞİ 10. ev cusp'ıdır
+    // (Swiss Ephemeris backend'i bunu doğrudan bu şekilde hesaplıyor - bkz.
+    // app/astrology/core.py: swe.houses()'in ascmc[1]'i). Önceki sürüm MC'nin
+    // açısını backend'in AYRI `mc` alanından hesaplıyordu; `mc` ve `cusps[9]`
+    // teorik olarak hep eşit olsa da, iki AYRI alana güvenmek onları hafifçe
+    // tutarsız veren herhangi bir üst akış hatasına karşı kırılgandı ve gerçek
+    // bir raporda tam olarak bu şekilde gözlemlendi (eğik mor cusp çizgisi +
+    // sabit gibi görünen ayrı lacivert MC çizgisi) - kök neden backend'de değil
+    // (Placidus için ikisi zaten hep eşit çıkıyor), test verisindeydi, ama
+    // render kendi içinde tek bir kaynağa (cuspLons[9]) bağlanarak bu tür bir
+    // tutarsızlığın GEOMETRİK OLARAK MÜMKÜN olmasının önüne geçiyor.
+    const mcA=wheelAngle(cuspLons[9],ascDeg);
+    const[mx1,my1]=wheelPt(cx,cy,ASPECT_OUT,mcA), [mx2,my2]=wheelPt(cx,cy,R_TIP,mcA);
     const[mlx,mly]=wheelPt(cx,cy,R_LABEL,mcA);
     h+=`<line x1="${mx1}" y1="${my1}" x2="${mx2}" y2="${my2}" stroke="#1a3a5c" stroke-width="2"/>`;
     h+=`<text x="${mlx}" y="${mly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#1a3a5c" font-family="Inter,sans-serif" font-weight="700">MC</text>`;
