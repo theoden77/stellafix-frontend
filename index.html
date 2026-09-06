@@ -1426,10 +1426,16 @@ function fmtDegSignMinInSign(lon){
   const l=norm(lon),inSign=l%30,dd=Math.floor(inSign),mm=Math.floor((inSign-dd)*60),si=Math.floor(l/30);
   return`${dd}°${SIGN_GLYPHS[si]}${String(mm).padStart(2,'0')}'`;
 }
-// Dakikasız kısa biçim (bkz. LABEL_BOX_SHORT) - sadece dolu evlerde son çare.
+// Dakikasız kısa biçim (bkz. LABEL_BOX_SHORT) - sıkışık kümede 2. kademe.
 function fmtDegSignInSign(lon){
   const l=norm(lon),inSign=l%30,dd=Math.floor(inSign),si=Math.floor(l/30);
   return`${dd}°${SIGN_GLYPHS[si]}`;
+}
+// Sadece derece (bkz. LABEL_BOX_DEG) - burç zaten kuşaktan okunuyor, sıkışık
+// kümede 3. (en son) kademe.
+function fmtDegOnly(lon){
+  const l=norm(lon),inSign=l%30,dd=Math.floor(inSign);
+  return`${dd}°`;
 }
 function jd(y,mo,d,h,mi){if(mo<=2){y--;mo+=12;}const A=Math.floor(y/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(mo+1))+d+h/24+mi/1440+B-1524.5;}
 
@@ -1863,13 +1869,19 @@ function pavaMinGap(rel,sepDeg){
 // için - font-size 15 glyph / font-size 6 etiket), gerçek DOM ölçümlerinden
 // (getBBox) alındı. Etiket metni ("16°♍51'" gibi, burç sembolü eklendikten
 // sonra) glyph'ten daha GENİŞ ama daha KISA.
-const GLYPH_BOX={w:13.5,h:16.5},LABEL_BOX={w:23,h:7.5};
-// Dakikasız kısa etiket ("16°♍" - açı fonksiyonu düzeltmesi tek başına
-// yetmediğinde SADECE dolu evlerde kullanılan son çare, bkz. houseGeometry/
-// packAllHouses). Gerçek DOM ölçümü: 12 burcun hepsinde en geniş glif ile
-// ölçülünce tam etiketten (22.52) ~%34 daha dar (14.80) çıktı - darlığın
-// asıl kaynağı bu.
+const GLYPH_BOX={w:13.5,h:16.5};
+// Etiketin ÜÇ İÇERİK kademesi (6. turdan itibaren KAPASİTE artık punto değil
+// İÇERİK UZUNLUĞU tarafından sağlanıyor - bkz. packHouseCascade). Hepsi
+// gerçek DOM ölçümü (getBBox), 12 burcun en genişiyle, taban punto 6'da:
+//   full : "16°♍51'" (derece+burç+dakika) - varsayılan, en okunaklı
+//   short: "16°♍"    (dakikasız)          - %34 daha dar (22.52→14.80)
+//   deg  : "16°"      (sadece derece)      - burç zaten kuşaktan okunuyor,
+//                                            kümede tekrarına gerek yok
+const LABEL_BOX_FULL={w:23,h:7.5};
 const LABEL_BOX_SHORT={w:14.8,h:7.2};
+const LABEL_BOX_DEG={w:9.1,h:7.2};
+const LABEL_VARIANTS=['full','short','deg'];
+const LABEL_BOX_BY_VARIANT={full:LABEL_BOX_FULL,short:LABEL_BOX_SHORT,deg:LABEL_BOX_DEG};
 
 // Solar Fire tarzı radyal katmanlar. R, wheel'in GERÇEK dış yarıçapı (eski
 // R_OUT) - element renkli burç kuşağı da dahil TÜM katmanlar artık R'nin
@@ -1904,103 +1916,122 @@ function radialExtent(angleRad,box){return Math.abs(Math.cos(angleRad))*box.w+Ma
 function tangentialExtent(angleRad,box){return Math.abs(Math.sin(angleRad))*box.w+Math.abs(Math.cos(angleRad))*box.h;}
 function pairRadialStep(angleRad,boxA,boxB){return(radialExtent(angleRad,boxA)+radialExtent(angleRad,boxB))/2;}
 
-// Punto sırayla TAM boyuttan (15) başlayarak denenir - eski dört (sonra beş)
-// kademeli mantık aynen korunuyor.
-const FONT_SIZES=[15,12,9,6,4,3];
-const SAFETY=1.4;
+// SEMBOL artık kapasite denkleminin bir DEĞİŞKENİ değil - sert bir minimuma
+// sahip, SABİT punto (referans yazılımdaki gibi wheel'in en büyük/en okunaklı
+// öğesi). Sıkışıklık çözümü artık SADECE etiketin İÇERİK uzunluğundan
+// (packHouseCascade) geliyor, ne sembol ne etiket punto küçültülerek değil.
+// Her iki punto da AŞAĞIDA ölçülüp SABİTLENDİ (bkz. rapor):
+//   - SYMBOL_FONT_SIZE=7: TAM etiket (dakikalı) HİÇBİR punto boyutunda HER
+//     açıda garanti edilemiyor (ölçüldü: LABEL_BOX_FULL={23,7.5} köşegen
+//     açıda banddan bile daha büyük bir pay istiyor - sembol puntosu 2'ye
+//     kadar düşürülse bile açık kapanmıyor). Bu yüzden "referans yazılımdaki
+//     gibi en büyük" talebi, KISA etiketin ("16°♍", dakikasız) HER açıda
+//     (yalnız/sıkışıksız bir gezegen için) garanti sığdığı en büyük punto
+//     olarak yorumlandı - taranıp ölçüldü, 7'de kısa etiket +1.0 birim payla
+//     her açıda güvenli. TAM etiket fırsat buldukça (üyenin açısı uygunsa)
+//     hâlâ kullanılıyor; SADECE DERECE ise artık "her yalnız gezegen"
+//     durumu değil, GERÇEKTEN çok üyeli sıkışık kümeler için son çare.
+//   - LABEL_FONT_SIZE=6.5: cusp puntosuyla AYNI (Round 4'teki "cusp'ın %80'i"
+//     kuralı geri alındı - artık oran değil, zaten okunaklılığı kanıtlanmış
+//     bu sabit değer kullanılıyor; kapasite punto değil içerik tarafından
+//     geldiği için küçültmeye hiç gerek kalmadı).
+const SYMBOL_FONT_SIZE=7;
 const CUSP_LABEL_FONT_SIZE=6.5;
-const LABEL_FONT_MAX=CUSP_LABEL_FONT_SIZE;
-const LABEL_FONT_MIN=CUSP_LABEL_FONT_SIZE*0.8;
-const LABEL_FONT_SIZES=FONT_SIZES.map((_,i)=>LABEL_FONT_MAX-(LABEL_FONT_MAX-LABEL_FONT_MIN)*(i/(FONT_SIZES.length-1)));
-// LABEL_BOX referans punto 6'da ölçüldü (GLYPH_BOX'ın referansı 15'ten
-// FARKLI). Ölçek payı bu yüzden labelFontSize/6 olmalı, /15 DEĞİL. `short`
-// true ise dakikasız kısa etiket kutusu (LABEL_BOX_SHORT) kullanılır.
-function labelBoxFor(labelFontSize,short){const box=short?LABEL_BOX_SHORT:LABEL_BOX;const s=labelFontSize/6*SAFETY;return{w:box.w*s,h:box.h*s};}
+const LABEL_FONT_SIZE=CUSP_LABEL_FONT_SIZE;
+// SAFETY sadece BELİRSİZ ilişkiler için: aynı satırdaki FARKLI üyeler arası
+// açısal mesafe (tangentialSep) ve ardışık satırlar arası radyal adım (step)
+// - bunlarda hangi üyenin nereye düşeceği paketlemeden önce kesin değil.
+// Bir üyenin KENDİ sembolü ile KENDİ etiketi arasındaki mesafe (gap) ve
+// B bandının SABİT duvarlarına olan payı (labelR0/symbolFloor) ise
+// DETERMİNİSTİK ilişkiler (her ikisi de her zaman AYNI açıda, aynı üye) -
+// bunlara SAFETY uygulamak gereksiz muhafazakarlık olur ve (ölçülüp
+// doğrulandı) SYMBOL_FONT_SIZE'ı sabit büyük tutmakla birlikte hiçbir
+// etiketin bu banda sığmasına izin vermezdi.
+const SAFETY=1.4;
+const WALL_PAD=1.0;
 
-// Bir punto kademesinin sembol/etiket kutuları - AÇIDAN BAĞIMSIZ kısım.
-function tierBoxes(tierIdx,short){
-  const fontSize=FONT_SIZES[tierIdx],labelFontSize=LABEL_FONT_SIZES[tierIdx];
-  const scale=fontSize/15*SAFETY;
-  return{fontSize,labelFontSize,glyphBox:{w:GLYPH_BOX.w*scale,h:GLYPH_BOX.h*scale},labelBox:labelBoxFor(labelFontSize,short),short:!!short};
-}
+function boxAt(box,fontSize,refFontSize){const s=fontSize/refFontSize;return{w:box.w*s,h:box.h*s};}
 
-// Bir EVİN geometrisi: o evdeki üyelerin GERÇEK açılarının HER BİRİNDE gap/
-// step/tangentialSep/labelR0/symbolFloor hesaplanır (bkz. radialExtent/
-// tangentialExtent'in üstündeki not), evin PAYLAŞTIĞI (satırlar arası ortak)
-// değer olarak bu evdeki üyeler arasındaki EN GÜVENLİ (en büyük/en dar)
+// Bir EVİN, belirli bir etiket İÇERİK varyantı ("full"/"short"/"deg") için
+// geometrisi: o evdeki üyelerin GERÇEK açılarının HER BİRİNDE hesaplanır,
+// evin PAYLAŞTIĞI (satırlar arası ortak) değer olarak en güvenli/en dar
 // gereksinim alınır - global "her açı" varsayımı değil, sadece BU evin
-// gerçekte kapladığı açı aralığı için isabetli.
-//   - gap: bir üyenin KENDİ etiketi ile KENDİ sembolü arasındaki radyal mesafe
-//   - step: kademeler arası radyal adım (bu kademenin sembolü - bir sonraki
-//     kademenin etiketi çapraz mesafesi de step-gap>=gap'i karşılamalı,
-//     +1.6 sabit pay)
-//   - tangentialSep: AYNI kademedeki iki FARKLI üye arasında gereken teğetsel
-//     (açısal) mesafe
-//   - labelR0: 0. satırın etiket yarıçapı - B bandının DIŞINA taşmaması için,
-//     etiket kutusunun BU açıdaki radyal izdüşümünün YARISI kadar
-//     PLANET_BAND_OUT'tan içeride durur (sabit bir pay değil - yatay
-//     doğrultuda/ASC-DSC'de etiket GENİŞ olduğundan çok daha fazla, dikey
-//     doğrultuda/MC-IC'de çok daha az pay gerekir).
-//   - symbolFloor: sembolün inebileceği en düşük yarıçap - aynı mantıkla,
-//     glyph kutusunun radyal izdüşümünün yarısı kadar PLANET_BAND_IN'in
-//     üstünde durur, B bandının İÇİNE (C/D katmanlarına) taşmasın diye.
-// labelR0/symbolFloor, SAFETY'siz (HAM/gerçek ölçülen) kutu boyutuyla
-// hesaplanır - glyphBox/labelBox'taki SAFETY çarpanı (1.4x) iki BAĞIMSIZ
-// öğe arasındaki (öngörülemeyen render farkı gibi) olası belirsizliği
-// karşılamak için var; burada karşı taraf hareket etmeyen SABİT bir duvar
-// (PLANET_BAND_OUT/IN) olduğundan bu payı ikinci kez uygulamak gereksiz
-// muhafazakarlık olur ve (ölçülüp doğrulandı) tek bir yalnız gezegeni bile
-// 0. satıra sığdırmayı imkansız kılar.
-function houseGeometry(tierIdx,angles,short){
-  const boxes=tierBoxes(tierIdx,short);
-  const{glyphBox,labelBox,fontSize,labelFontSize}=boxes;
-  const labelRefBox=short?LABEL_BOX_SHORT:LABEL_BOX;
-  const rawGlyphBox={w:GLYPH_BOX.w*fontSize/15,h:GLYPH_BOX.h*fontSize/15};
-  const rawLabelBox={w:labelRefBox.w*labelFontSize/6,h:labelRefBox.h*labelFontSize/6};
+// gerçekte kapladığı açı aralığı için isabetli (bkz. radialExtent'in
+// üstündeki not, Round 3/5'teki radialStepFor'un devamı).
+//   - gap: üyenin KENDİ etiketi ile KENDİ sembolü arasındaki radyal mesafe
+//     (RAW/SAFETY'siz kutularla - deterministik ilişki, bkz. yukarıdaki not)
+//   - step: kademeler arası radyal adım - bu satırın sembolü bir SONRAKİ
+//     (farklı, belirsiz) üyenin etiketine çarpmamalı; bu çapraz terim
+//     SAFETY'li kutularla, ama üyenin KENDİ yerleşimi (rawGap) hâlâ dar kalır
+//   - tangentialSep: AYNI satırdaki farklı üyeler arası gereken açısal mesafe
+//     (SAFETY'li - hangi iki üyenin yan yana düşeceği belirsiz)
+//   - labelR0/symbolFloor: etiketin/sembolün B bandının kendi dış/iç kenarına
+//     payı - kutunun bu açıdaki RAW radyal izdüşümünün yarısı + WALL_PAD
+//     (sabit bir sayı DEĞİL - yatay doğrultuda/ASC-DSC'de çok daha fazla,
+//     dikey doğrultuda/MC-IC'de çok daha az pay gerekir)
+function houseGeometry(variant,angles){
+  const labelRef=LABEL_BOX_BY_VARIANT[variant];
   let gap=0,step=0,tangentialSep=0,labelR0=PLANET_BAND_OUT,symbolFloor=PLANET_BAND_IN;
+  const rawGlyph=boxAt(GLYPH_BOX,SYMBOL_FONT_SIZE,15);
+  const rawLabel=boxAt(labelRef,LABEL_FONT_SIZE,6);
+  const safeGlyph={w:rawGlyph.w*SAFETY,h:rawGlyph.h*SAFETY};
+  const safeLabel={w:rawLabel.w*SAFETY,h:rawLabel.h*SAFETY};
   for(const a of angles){
-    const g=pairRadialStep(a,glyphBox,labelBox);
-    const s=Math.max(radialExtent(a,glyphBox),radialExtent(a,labelBox),g+g)+1.6;
-    const t=Math.max(tangentialExtent(a,glyphBox),tangentialExtent(a,labelBox));
-    const lr0=PLANET_BAND_OUT-radialExtent(a,rawLabelBox)/2-1.3;
-    const sf=PLANET_BAND_IN+radialExtent(a,rawGlyphBox)/2+1.3;
-    if(g>gap)gap=g;
+    const rawGap=pairRadialStep(a,rawGlyph,rawLabel);
+    const safeCrossGap=pairRadialStep(a,safeGlyph,safeLabel);
+    const s=Math.max(radialExtent(a,safeGlyph),radialExtent(a,safeLabel),rawGap+safeCrossGap)+1.6;
+    const t=Math.max(tangentialExtent(a,safeGlyph),tangentialExtent(a,safeLabel));
+    const lr0=PLANET_BAND_OUT-radialExtent(a,rawLabel)/2-WALL_PAD;
+    const sf=PLANET_BAND_IN+radialExtent(a,rawGlyph)/2+WALL_PAD;
+    if(rawGap>gap)gap=rawGap;
     if(s>step)step=s;
     if(t>tangentialSep)tangentialSep=t;
     if(lr0<labelR0)labelR0=lr0;
     if(sf>symbolFloor)symbolFloor=sf;
   }
-  return{...boxes,gap,step,tangentialSep,labelR0,symbolFloor};
+  return{variant,gap,step,tangentialSep,labelR0,symbolFloor};
 }
 
-// Bir evin İÇİNDEKİ üyeleri (sortedRels: ev başlangıcına göre göreli derece,
-// 0..span, SIRALI artan) verilen kademe geometrisiyle satır satır (radyal)
-// ve her satırda teğetsel olarak paketler:
-//   - Her satırın (row) yarıçapı sabit (geo.labelR0 - row*step); satırın
-//     sembolü geo.symbolFloor'un altına inecekse (bandın SERT tabanı) yeni
-//     satır açılmaz.
-//   - Bir satıra en fazla kaç üye (capacity) sığdığı, o satırın yarıçapında
-//     gereken teğetsel açısal mesafeden (tangentialSep'in radyana çevrilmiş
-//     hali) ve evin kullanılabilir genişliğinden hesaplanır.
-//   - O satıra düşen üyeler PAVA (izotonik regresyon) ile birbirinden en az
-//     bu açısal mesafe kadar ayrılacak şekilde, ama TOPLAM olarak kendi
-//     gerçek açılarına EN YAKIN kalacak şekilde yerleştirilir, sonra ev
-//     sınırları (0..span, kenar payı düşülmüş) içine kaydırılır.
-// Hiçbir kademe/satır bandın sert sınırlarını aşmaz. Eğer TÜM satırlar
-// tükenip hâlâ yerleştirilemeyen üye kalırsa (gerçekten aşırı bir durum),
-// bu son üyeler SON GEÇERLİ satırın kendi (kelepçelenmiş) gerçek açılarına
-// yerleştirilir - birbirleriyle çakışabilirler ama bandın sert sınırını asla
-// aşmazlar; `allFit:false` ile bu durum çağırana bildirilir (zorlama değil,
-// ölçülüp raporlanan bir son çare).
-function packHouseMembers(sortedRels,span,geo){
+// Bir evin İÇİNDEKİ üyelerini (sortedRels: ev başlangıcına göre göreli
+// derece, 0..span, SIRALI artan) ÜÇ etiket varyantı (geos: [full,short,deg]
+// geometrileri) arasında KADEME KADEME, AYNI radyal diziyi dıştan içe doğru
+// SÜRDÜREREK paketler - kademe/içerik kararı EV genelinde değil, o evin
+// GERÇEKTEN sıkışık ARTIK KÜMESİ için verilir:
+//   - Her SATIR bağımsız olarak, o satırın mevcut "tavan" yarıçapında HANGİ
+//     varyantın (full/short/deg, bu sırayla) güvenli olduğuna göre seçilir -
+//     tek yönlü bir "tükendi, bir daha dönme" geçişi DEĞİL: bir satır KISA
+//     etiketle çözüldüyse, BİR SONRAKİ satır yine TAM etiketle denenir (o
+//     satırın kendi tavanında sığıyorsa). Bu, önceki (tek geçişli) sürümün
+//     bir hatasını düzeltiyor: kaba (büyük) bir varyantın adımıyla İÇERİ
+//     atlayıp, aslında SADECE DERECE gibi daha ince bir varyantın hâlâ
+//     sığdırabileceği bir ara derinliği atlamasını önlüyor.
+//   - Bir satıra sığan üyeler PAVA (izotonik regresyon) ile teğetsel olarak
+//     (açısal) ayrılır, TOPLAM olarak kendi gerçek açılarına EN YAKIN
+//     kalacak şekilde. Böylece rahat duran bir evin/kümenin üyeleri TAM
+//     etiket + SABİT büyük sembolde kalır, sadece gerçekten sığmayan ARTIK
+//     üyeler içerik kısaltır.
+//   - Hiçbir varyant o satırın tavanında sığmıyorsa (bant tükendi - SADECE
+//     DERECE bile HER açıda tek bir satır için banda sığacak şekilde
+//     ölçülüp seçildiğinden, bunun olması sadece GERÇEKTEN aşırı/çok satırlı
+//     durumlarda beklenir), kalan üyeler SON GEÇERLİ satırın açılarına
+//     yerleştirilir; `allFit:false` ile bu durum çağırana bildirilir
+//     (zorlama değil, ölçülüp raporlanan son çare).
+function packHouseCascade(sortedRels,span,geos){
   const n=sortedRels.length;
   const assignments=new Array(n);
-  let idx=0,lastRow=0,lastLabelR=geo.labelR0,lastSymbolR=geo.labelR0-geo.gap;
-  for(let row=0;idx<n;row++){
-    const labelR=geo.labelR0-row*geo.step;
-    const symbolR=labelR-geo.gap;
-    if(symbolR<geo.symbolFloor)break;
-    lastRow=row;lastLabelR=labelR;lastSymbolR=symbolR;
+  let idx=0;
+  let ceilingR=Infinity;
+  let lastRow=0,lastLabelR=geos[0].labelR0,lastSymbolR=geos[0].labelR0-geos[0].gap,lastVariant=geos[0].variant;
+  let row=0;
+  while(idx<n){
+    let geo=null,labelR=null,symbolR=null;
+    for(const g of geos){
+      const candLabelR=Math.min(ceilingR,g.labelR0);
+      const candSymbolR=candLabelR-g.gap;
+      if(candSymbolR>=g.symbolFloor){geo=g;labelR=candLabelR;symbolR=candSymbolR;break;}
+    }
+    if(!geo)break;
+    lastRow=row;lastLabelR=labelR;lastSymbolR=symbolR;lastVariant=geo.variant;
     const sepDeg=(geo.tangentialSep/symbolR)*(180/Math.PI);
     const marginDeg=sepDeg/2;
     const usable=Math.max(0,span-2*marginDeg);
@@ -2012,24 +2043,28 @@ function packHouseMembers(sortedRels,span,geo){
     let shift=0;
     if(adjusted[0]<lo)shift=lo-adjusted[0];
     else if(adjusted[adjusted.length-1]+shift>hi)shift=hi-adjusted[adjusted.length-1];
-    for(let k=0;k<take;k++)assignments[idx+k]={row,labelR,symbolR,rel:adjusted[k]+shift};
+    for(let k=0;k<take;k++)assignments[idx+k]={row,labelR,symbolR,rel:adjusted[k]+shift,variant:geo.variant};
     idx+=take;
+    row++;
+    ceilingR=labelR-geo.step;
   }
   const allFit=idx>=n,placedCount=idx;
   for(;idx<n;idx++){
     const rel=Math.min(span,Math.max(0,sortedRels[idx]));
-    assignments[idx]={row:lastRow,labelR:lastLabelR,symbolR:lastSymbolR,rel};
+    assignments[idx]={row:lastRow,labelR:lastLabelR,symbolR:lastSymbolR,rel,variant:lastVariant};
   }
   return{assignments,allFit,placedCount};
 }
 
-// Chart'taki TÜM evleri, verilen punto kademesiyle paketler. Her ev BAĞIMSIZ
-// paketlenir - evler açısal olarak asla çakışmadığından (ve her evin kendi
-// kenar payı, komşu evle paylaşılan cusp'ta TOPLAMDA tam tangentialSep kadar
-// ayrım sağlar), evler arası çapraz kontrol gerekmez. Geometri, o evin
-// üyelerinin GERÇEK wheel açılarından hesaplanır (bkz. houseGeometry) -
-// bu yüzden ascDeg gerekiyor.
-function packAllHouses(houseGroups,pos,cuspLons,ascDeg,tierIdx){
+// Chart'taki TÜM evleri paketler. Her ev BAĞIMSIZ paketlenir - evler açısal
+// olarak asla çakışmadığından (ve her evin kendi kenar payı, komşu evle
+// paylaşılan cusp'ta TOPLAMDA tam tangentialSep kadar ayrım sağlar), evler
+// arası çapraz kontrol gerekmez. Geometri, o evin üyelerinin GERÇEK wheel
+// açılarından hesaplanır (bkz. houseGeometry) - bu yüzden ascDeg gerekiyor.
+// SEMBOL/ETİKET puntosu SABİT olduğundan (bkz. SYMBOL_FONT_SIZE/
+// LABEL_FONT_SIZE) artık kademe-cascade (planForChart'ın eski görevi) yok -
+// tek geçişte doğrudan paketlenir.
+function packAllHouses(houseGroups,pos,cuspLons,ascDeg){
   const result={};
   let allFit=true;
   for(let h=0;h<12;h++){
@@ -2040,43 +2075,21 @@ function packAllHouses(houseGroups,pos,cuspLons,ascDeg,tierIdx){
     const sorted=members.map(p=>({p,lon:norm(pos[p.id]),rel:norm(norm(pos[p.id])-start)})).sort((a,b)=>a.rel-b.rel);
     const angles=sorted.map(s=>wheelAngle(s.lon,ascDeg));
     const rels=sorted.map(s=>s.rel);
-    // Önce TAM etiket (dakikalı) denenir - okunabilirlik önceliklidir. Sadece
-    // BU EV tam etiketle sığmıyorsa (dar bir kısıt: angle-aware step/gap/
-    // tangentialSep düzeltmesi tek başına yetmediğinde), SADECE bu ev için
-    // dakikasız kısa etikete (LABEL_BOX_SHORT) düşülür - diğer (seyrek)
-    // evler tam hassasiyetini korur.
-    let geo=houseGeometry(tierIdx,angles,false);
-    let packed=packHouseMembers(rels,span,geo);
-    let short=false;
-    if(!packed.allFit){
-      const geoShort=houseGeometry(tierIdx,angles,true);
-      const packedShort=packHouseMembers(rels,span,geoShort);
-      if(packedShort.placedCount>packed.placedCount){
-        geo=geoShort;packed=packedShort;short=true;
-      }
-    }
+    const geos=LABEL_VARIANTS.map(v=>houseGeometry(v,angles));
+    const packed=packHouseCascade(rels,span,geos);
     if(!packed.allFit)allFit=false;
     sorted.forEach((s,i)=>{
       const a=packed.assignments[i];
-      result[s.p.id]={row:a.row,labelR:a.labelR,symbolR:a.symbolR,lon:norm(start+a.rel),trueLon:s.lon,short};
+      result[s.p.id]={row:a.row,labelR:a.labelR,symbolR:a.symbolR,lon:norm(start+a.rel),trueLon:s.lon,variant:a.variant};
     });
   }
   return{result,allFit};
 }
 
-// Punto kademesini en büyükten başlayarak dener - TÜM evlerdeki TÜM üyeler
-// sığana kadar. Hiçbir kademe tam sığmıyorsa en küçük kademenin (en iyi
-// çaba) sonucu kullanılır - bkz. packHouseMembers'ın son çare notunda.
 function planForChart(drawnPlanets,pos,cuspLons,ascDeg){
   const houseGroups=Array.from({length:12},()=>[]);
   drawnPlanets.forEach(p=>houseGroups[houseIndexOf(pos[p.id],cuspLons)].push(p));
-  let best=null;
-  for(let t=0;t<FONT_SIZES.length;t++){
-    const packed=packAllHouses(houseGroups,pos,cuspLons,ascDeg,t);
-    best={geo:tierBoxes(t),packed};
-    if(packed.allFit)break;
-  }
-  return best;
+  return{packed:packAllHouses(houseGroups,pos,cuspLons,ascDeg)};
 }
 
 // Ptolemaic majör açılar — wheel'in iç dairesinde (Layer D) çizilen açı
@@ -2201,12 +2214,18 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // 2 BOYUTLU PAKETLEME: bir gezegen, kendi EVİNİN dilimi içinde kalmak
   // kaydıyla hem RADYAL (kademe) hem TEĞETSEL (açı) olarak yerleştirilebilir
   // - "her zaman kendi gerçek açısında, sadece yarıçap değişir" kısıtı
-  // kaldırıldı (bkz. planForChart/packHouseMembers). Gerçek açısından
+  // kaldırıldı (bkz. planForChart/packHouseCascade). Gerçek açısından
   // kaydırılan her üye, gerçek derecesine ince/düşük kontrastlı bir leader
   // line ile bağlanır - artık bu, dar bir kümeyi çözmenin normal bir
   // parçası (nadir bir "başarısızlık göstergesi" değil).
+  //
+  // SEMBOL/ETİKET puntosu HER ZAMAN SABİT (SYMBOL_FONT_SIZE/LABEL_FONT_SIZE)
+  // - kapasite artık punto küçültülerek değil, SADECE etiketin İÇERİK
+  // uzunluğu (full/short/deg, bkz. a.variant) kısaltılarak sağlanıyor, ve bu
+  // karar EV genelinde değil üye/küme bazında veriliyor (packHouseCascade).
   const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
-  const{geo,packed}=planForChart(drawnPlanets,pos,cuspLons,ascDeg);
+  const{packed}=planForChart(drawnPlanets,pos,cuspLons,ascDeg);
+  const LABEL_FMT_BY_VARIANT={full:fmtDegSignMinInSign,short:fmtDegSignInSign,deg:fmtDegOnly};
   drawnPlanets.forEach(p=>{
     const a=packed.result[p.id];
     const memberA=wheelAngle(a.lon,ascDeg);
@@ -2219,13 +2238,13 @@ function renderWheel(pos,ascDeg,cusps,mc){
     }
     const[sx,sy]=wheelPt(cx,cy,a.symbolR,memberA);
     if(p.id==='pluto'){
-      h+=`<g data-planet="${p.id}" data-role="symbol"${shifted?' data-shifted="1"':''} transform="translate(${sx},${sy}) scale(${(geo.fontSize/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
+      h+=`<g data-planet="${p.id}" data-role="symbol"${shifted?' data-shifted="1"':''} transform="translate(${sx},${sy}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
     }else{
-      h+=`<text data-planet="${p.id}" data-role="symbol"${shifted?' data-shifted="1"':''} x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="${geo.fontSize}" fill="${p.color}">${p.glyph}</text>`;
+      h+=`<text data-planet="${p.id}" data-role="symbol"${shifted?' data-shifted="1"':''} x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE}" fill="${p.color}">${p.glyph}</text>`;
     }
     const[lx,ly]=wheelPt(cx,cy,a.labelR,memberA);
-    const labelText=a.short?fmtDegSignInSign(a.trueLon):fmtDegSignMinInSign(a.trueLon);
-    h+=`<text data-planet="${p.id}" data-role="label"${shifted?' data-shifted="1"':''}${a.short?' data-short-label="1"':''} x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="${geo.labelFontSize}" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${labelText}</text>`;
+    const labelText=LABEL_FMT_BY_VARIANT[a.variant](a.trueLon);
+    h+=`<text data-planet="${p.id}" data-role="label"${shifted?' data-shifted="1"':''} data-label-variant="${a.variant}" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${labelText}</text>`;
   });
 
   // AÇI DİSKİ (<0.45R): SADECE açı çizgileri + açı sembolleri. Gezegenlerin
