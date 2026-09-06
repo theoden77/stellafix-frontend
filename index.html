@@ -2045,35 +2045,44 @@ function evalBlockFit(list,span,start,ascDeg){
   return{box,centerA,centerR,radialHalf,fitsRadial,fitsTangential,fits:fitsRadial&&fitsTangential};
 }
 
-// Bir evin blok yerleşimi: üyeler boylama göre sıralanır (blok içinde yukarı-
+// Bir blok yerleşimi (tek bir ev YA DA komşu evlerin BİRLEŞMİŞ yayı - bkz.
+// planBlocksForChart): üyeler boylama göre sıralanır (blok içinde yukarı-
 // aşağı sıra bu olacak), blok B bandının ORTA yarıçapına, üyelerin ORTALAMA
 // göreli derecesindeki açıya yerleştirilir. Blok hiçbir zaman döndürülmez -
 // bu yüzden o açıdaki radyal/teğetsel izdüşümü (radialExtent/tangentialExtent
-// ile), B bandının derinliğini ve evin açısal dilimini (yay uzunluğuna
-// çevrilmiş) AŞMAMALI. Aşıyorsa (`fits:false`) bu GERÇEK bir kapasite sınırı.
+// ile), B bandının derinliğini ve verilen yayı (yay uzunluğuna çevrilmiş)
+// AŞMAMALI. Aşıyorsa (`fits:false`) bu GERÇEK bir kapasite sınırı.
 //
 // 12. tur - kararlaştırılan istisna: bant %30'a büyütüldükten sonra bile
-// nadir bir uç durum (ör. 1962'nin 4+ üyeli Kova stelliumu) TÜM üyeleriyle
-// sığmayabilir. Bunu kurtarmak için haritaların çoğunluğunu bozacak bir bant
-// büyütmesi (0.36R) YAPILMADI - bunun yerine SON ÇARE bir taşma mekanizması:
-// ana blok, sığana kadar üyeleri en dıştan (boylamda en uçtaki) içe doğru
-// TAŞMA listesine ayırarak küçültülür (yazı tipi/punto SABİT kalır, sadece
-// üye SAYISI azalır); taşan üyeler bandın İÇ duvarına yaslanan AYRI, kompakt
-// bir alt-blokta, kendi GERÇEK açılarından İÇE doğru kısa bir leader line ile
+// nadir bir uç durum TÜM üyeleriyle sığmayabilir. Bunu kurtarmak için
+// haritaların çoğunluğunu bozacak bir bant büyütmesi (0.36R) YAPILMADI -
+// bunun yerine SON ÇARE bir taşma mekanizması: ana blok, sığana kadar
+// üyeleri en dıştan (boylamda en uçtaki) içe doğru TAŞMA listesine
+// ayırarak küçültülür (yazı tipi/punto SABİT kalır, sadece üye SAYISI
+// azalır); taşan üyeler bandın İÇ duvarına yaslanan AYRI, kompakt bir alt-
+// blokta, kendi GERÇEK açılarından İÇE doğru kısa bir leader line ile
 // bağlanarak gösterilir (bkz. renderWheel). Bu şekilde sıkışıklık ÇAKIŞMAYA
 // dönüşmez: her iki alt-blok da B bandı içinde kalır ve örtüşmez.
 //
-// forceExtraOverflow: bir evin KENDİ dilimine sığması yetmeyebilir - komşu
-// evin bloğuyla GERÇEKTEN (dünya koordinatlarında) çakışabilir, çünkü
-// radialExtent/tangentialExtent kontrolü sadece "bu blok KENDİ diliminin
+// forceExtraOverflow: bloğun KENDİ yayına sığması yetmeyebilir - komşu
+// bloğuyla GERÇEKTEN (dünya koordinatlarında) çakışabilir, çünkü
+// radialExtent/tangentialExtent kontrolü sadece "bu blok KENDİ yayının
 // açısal payına sığıyor mu" sorusuna cevap verir, komşunun aynı anda nereye
 // yerleştiğini bilmez. Bu yüzden çapraz-ev çakışma çözümü (planBlocksForChart
-// içinde, gerçek dikdörtgen kesişimiyle) gerektiğinde bu evi ekstra üye(ler)
-// taşmaya zorlar - bkz. planBlocksForChart.
-function placeHouseBlock(members,pos,cuspLons,h,ascDeg,forceExtraOverflow=0){
-  const start=cuspLons[h],end=cuspLons[(h+1)%12];
-  const span=norm(end-start)||360;
-  const sorted=members.map(p=>({p,lon:norm(pos[p.id]),rel:norm(norm(pos[p.id])-start)})).sort((a,b)=>a.rel-b.rel);
+// içinde, önce KÜME BİRLEŞTİRME - bkz. aşağı - sonra gerekirse bu parametre
+// ile ek taşma) gerektiğinde bu bloğu ekstra üye(ler) taşmaya zorlar.
+//
+// 13. tur - KÜME BİRLEŞTİRME (Solar Fire referansı): referans yazılımda blok
+// EVİN değil KÜMENİN birimi - bir Terazi bloğu 12. ve 1. evi kesse bile TEK
+// sütun olarak, boylam sırasına göre dizilir, ev sınırında bölünmez. Bu
+// yüzden çapraz-ev çakışması artık ÖNCE komşu evlerin bloklarını TEK blok
+// olarak birleştirip (bkz. planBlocksForChart) çözülüyor - taşma mekanizması
+// sadece birleşmiş blok da hâlâ sığmazsa devreye giren İKİNCİL bir çare.
+function placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,forceExtraOverflow=0){
+  const sorted=members.map(p=>{
+    const lon=norm(pos[p.id]);
+    return{p,lon,rel:norm(lon-start),house:houseIndexOf(lon,cuspLons)};
+  }).sort((a,b)=>a.rel-b.rel);
   const n=sorted.length;
   const full=evalBlockFit(sorted,span,start,ascDeg);
   const targetMax=Math.max(1,n-forceExtraOverflow);
@@ -2104,10 +2113,21 @@ function placeHouseBlock(members,pos,cuspLons,h,ascDeg,forceExtraOverflow=0){
   if(overflowMembers.length){
     const ofBox=blockBoxFor(overflowMembers.length);
     const ofRadialHalf=radialExtent(mainFit.centerA,ofBox)/2+WALL_PAD;
-    const ofCenterR=PLANET_BAND_IN+ofRadialHalf;
+    // Taşma bloğu normalde İÇ duvara ("içe doğru") yaslanır. Ama üye sayısı
+    // fazlaysa (ör. birleşmiş büyük bir kümenin taşan kısmı) bloğun kendi
+    // yüksekliği bandın TAMAMINDAN bile büyük olabilir - bu durumda iç
+    // duvara yaslamak dış duvarı AŞIRIR (ölçülüp yakalandı). Böyle bir
+    // pathological durumda bandın ORTASINA al - aşımı simetrik dağıt, tek
+    // yöne yığma; hâlâ aşıyorsa (`fits:false`) bu gerçek, çözülemeyen bir
+    // kapasite sınırıdır, render bunu render eder ama overflowFit.fits
+    // false olarak dürüstçe işaretli kalır.
+    const bandMidR=(PLANET_BAND_IN+PLANET_BAND_OUT)/2;
+    const hugsInnerWall=(PLANET_BAND_IN+ofRadialHalf)<=(PLANET_BAND_OUT-ofRadialHalf);
+    const ofCenterR=hugsInnerWall?PLANET_BAND_IN+ofRadialHalf:bandMidR;
     const mainInnerEdge=mainFit.centerR-mainFit.radialHalf;
     const ofOuterEdge=ofCenterR+ofRadialHalf;
-    const fitsRadialVsMain=ofOuterEdge<=mainInnerEdge;
+    const ofInnerEdge=ofCenterR-ofRadialHalf;
+    const fitsRadialVsMain=ofOuterEdge<=mainInnerEdge&&ofOuterEdge<=PLANET_BAND_OUT&&ofInnerEdge>=PLANET_BAND_IN;
     // Taşma bloğu içe itildiğinde yarıçap küçüldüğü için o yarıçaptaki yay
     // uzunluğu da küçülür (arcHalfLen yarıçapla orantılı) - bu yüzden
     // teğetsel sığmayı da AYRICA, kendi (küçültülmüş) yarıçapında kontrol
@@ -2121,7 +2141,7 @@ function placeHouseBlock(members,pos,cuspLons,h,ascDeg,forceExtraOverflow=0){
 }
 
 // wheel'in sabit SVG merkezi (viewBox="0 0 300 300") - blokların dünya
-// koordinatındaki dikdörtgenini hesaplamak için (çapraz-ev çakışma teşhisi).
+// koordinatındaki dikdörtgenini hesaplamak için (çapraz-küme çakışma testi).
 const WHEEL_CX=150,WHEEL_CY=150;
 function subBlockRect(centerA,centerR,box){
   const[bx,by]=wheelPt(WHEEL_CX,WHEEL_CY,centerR,centerA);
@@ -2129,41 +2149,92 @@ function subBlockRect(centerA,centerR,box){
 }
 function rectsOverlap(a,b){return!(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top);}
 
-// Chart'taki TÜM evleri bloklar. Her evin KENDİ dilimine sığması
-// (radialExtent/tangentialExtent, placeHouseBlock içinde) GEREKLİ ama YETERLİ
-// değil: iki komşu evin üyeleri kendi ortalama açılarında tesadüfen ORTAK
-// cusp'a çok yakın kümelenirse, her iki blok da kendi diliminde "sığar"
-// göründüğü halde dünya koordinatlarında GERÇEKTEN çakışabilir.
+// Bir evin (KENDİ cusp'larından türetilmiş yayla) tek başına bloğu.
+function placeHouseBlock(members,pos,cuspLons,h,ascDeg,forceExtraOverflow=0){
+  const start=cuspLons[h],end=cuspLons[(h+1)%12];
+  const span=norm(end-start)||360;
+  return placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,forceExtraOverflow);
+}
+
+// İki küme (her biri bitişik, artan ev indeksi listesi - mod 12) cusp
+// sırasında birbirine bitişik mi? (Aralarında boş bile olsa başka bir ev
+// YOK - tam komşu cusp'ı paylaşıyorlar.)
+function areClustersAdjacent(housesA,housesB){
+  const aEnd=housesA[housesA.length-1],bStart=housesB[0];
+  const bEnd=housesB[housesB.length-1],aStart=housesA[0];
+  return(aEnd+1)%12===bStart||(bEnd+1)%12===aStart;
+}
+function mergeAdjacentHouses(housesA,housesB){
+  const aEnd=housesA[housesA.length-1];
+  return(aEnd+1)%12===housesB[0]?housesA.concat(housesB):housesB.concat(housesA);
+}
+function placeClusterBlock(houses,houseGroups,pos,cuspLons,ascDeg){
+  const startH=houses[0],endH=houses[houses.length-1];
+  const start=cuspLons[startH],end=cuspLons[(endH+1)%12];
+  const span=norm(end-start)||360;
+  let members=[];houses.forEach(hh=>members.push(...houseGroups[hh]));
+  return Object.assign({houses},placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,0));
+}
+
+// Chart'taki TÜM evleri bloklar. 13. tur (Solar Fire referansı ile
+// düzeltildi): bir evin KENDİ dilimine sığması (radialExtent/
+// tangentialExtent) GEREKLİ ama YETERLİ değil - iki komşu evin üyeleri
+// ORTAK cusp'a çok yakın kümelenirse, her iki blok da kendi diliminde
+// "sığar" göründüğü halde dünya koordinatlarında GERÇEKTEN çakışabilir.
+// Referans yazılımda blok EVİN değil KÜMENİN birimi: bir blok komşu iki evi
+// kesse bile TEK sütun (boylam sırasına göre) olarak dizilir, ev sınırında
+// bölünmez. Bu yüzden çapraz-ev çakışması artık ÖNCE BİRLEŞTİRME ile
+// çözülüyor: çakışan iki blok cusp sırasında BİTİŞİKSE (aralarında başka ev
+// yok), üyeleri TEK kümede birleştirilip birleşik yay için yeniden yerleşim
+// hesaplanır - gerekirse zincirleme (3+ ev) devam eder. Sadece birleşmiş
+// blok da (nadiren) kendi genişlemiş yayına sığmazsa placeBlockForSpan'ın
+// KENDİ taşma/leader-line mekanizması ikincil çare olarak devreye girer.
 //
-// DENENDİ VE GERİ ALINDI: evleri sırayla daha da taşmaya zorlayan yinelemeli
-// bir çapraz-ev çözücü denendi, ama 1962'nin ASIL uç durumunda (iki komşu ev
-// AYNI ANDA kalabalık, ikisinin de üye ortalaması aynı cusp'a çok yakın) bunu
-// KÖTÜLEŞTİRDİ: her iki taşma alt-bloğu da bandın iç duvarına yaslandığından
-// (yarıçap küçüldükçe yay uzunluğu da küçülüyor) birbirleriyle çakışmaya
-// başladı - ölçüldü, 10 çakışma 20'ye çıktı, her iki ev tek üyeye kadar
-// boşaltıldığı halde çözülmedi. Bu, "içe doğru leader line" mekanizmasının iyi
-// niyetle bile çözemeyeceği YAPISAL bir sınır: iki komşu ev BİRDEN aynı sınıra
-// yığılırsa, sabit blok genişliği (~0.215R) o dar açısal/radyal cepte sığmaz.
-// Bu yüzden çapraz-ev tespiti sadece TEŞHİS amaçlı tutuluyor (crossHouseNote) -
-// zorlanmıyor; gerçek sonuç ölçülüp kullanıcıya bildiriliyor.
+// DENENİP GERİ ALINAN yaklaşım (önceki turda): evleri sırayla daha da
+// taşmaya zorlayan yinelemeli bir "itme" çözücü - üyeleri içe/kenara sıkıştırıp
+// yayı KÜÇÜLTÜYORDU, bu da 1962'nin uç durumunda çakışmayı 10'dan 20'ye
+// çıkardı (iki taşma alt-bloğu birbirine çarpıştı). Birleştirme bunun TAM
+// TERSİ: iki bloğun yayını KÜÇÜLTMÜYOR, TOPLUYOR - referans yazılımın
+// yaptığı gerçek çözüm bu.
 function planBlocksForChart(drawnPlanets,pos,cuspLons,ascDeg){
   const houseGroups=Array.from({length:12},()=>[]);
   drawnPlanets.forEach(p=>houseGroups[houseIndexOf(pos[p.id],cuspLons)].push(p));
-  const blocks=[];
-  for(let h=0;h<12;h++){
-    if(!houseGroups[h].length)continue;
-    const block=placeHouseBlock(houseGroups[h],pos,cuspLons,h,ascDeg);
-    blocks.push(Object.assign({house:h},block));
+  let clusters=[];
+  for(let h=0;h<12;h++)if(houseGroups[h].length)clusters.push([h]);
+  let blocks=clusters.map(houses=>placeClusterBlock(houses,houseGroups,pos,cuspLons,ascDeg));
+
+  function clusterRects(b){
+    const list=[subBlockRect(b.centerA,b.centerR,b.box)];
+    if(b.overflowMembers.length&&b.overflowFit)list.push(subBlockRect(b.overflowFit.centerA,b.overflowFit.centerR,b.overflowFit.box));
+    return list;
   }
-  const rects=[];
-  blocks.forEach(b=>{
-    rects.push({house:b.house,rect:subBlockRect(b.centerA,b.centerR,b.box)});
-    if(b.overflowMembers.length&&b.overflowFit)rects.push({house:b.house,rect:subBlockRect(b.overflowFit.centerA,b.overflowFit.centerR,b.overflowFit.box)});
-  });
+  const MAX_MERGES=11; // en fazla 12 ev, dolayısıyla en fazla 11 birleştirme adımı olabilir.
+  for(let iter=0;iter<MAX_MERGES;iter++){
+    let mergePair=null;
+    outer:
+    for(let i=0;i<blocks.length;i++){
+      const ri=clusterRects(blocks[i]);
+      for(let j=i+1;j<blocks.length;j++){
+        const rj=clusterRects(blocks[j]);
+        let overlap=false;
+        for(const a of ri)for(const b of rj)if(rectsOverlap(a,b)){overlap=true;break;}
+        if(overlap&&areClustersAdjacent(blocks[i].houses,blocks[j].houses)){mergePair=[i,j];break outer;}
+      }
+    }
+    if(!mergePair)break;
+    const[i,j]=mergePair;
+    const mergedHouses=mergeAdjacentHouses(blocks[i].houses,blocks[j].houses);
+    const mergedBlock=placeClusterBlock(mergedHouses,houseGroups,pos,cuspLons,ascDeg);
+    blocks.splice(j,1);blocks.splice(i,1);blocks.push(mergedBlock);
+  }
+
+  // Son bir çapraz-küme taraması: birleştirme komşu OLMAYAN kümeler arasında
+  // (pratikte olmaması gereken, patolojik) bir çakışmayı çözemez - bunlar
+  // zorlanmadan TEŞHİS olarak bildiriliyor.
   const crossHouseNote=[];
-  for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){
-    if(rects[i].house===rects[j].house)continue;
-    if(rectsOverlap(rects[i].rect,rects[j].rect))crossHouseNote.push(`house${rects[i].house}<->house${rects[j].house}`);
+  for(let i=0;i<blocks.length;i++)for(let j=i+1;j<blocks.length;j++){
+    const ri=clusterRects(blocks[i]),rj=clusterRects(blocks[j]);
+    for(const a of ri)for(const b of rj)if(rectsOverlap(a,b))crossHouseNote.push(`houses[${blocks[i].houses}]<->houses[${blocks[j].houses}]`);
   }
   let allFit=true;
   blocks.forEach(b=>{if(!b.fits)allFit=false;});
@@ -2294,8 +2365,12 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // çiziliyor (Solar Fire'ın yaptığı gibi).
   // Bir üye listesini (ana blok ya da taşma alt-bloğu) verilen merkez
   // noktasına, sabit sembol/etiket puntosuyla, satır satır çizer - blok
-  // türünden bağımsız TEK render yolu (kodun iki kopyasını önler).
-  function renderBlockRows(list,bx,by,box,houseIdx,role){
+  // türünden bağımsız TEK render yolu (kodun iki kopyasını önler). data-house
+  // artık BLOĞUN değil, HER ÜYENİN kendi gerçek evi (s.house,
+  // placeBlockForSpan'da houseIndexOf ile hesaplanmış) - 13. turdan itibaren
+  // bir blok birden fazla evi kesebiliyor (bkz. planBlocksForChart), bu
+  // yüzden ev kimliği artık bloğa değil üyeye ait.
+  function renderBlockRows(list,bx,by,box,role){
     const{glyphBox,labelBox,colGap,rowH,rowGap,w:blockW,h:blockH}=box;
     const leftHalf=bx<cx;
     let out='';
@@ -2312,11 +2387,11 @@ function renderWheel(pos,ascDeg,cusps,mc){
       const p=s.p;
       const adj=SYMBOL_ADJUST[p.id]||SYMBOL_ADJUST_DEFAULT;
       if(p.id==='pluto'&&!plutoUnicodeSupported()){
-        out+=`<g data-planet="${p.id}" data-role="symbol" data-house="${houseIdx}" data-block="${role}" transform="translate(${symCx},${rowY}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
+        out+=`<g data-planet="${p.id}" data-role="symbol" data-house="${s.house}" data-block="${role}" transform="translate(${symCx},${rowY}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
       }else{
-        out+=`<text data-planet="${p.id}" data-role="symbol" data-house="${houseIdx}" data-block="${role}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
+        out+=`<text data-planet="${p.id}" data-role="symbol" data-house="${s.house}" data-block="${role}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
       }
-      out+=`<text data-planet="${p.id}" data-role="label" data-house="${houseIdx}" data-block="${role}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="${LABEL_FONT_FAMILY}">${fmtDegSignMinInSign(s.lon)}</text>`;
+      out+=`<text data-planet="${p.id}" data-role="label" data-house="${s.house}" data-block="${role}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="${LABEL_FONT_FAMILY}">${fmtDegSignMinInSign(s.lon)}</text>`;
       const trueA=wheelAngle(s.lon,ascDeg);
       if(role==='overflow'){
         // Son çare: bu üye ana bloğa sığmadı, bandın iç duvarına yaslanan
@@ -2325,7 +2400,7 @@ function renderWheel(pos,ascDeg,cusps,mc){
         // KESİKLİ bir leader line - "gerçek konum -> sıkıştırılmış gösterim"
         // bağını gözle takip edilebilir kılıyor.
         const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
-        out+=`<line data-planet="${p.id}" data-role="leader" data-house="${houseIdx}" x1="${t1x}" y1="${t1y}" x2="${symCx}" y2="${rowY}" stroke="${p.color}" stroke-width="0.6" stroke-dasharray="1.2,1" opacity="0.55"/>`;
+        out+=`<line data-planet="${p.id}" data-role="leader" data-house="${s.house}" x1="${t1x}" y1="${t1y}" x2="${symCx}" y2="${rowY}" stroke="${p.color}" stroke-width="0.6" stroke-dasharray="1.2,1" opacity="0.55"/>`;
       }else{
         const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
         const[t2x,t2y]=wheelPt(cx,cy,PLANET_BAND_IN+3.5,trueA);
@@ -2340,10 +2415,10 @@ function renderWheel(pos,ascDeg,cusps,mc){
   blocks.forEach(block=>{
     const{mainMembers,box,centerA,centerR,overflowMembers,overflowFit}=block;
     const[bx,by]=wheelPt(cx,cy,centerR,centerA);
-    h+=renderBlockRows(mainMembers,bx,by,box,block.house,'main');
+    h+=renderBlockRows(mainMembers,bx,by,box,'main');
     if(overflowMembers&&overflowMembers.length&&overflowFit){
       const[obx,oby]=wheelPt(cx,cy,overflowFit.centerR,overflowFit.centerA);
-      h+=renderBlockRows(overflowMembers,obx,oby,overflowFit.box,block.house,'overflow');
+      h+=renderBlockRows(overflowMembers,obx,oby,overflowFit.box,'overflow');
     }
   });
 
