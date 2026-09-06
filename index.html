@@ -1341,19 +1341,21 @@ const PLANETS=[
 // varyant) - hem wheel'de hem "Gezegen Pozisyonları" tablosunda. Diğer 10
 // sembol (Ay Düğümü dahil) 1993'ten beri temel fontlarda mevcut olduğu için
 // Unicode metin glyph'i olarak bırakıldı.
-// 9. tur: stroke kalınlaştırma (8. tur) YETMEDİ - kullanıcı gözle doğruladı,
-// hilal-daire-artı formu (eski) Venüs'le (daire-artı) AYNI YAPIYI paylaşıyordu,
-// sadece üstteki öğe (hilal vs daire) farklıydı; 0.05R ölçeğinde bu fark
-// çözünmüyordu. Kök neden FORM'du, stroke değil. Çözüm: hiçbir gezegen
-// sembolüyle yapı paylaşmayan "PL" MONOGRAMI (Percival Lowell'ın baş harfleri
-// - Plüton'un GERÇEK, tarihsel astrolojik sembolü, dairesel/haç tabanlı
-// gezegen sembollerinden TAMAMEN FARKLI bir aile): dikey gövde (P+L ortak
-// omurga), üstte P'nin kıvrımı (sağa), altta L'nin tabanı (sağa). Ne daire
-// ne haç içeriyor - Venüs/Mars ile yapısal olarak hiçbir ortak noktası yok.
+// 10. tur - KESİN KARAR: 9. turdaki "PL monogramı" ve önerilen merkez-nokta
+// fikri her ikisi de İPTAL. Hedef şekil U+2BD3'ün gösterdiği, referans
+// yazılımın (Solar Fire) kullandığı GERÇEK Plüton sembolü: üstte yukarı
+// bakan HİLAL, ortada İÇİ BOŞ DAİRE (nokta yok), altta HAÇ (dikey+yatay).
+// Unicode karakteri DOĞRUDAN BASILMIYOR (U+2BD3 yaygın sistem fontlarında
+// karşılıksız, tofu kutusu riski) - şekil inline SVG path olarak çiziliyor,
+// font'tan tamamen bağımsız (bkz. 492dad3, orijinal SVG-ikon kararı).
+// 0.05R'de üç öğenin de seçilebilir kalması için daire GÖRECELİ OLARAK
+// KÜÇÜK tutuldu, hilal ve haç ise daire çapına oranla belirgin büyük -
+// gözle doğrulandı (bkz. PR açıklaması).
 function plutoIconPaths(color,sw){
-  return `<line x1="0" y1="-8" x2="0" y2="7" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
-    `<path d="M0,-8 C4.2,-8 4.2,-1.3 0,-1.3" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
-    `<line x1="0" y1="7" x2="3.4" y2="7" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+  return `<path d="M-3.6,-4.6 Q0,-9.6 3.6,-4.6" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<circle cx="0" cy="-2.2" r="2.1" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
+    `<line x1="0" y1="-0.1" x2="0" y2="6.8" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<line x1="-2.6" y1="3.6" x2="2.6" y2="3.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
 }
 // "Gezegen Pozisyonları" tablosundaki düz metin glyph hücreleri için -
 // wheel'deki <g transform> yaklaşımının aksine, burada bağımsız küçük bir
