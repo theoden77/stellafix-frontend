@@ -6,6 +6,29 @@
 <title>Stellafix · Klasik Astroloji Demo</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+  /* StellaSymbols: gezegen/burc/acisi sembolleri icin self-hosted webfont subseti.
+     Kaynak: Noto Sans Symbols + Noto Sans Symbols 2 (Google/Noto Project, SIL OFL 1.1
+     - https://github.com/notofonts/symbols). Sadece kullanilan kod noktalari
+     (11 gezegen + Ay Dugumu + 12 burc + 5 acisi isareti) pyftsubset ile ayiklandi
+     (~5KB toplam), base64 data: URI olarak gomuldu - ag isteği gerekmez, tek
+     dosyalik mimariyle uyumlu. Webfont yuklenemezse (cok nadir - CSS parse hatasi
+     vb.) 'Segoe UI Symbol'/'Apple Symbols'/sistem sans-serif zinciri devrede kalir;
+     Plüton icin ayrica JS calisma-zamani tespiti + elle cizilmis SVG ikon üçüncü
+     savunma hatti olarak asagida (bkz. plutoUnicodeSupported/plutoIconPaths) durur.
+     unicode-range iki @font-face'i kod noktasina gore kesin olarak ayirir - iki
+     font parcasi arasinda cakisma yok. */
+  @font-face{
+    font-family:'StellaSymbols';
+    src:url(data:font/woff2;base64,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) format('woff2');
+    unicode-range:U+260A,U+260C-260D,U+263D,U+263F-2646,U+2648-2653;
+    font-display:swap;
+  }
+  @font-face{
+    font-family:'StellaSymbols';
+    src:url(data:font/woff2;base64,d09GMgABAAAAAAPgAA8AAAAAByQAAAOLAAICDAAAAAAAAAAAAAAAAAAAAAAAAAAAGyAcPAZgAFQRCAqDbINAATYCJAMYCw4ABCAFhCoHIBckGA4b5QVRlCzKRICfCSZeN8qIUrRpTSGRom5oHcRxXWmkZz5eiQBbI2fhAdERSSJLZWEAhaludR0LWwukGo8SFEqC+//teu98s8JLvNDsDyd/Yf6V30auZjZswaKiTg+oaFKb55vb+xysXm2rC3lMEMFarNXcPen94X6m/9uyMBpHOtCJvEU1bxbRgAm+4ajvDg9brBr0yM62YZyJESOmaS8xdm8BlbrNItamyQU9MhQFMEawaKPObehsqxeBfaU2k5Vz11MFzhvH5U5zUdychsLRI8Sr0Qfs1vXDKWQUFPMt8k9tLqsWHqz4OC8y7x9NHoubgQCxPV1EvzZEJDRrF9CswxJQrVyUR+6uuLyyd9U850VREPndH3tvfffrzeOXJAJeSRCK/xqUgmpU4TrwBQBkQBQlQco5pebmgbH6kSXqzuF8rjtrq04/5eH8pl+/fk3se/3mTT/z8tUr2Pvy5UsP87iIfZ2uPhou2ItgkL733uVxP/MQrtyJH4tNeT3T8WC//0y63BMJX4ZeSM1qVrOa1azmpI/oD68U1dP/yty/R8jb/xJbXNCvUmXIL/uoKNeWH788iI/fOHbjSydMcrg3a2WobJZirDaKboMPMNMxLm2zUgxCbxGqt4mDQfE2tdoCgQ/oECtTEejRHHqIzMVzj2D/jGjZZGbXj3/YNZlKppGCpCh+jGS2wEeDLLuwkJXJLbRB1D5eLivRcbUstpbLtU4tmwAmVkJYV2EdPK9vRW1dhxXlivpYl1vfZZTuToX2kno9nIshQAxK0K06NgJGPRhbV7Slb7V0LXsABMRY3Xp5fkl0eNO3nk4fAC9+Ll0DvLO8Iv41/Q+U/u/gAaUiCHx1zrJpwvz7OAVCbS2NR0RLQVyMgqbRqdQzLARtlO97DlIdcy0J4TLHvLpcgRsgi4JRJ0VRrWeiZMNTUTafKVGJvZg+e6nJnLWqomqbupyMLAwhCZFIiEtWCmJRgVUgNnUVeSlJGCLXhGVV1DUgq2VhWFXDRgICGTlYVlMCX1JFiUB5VVPaypZhDYKfb1OSUFHUwNo52ymurOEZxmli8iSHlIwmNa4e4hNq2fUoWtaEFrWaTjqJAhJvELtPQjnikbqJ1TkVZeg8hxAMS4trCjUrZ8G3lr6ZCN96i87LrsOzxuJyE1in97RTSosbpv3FUI/4+r+6PowL/H7f+QL8yaB3b0jGHRxTqDAOAAA=) format('woff2');
+    unicode-range:U+2609,U+25A1,U+25B3,U+2736,U+2BD3;
+    font-display:swap;
+  }
   *{margin:0;padding:0;box-sizing:border-box;}
   :root{
     --ink:#1E1B2E;--parchment:#FAFAF8;--parchment-dark:#EDEAE3;
@@ -76,7 +99,7 @@
   .planet-table tr:hover td{background:var(--parchment);}
   .tech-col{display:none;}
   body.show-tech-details .tech-col{display:table-cell;}
-  .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;font-family:'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif;}
+  .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;font-family:'StellaSymbols','Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif;}
   .dignity-badge{font-size:10px;padding:3px 8px;font-family:'Inter',sans-serif;font-weight:600;letter-spacing:.02em;border-radius:6px;display:inline-block;}
   .d-domicile{background:#EDE9FE;color:#6D28D9;}
   .d-exaltation{background:#DCFCE7;color:#15803D;}
@@ -1893,13 +1916,21 @@ const LABEL_BOX_FULL={w:23,h:7.5};
 //                 derece tikleri dış kenarda
 //   ~0.90R      : ev cusp dereceleri, kuşağın hemen içinde, cusp çizgisinin
 //                 üstünde
-//   0.60R-0.86R : GEZEGEN BANDI - haritanın en geniş bandı (%26)
+//   0.56R-0.86R : GEZEGEN BANDI - haritanın en geniş bandı (%30, 12. turda
+//                 %26'dan büyütüldü - bkz. aşağı)
 //   ~0.52R      : ev numaraları (1-12)
 //   <0.45R      : açı çizgileri + açı sembolleri
 const R=116;
 const SIGN_BAND_OUT=R,SIGN_BAND_IN=R*0.94;
 const CUSP_DEG_R=R*0.90;
-const PLANET_BAND_OUT=R*0.86,PLANET_BAND_IN=R*0.60;
+// 12. tur: 1981 ev-1 üçlüsü ve 1962 Kova stelliumu bandı aşıyordu (ölçüldü).
+// Seçenek A (bant 0.26R->0.30R, tam etiket korunarak) 1981'i kurtarıyor;
+// 0.36R'ye çıkmak (referans %26 oranından fazla kopmak pahasına) 1962'yi de
+// kurtarırdı ama bu REDDEDİLDİ - katmanların çoğunu yutuyor. Sadece içe
+// (PLANET_BAND_IN 0.60R->0.56R) büyütüldü, dış sınır (0.86R) SABİT - böylece
+// burç/cusp katmanlarına olan mesafe değişmedi, sadece ev numarası halkasına
+// olan pay daralıyor (0.08R->0.04R, gözle kontrol edildi, bkz. rapor).
+const PLANET_BAND_OUT=R*0.86,PLANET_BAND_IN=R*0.56;
 const HOUSE_NUM_R=R*0.52;
 const ASPECT_OUT=R*0.45,ASPECT_IN=0;
 
@@ -1948,10 +1979,21 @@ const WALL_PAD=1.0;
 // tarayıcı sistem sans-serif fallback'ine düşüyor - hangi glif kullanılacağı
 // platforma göre değişebiliyor. Tüm gezegen sembollerine (Plüton dahil,
 // artık özel SVG'si yok) ortak, sembol kapsamı geniş bir font stack veriliyor
-// ki platformlar arası tutarlı olsun. Sırayla: Windows'un sembol fontu,
-// macOS/iOS'un sembol fontu, Google'ın geniş kapsamlı sembol fontu, en son
-// sistem varsayılanı.
-const SYMBOL_FONT_FAMILY="'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif";
+// ki platformlar arası tutarlı olsun.
+// 12. tur: platform riskini KÖKTEN çözmek için ilk savunma hattı artık kendi
+// host ettiğimiz 'StellaSymbols' webfont subseti (bkz. <style> içindeki
+// @font-face - Noto Sans Symbols/Symbols 2'den ayıklanmış ~5KB, base64 gömülü,
+// ağ isteği gerektirmez). Sıradaki üç isim (Segoe UI Symbol/Apple Symbols/
+// Noto Sans Symbols 2) İKİNCİ savunma hattı - webfont her nasılsa
+// yüklenemezse (ör. tarayıcının data: URI font desteği yoksa) devreye girer.
+// Plüton için ayrıca ÜÇÜNCÜ bir hat var: plutoUnicodeSupported() çalışma
+// zamanında U+2BD3'ün gerçekten çizilip çizilmediğini ölçer, çizilmiyorsa
+// elle çizilmiş SVG ikona (plutoIconPaths) düşer - bkz. planetGlyphHTML.
+const SYMBOL_FONT_FAMILY="'StellaSymbols','Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif";
+// Derece+burç+dakika etiketleri (cusp ve gezegen etiketleri) rakamlar için
+// Inter'i, içine gömülü burç glifi için ise (Inter kapsamadığından) yukarıdaki
+// sembol zincirini kullanır - tek font-family listesinde glif bazlı fallback.
+const LABEL_FONT_FAMILY="Inter,"+SYMBOL_FONT_FAMILY;
 // Bazı gezegen glifleri aynı punto+fontta GÖRSEL OLARAK farklı optik boyut/
 // dikey hizaya sahip olabilir (fontun kendi glif tasarımına bağlı) - bu
 // yüzden per-karakter telafi mekanizması burada duruyor. ÖLÇÜLDÜ (getBBox,
@@ -1985,20 +2027,12 @@ function blockBoxFor(n){
 // (houseIndexOf yukarıda zaten tanımlı - üyeleri EVE göre gruplamak için
 // kullanılıyor, blok bu evin dilimine yerleştiriliyor.)
 
-// Bir evin blok yerleşimi: üyeler boylama göre sıralanır (blok içinde yukarı-
-// aşağı sıra bu olacak), blok B bandının ORTA yarıçapına, üyelerin ORTALAMA
-// göreli derecesindeki açıya yerleştirilir. Blok hiçbir zaman döndürülmez -
-// bu yüzden o açıdaki radyal/teğetsel izdüşümü (radialExtent/tangentialExtent
-// ile), B bandının derinliğini ve evin açısal dilimini (yay uzunluğuna
-// çevrilmiş) AŞMAMALI. Aşıyorsa (`fits:false`) bu GERÇEK bir kapasite sınırı
-// - zorlanmaz, ölçülüp bildirilir (bkz. planBlocksForChart).
-function placeHouseBlock(members,pos,cuspLons,h,ascDeg){
-  const start=cuspLons[h],end=cuspLons[(h+1)%12];
-  const span=norm(end-start)||360;
-  const sorted=members.map(p=>({p,lon:norm(pos[p.id]),rel:norm(norm(pos[p.id])-start)})).sort((a,b)=>a.rel-b.rel);
-  const n=sorted.length;
-  const box=blockBoxFor(n);
-  const meanRel=sorted.reduce((s,x)=>s+x.rel,0)/n;
+// Bir üye kümesinin (evin tüm üyeleri ya da ana bloğa sığan bir alt kümesi)
+// B bandının ORTA yarıçapına, üyelerin ORTALAMA göreli derecesindeki açıya
+// yerleştirilmiş halinin radyal/teğetsel sığma ölçümü.
+function evalBlockFit(list,span,start,ascDeg){
+  const box=blockBoxFor(list.length);
+  const meanRel=list.reduce((s,x)=>s+x.rel,0)/list.length;
   const centerLon=norm(start+meanRel);
   const centerR=(PLANET_BAND_IN+PLANET_BAND_OUT)/2;
   const centerA=wheelAngle(centerLon,ascDeg);
@@ -2008,24 +2042,132 @@ function placeHouseBlock(members,pos,cuspLons,h,ascDeg){
   const arcHalfLen=(span*Math.PI/180)*centerR/2;
   const fitsRadial=radialHalf<=bandHalfDepth;
   const fitsTangential=tangentialHalf<=arcHalfLen;
-  return{sorted,box,centerA,centerR,fitsRadial,fitsTangential,fits:fitsRadial&&fitsTangential};
+  return{box,centerA,centerR,radialHalf,fitsRadial,fitsTangential,fits:fitsRadial&&fitsTangential};
 }
 
-// Chart'taki TÜM evleri bloklar - her ev BAĞIMSIZ (evler açısal olarak asla
-// çakışmadığından çapraz kontrol gerekmez; komşu evle GERÇEK çakışma olup
-// olmadığı ayrıca getBBox ile ölçülüp doğrulanır, bkz. test).
+// Bir evin blok yerleşimi: üyeler boylama göre sıralanır (blok içinde yukarı-
+// aşağı sıra bu olacak), blok B bandının ORTA yarıçapına, üyelerin ORTALAMA
+// göreli derecesindeki açıya yerleştirilir. Blok hiçbir zaman döndürülmez -
+// bu yüzden o açıdaki radyal/teğetsel izdüşümü (radialExtent/tangentialExtent
+// ile), B bandının derinliğini ve evin açısal dilimini (yay uzunluğuna
+// çevrilmiş) AŞMAMALI. Aşıyorsa (`fits:false`) bu GERÇEK bir kapasite sınırı.
+//
+// 12. tur - kararlaştırılan istisna: bant %30'a büyütüldükten sonra bile
+// nadir bir uç durum (ör. 1962'nin 4+ üyeli Kova stelliumu) TÜM üyeleriyle
+// sığmayabilir. Bunu kurtarmak için haritaların çoğunluğunu bozacak bir bant
+// büyütmesi (0.36R) YAPILMADI - bunun yerine SON ÇARE bir taşma mekanizması:
+// ana blok, sığana kadar üyeleri en dıştan (boylamda en uçtaki) içe doğru
+// TAŞMA listesine ayırarak küçültülür (yazı tipi/punto SABİT kalır, sadece
+// üye SAYISI azalır); taşan üyeler bandın İÇ duvarına yaslanan AYRI, kompakt
+// bir alt-blokta, kendi GERÇEK açılarından İÇE doğru kısa bir leader line ile
+// bağlanarak gösterilir (bkz. renderWheel). Bu şekilde sıkışıklık ÇAKIŞMAYA
+// dönüşmez: her iki alt-blok da B bandı içinde kalır ve örtüşmez.
+//
+// forceExtraOverflow: bir evin KENDİ dilimine sığması yetmeyebilir - komşu
+// evin bloğuyla GERÇEKTEN (dünya koordinatlarında) çakışabilir, çünkü
+// radialExtent/tangentialExtent kontrolü sadece "bu blok KENDİ diliminin
+// açısal payına sığıyor mu" sorusuna cevap verir, komşunun aynı anda nereye
+// yerleştiğini bilmez. Bu yüzden çapraz-ev çakışma çözümü (planBlocksForChart
+// içinde, gerçek dikdörtgen kesişimiyle) gerektiğinde bu evi ekstra üye(ler)
+// taşmaya zorlar - bkz. planBlocksForChart.
+function placeHouseBlock(members,pos,cuspLons,h,ascDeg,forceExtraOverflow=0){
+  const start=cuspLons[h],end=cuspLons[(h+1)%12];
+  const span=norm(end-start)||360;
+  const sorted=members.map(p=>({p,lon:norm(pos[p.id]),rel:norm(norm(pos[p.id])-start)})).sort((a,b)=>a.rel-b.rel);
+  const n=sorted.length;
+  const full=evalBlockFit(sorted,span,start,ascDeg);
+  const targetMax=Math.max(1,n-forceExtraOverflow);
+  if(full.fits&&forceExtraOverflow===0){
+    return{sorted,mainMembers:sorted,overflowMembers:[],overflowFit:null,box:full.box,centerA:full.centerA,centerR:full.centerR,fitsRadial:full.fitsRadial,fitsTangential:full.fitsTangential,fits:full.fits};
+  }
+  if(n<=1){
+    return{sorted,mainMembers:sorted,overflowMembers:[],overflowFit:null,box:full.box,centerA:full.centerA,centerR:full.centerR,fitsRadial:full.fitsRadial,fitsTangential:full.fitsTangential,fits:full.fits};
+  }
+  // Ana blok sığana (VE targetMax'ı aşmayana) kadar boyutunu k=n-1,n-2,...
+  // şeklinde küçült; her k için sıralı listenin ORTADAKİ k üyesini tutan
+  // dengeli alt küme denenir (baş ve sondan sırayla düşürülür) - böylece
+  // dışarıda kalanlar boylamda uçtaki (ortalamadan en uzak) üyeler olur, ana
+  // blok her adımda yeniden ortalanır.
+  let mainList=sorted,mainFit=full;
+  while(mainList.length>1&&(mainList.length>targetMax||!mainFit.fits)){
+    const drop=sorted.length-(mainList.length-1);
+    const dropStart=Math.floor(drop/2);
+    const candidate=sorted.slice(dropStart,dropStart+(mainList.length-1));
+    const fit=evalBlockFit(candidate,span,start,ascDeg);
+    mainList=candidate;mainFit=fit;
+  }
+  const mainSet=new Set(mainList);
+  const overflowMembers=sorted.filter(x=>!mainSet.has(x));
+  // Taşma alt-bloğu: bandın İÇ duvarına (PLANET_BAND_IN) yaslanır, ana
+  // bloğun aynı açısal merkezinde (centerA), ana bloğun İÇ kenarını aşmaz.
+  let overflowFit=null;
+  if(overflowMembers.length){
+    const ofBox=blockBoxFor(overflowMembers.length);
+    const ofRadialHalf=radialExtent(mainFit.centerA,ofBox)/2+WALL_PAD;
+    const ofCenterR=PLANET_BAND_IN+ofRadialHalf;
+    const mainInnerEdge=mainFit.centerR-mainFit.radialHalf;
+    const ofOuterEdge=ofCenterR+ofRadialHalf;
+    const fitsRadialVsMain=ofOuterEdge<=mainInnerEdge;
+    // Taşma bloğu içe itildiğinde yarıçap küçüldüğü için o yarıçaptaki yay
+    // uzunluğu da küçülür (arcHalfLen yarıçapla orantılı) - bu yüzden
+    // teğetsel sığmayı da AYRICA, kendi (küçültülmüş) yarıçapında kontrol
+    // etmek gerekiyor; ana bloktan sığdı diye taşma bloğu da sığar denemez.
+    const ofTangentialHalf=tangentialExtent(mainFit.centerA,ofBox)/2;
+    const ofArcHalfLen=(span*Math.PI/180)*ofCenterR/2;
+    const fitsTangentialOwn=ofTangentialHalf<=ofArcHalfLen;
+    overflowFit={box:ofBox,centerA:mainFit.centerA,centerR:ofCenterR,fitsRadialVsMain,fitsTangentialOwn,fits:fitsRadialVsMain&&fitsTangentialOwn};
+  }
+  return{sorted,mainMembers:mainList,overflowMembers,overflowFit,box:mainFit.box,centerA:mainFit.centerA,centerR:mainFit.centerR,fitsRadial:mainFit.fitsRadial,fitsTangential:mainFit.fitsTangential,fits:full.fits};
+}
+
+// wheel'in sabit SVG merkezi (viewBox="0 0 300 300") - blokların dünya
+// koordinatındaki dikdörtgenini hesaplamak için (çapraz-ev çakışma teşhisi).
+const WHEEL_CX=150,WHEEL_CY=150;
+function subBlockRect(centerA,centerR,box){
+  const[bx,by]=wheelPt(WHEEL_CX,WHEEL_CY,centerR,centerA);
+  return{left:bx-box.w/2,right:bx+box.w/2,top:by-box.h/2,bottom:by+box.h/2};
+}
+function rectsOverlap(a,b){return!(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top);}
+
+// Chart'taki TÜM evleri bloklar. Her evin KENDİ dilimine sığması
+// (radialExtent/tangentialExtent, placeHouseBlock içinde) GEREKLİ ama YETERLİ
+// değil: iki komşu evin üyeleri kendi ortalama açılarında tesadüfen ORTAK
+// cusp'a çok yakın kümelenirse, her iki blok da kendi diliminde "sığar"
+// göründüğü halde dünya koordinatlarında GERÇEKTEN çakışabilir.
+//
+// DENENDİ VE GERİ ALINDI: evleri sırayla daha da taşmaya zorlayan yinelemeli
+// bir çapraz-ev çözücü denendi, ama 1962'nin ASIL uç durumunda (iki komşu ev
+// AYNI ANDA kalabalık, ikisinin de üye ortalaması aynı cusp'a çok yakın) bunu
+// KÖTÜLEŞTİRDİ: her iki taşma alt-bloğu da bandın iç duvarına yaslandığından
+// (yarıçap küçüldükçe yay uzunluğu da küçülüyor) birbirleriyle çakışmaya
+// başladı - ölçüldü, 10 çakışma 20'ye çıktı, her iki ev tek üyeye kadar
+// boşaltıldığı halde çözülmedi. Bu, "içe doğru leader line" mekanizmasının iyi
+// niyetle bile çözemeyeceği YAPISAL bir sınır: iki komşu ev BİRDEN aynı sınıra
+// yığılırsa, sabit blok genişliği (~0.215R) o dar açısal/radyal cepte sığmaz.
+// Bu yüzden çapraz-ev tespiti sadece TEŞHİS amaçlı tutuluyor (crossHouseNote) -
+// zorlanmıyor; gerçek sonuç ölçülüp kullanıcıya bildiriliyor.
 function planBlocksForChart(drawnPlanets,pos,cuspLons,ascDeg){
   const houseGroups=Array.from({length:12},()=>[]);
   drawnPlanets.forEach(p=>houseGroups[houseIndexOf(pos[p.id],cuspLons)].push(p));
   const blocks=[];
-  let allFit=true;
   for(let h=0;h<12;h++){
     if(!houseGroups[h].length)continue;
     const block=placeHouseBlock(houseGroups[h],pos,cuspLons,h,ascDeg);
-    if(!block.fits)allFit=false;
     blocks.push(Object.assign({house:h},block));
   }
-  return{blocks,allFit};
+  const rects=[];
+  blocks.forEach(b=>{
+    rects.push({house:b.house,rect:subBlockRect(b.centerA,b.centerR,b.box)});
+    if(b.overflowMembers.length&&b.overflowFit)rects.push({house:b.house,rect:subBlockRect(b.overflowFit.centerA,b.overflowFit.centerR,b.overflowFit.box)});
+  });
+  const crossHouseNote=[];
+  for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){
+    if(rects[i].house===rects[j].house)continue;
+    if(rectsOverlap(rects[i].rect,rects[j].rect))crossHouseNote.push(`house${rects[i].house}<->house${rects[j].house}`);
+  }
+  let allFit=true;
+  blocks.forEach(b=>{if(!b.fits)allFit=false;});
+  return{blocks,allFit,crossHouseNote};
 }
 
 // Ptolemaic majör açılar — wheel'in iç dairesinde (Layer D) çizilen açı
@@ -2084,7 +2226,7 @@ function renderWheel(pos,ascDeg,cusps,mc){
     h+=`<line x1="${xi1}" y1="${yi1}" x2="${x1}" y2="${y1}" stroke="#D9D5CC" stroke-width="0.6"/>`;
     const amid=wheelAngle(si*30+15,ascDeg);
     const[gx,gy]=wheelPt(cx,cy,(R+SIGN_BAND_IN)/2,amid);
-    h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
+    h+=`<text x="${gx}" y="${gy}" text-anchor="middle" dominant-baseline="central" font-size="12" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}">${SIGN_GLYPHS[si]}</text>`;
   }
 
   // Derece tikleri (astro.com tarzı) — mutlak ekliptik dereceye göre, wheel'in
@@ -2129,7 +2271,7 @@ function renderWheel(pos,ascDeg,cusps,mc){
     const nudge=4;
     const[cbx,cby]=wheelPt(cx,cy,CUSP_DEG_R,a);
     const cax=cbx-nudge*Math.sin(a),cay=cby+nudge*Math.cos(a);
-    h+=`<text x="${cax}" y="${cay}" text-anchor="middle" dominant-baseline="central" font-size="${CUSP_LABEL_FONT_SIZE}" fill="#8a8378" font-family="Inter,sans-serif" font-weight="400">${fmtDegSignMinInSign(lon)}</text>`;
+    h+=`<text x="${cax}" y="${cay}" text-anchor="middle" dominant-baseline="central" font-size="${CUSP_LABEL_FONT_SIZE}" fill="#8a8378" font-family="${LABEL_FONT_FAMILY}" font-weight="400">${fmtDegSignMinInSign(lon)}</text>`;
 
     // Ev numarası (~0.52R): cusp etiketinden küçük punto, soluk (opacity) -
     // tipografik hiyerarşide gezegen < cusp derecesi < hiçbiri değil, ev
@@ -2150,14 +2292,14 @@ function renderWheel(pos,ascDeg,cusps,mc){
   // Leader line YOK (gezegenin tam derecesi zaten etikette yazılı); bunun
   // yerine bandın İÇ kenarına, gezegenin GERÇEK açısında küçük bir tik
   // çiziliyor (Solar Fire'ın yaptığı gibi).
-  const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
-  const{blocks}=planBlocksForChart(drawnPlanets,pos,cuspLons,ascDeg);
-  blocks.forEach(block=>{
-    const{sorted,box,centerA,centerR}=block;
-    const[bx,by]=wheelPt(cx,cy,centerR,centerA);
+  // Bir üye listesini (ana blok ya da taşma alt-bloğu) verilen merkez
+  // noktasına, sabit sembol/etiket puntosuyla, satır satır çizer - blok
+  // türünden bağımsız TEK render yolu (kodun iki kopyasını önler).
+  function renderBlockRows(list,bx,by,box,houseIdx,role){
     const{glyphBox,labelBox,colGap,rowH,rowGap,w:blockW,h:blockH}=box;
     const leftHalf=bx<cx;
-    sorted.forEach((s,i)=>{
+    let out='';
+    list.forEach((s,i)=>{
       const rowY=by-blockH/2+rowH/2+i*(rowH+rowGap);
       let symCx,labCx;
       if(leftHalf){
@@ -2170,16 +2312,39 @@ function renderWheel(pos,ascDeg,cusps,mc){
       const p=s.p;
       const adj=SYMBOL_ADJUST[p.id]||SYMBOL_ADJUST_DEFAULT;
       if(p.id==='pluto'&&!plutoUnicodeSupported()){
-        h+=`<g data-planet="${p.id}" data-role="symbol" data-house="${block.house}" transform="translate(${symCx},${rowY}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
+        out+=`<g data-planet="${p.id}" data-role="symbol" data-house="${houseIdx}" data-block="${role}" transform="translate(${symCx},${rowY}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
       }else{
-        h+=`<text data-planet="${p.id}" data-role="symbol" data-house="${block.house}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
+        out+=`<text data-planet="${p.id}" data-role="symbol" data-house="${houseIdx}" data-block="${role}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
       }
-      h+=`<text data-planet="${p.id}" data-role="label" data-house="${block.house}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${fmtDegSignMinInSign(s.lon)}</text>`;
+      out+=`<text data-planet="${p.id}" data-role="label" data-house="${houseIdx}" data-block="${role}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="${LABEL_FONT_FAMILY}">${fmtDegSignMinInSign(s.lon)}</text>`;
       const trueA=wheelAngle(s.lon,ascDeg);
-      const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
-      const[t2x,t2y]=wheelPt(cx,cy,PLANET_BAND_IN+3.5,trueA);
-      h+=`<line data-planet="${p.id}" data-role="tick" x1="${t1x}" y1="${t1y}" x2="${t2x}" y2="${t2y}" stroke="${p.color}" stroke-width="1" opacity="0.6"/>`;
+      if(role==='overflow'){
+        // Son çare: bu üye ana bloğa sığmadı, bandın iç duvarına yaslanan
+        // kompakt alt-blokta gösteriliyor. Kısa tik yerine, gerçek açısındaki
+        // bant-iç-kenarı noktasından bu satırdaki sembolün merkezine kadar
+        // KESİKLİ bir leader line - "gerçek konum -> sıkıştırılmış gösterim"
+        // bağını gözle takip edilebilir kılıyor.
+        const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
+        out+=`<line data-planet="${p.id}" data-role="leader" data-house="${houseIdx}" x1="${t1x}" y1="${t1y}" x2="${symCx}" y2="${rowY}" stroke="${p.color}" stroke-width="0.6" stroke-dasharray="1.2,1" opacity="0.55"/>`;
+      }else{
+        const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
+        const[t2x,t2y]=wheelPt(cx,cy,PLANET_BAND_IN+3.5,trueA);
+        out+=`<line data-planet="${p.id}" data-role="tick" x1="${t1x}" y1="${t1y}" x2="${t2x}" y2="${t2y}" stroke="${p.color}" stroke-width="1" opacity="0.6"/>`;
+      }
     });
+    return out;
+  }
+
+  const drawnPlanets=PLANETS.filter(p=>p.id!=='asc'&&pos[p.id]!==undefined&&pos[p.id]!==null);
+  const{blocks}=planBlocksForChart(drawnPlanets,pos,cuspLons,ascDeg);
+  blocks.forEach(block=>{
+    const{mainMembers,box,centerA,centerR,overflowMembers,overflowFit}=block;
+    const[bx,by]=wheelPt(cx,cy,centerR,centerA);
+    h+=renderBlockRows(mainMembers,bx,by,box,block.house,'main');
+    if(overflowMembers&&overflowMembers.length&&overflowFit){
+      const[obx,oby]=wheelPt(cx,cy,overflowFit.centerR,overflowFit.centerA);
+      h+=renderBlockRows(overflowMembers,obx,oby,overflowFit.box,block.house,'overflow');
+    }
   });
 
   // AÇI DİSKİ (<0.45R): SADECE açı çizgileri + açı sembolleri. Gezegenlerin
@@ -2199,7 +2364,7 @@ function renderWheel(pos,ascDeg,cusps,mc){
       const col=asp.hard?'#DC2626':'#2563EB';
       aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${col}" stroke-width="0.8" opacity="0.6"/>`;
       const midx=(ax1l+ax2l)/2,midy=(ay1l+ay2l)/2;
-      aspectLines+=`<text x="${midx}" y="${midy}" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="${col}" opacity="0.85">${asp.symbol}</text>`;
+      aspectLines+=`<text x="${midx}" y="${midy}" text-anchor="middle" dominant-baseline="central" font-size="6.5" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}" opacity="0.85">${asp.symbol}</text>`;
     }
   }
   if(aspectLines)h+=`<g class="tech-details-field">${aspectLines}</g>`;
