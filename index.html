@@ -2024,6 +2024,23 @@ function blockBoxFor(n){
   return{glyphBox,labelBox,colGap,rowGap,rowH,w,h};
 }
 
+// 14. tur - SEMBOL-ONLY SON ÇARE: bir taşma alt-bloğu (tam etiketli haliyle)
+// bandın kapasitesini AŞARSA, etiket sütunu tamamen kaldırılıp sadece sembol
+// sütunu bırakılır (etiket sütunu genişliğin ~%78'ini oluşturuyor - LABEL_BOX_FULL
+// GLYPH_BOX'tan çok daha geniş - bu yüzden düşürmek tangentialExtent'i
+// büyük ölçüde küçültür). Derece bilgisi zaten tablo görünümünde tam olarak
+// var - burada etiketi göstermemek bilgi kaybı değil, sadece bu kısıtlı alanda
+// tekrar. Sadece SIĞMAYAN üyeler (taşma grubu) buraya düşer, sığanlar tam
+// etiketli kalır (bkz. placeBlockForSpan).
+function symbolOnlyBoxFor(n){
+  const glyphBox=boxAt(GLYPH_BOX,SYMBOL_FONT_SIZE,15);
+  const rowGap=0.01*R;
+  const rowH=glyphBox.h;
+  const w=glyphBox.w;
+  const h=n*rowH+Math.max(0,n-1)*rowGap;
+  return{glyphBox,labelBox:{w:0,h:0},colGap:0,rowGap,rowH,w,h,symbolOnly:true};
+}
+
 // (houseIndexOf yukarıda zaten tanımlı - üyeleri EVE göre gruplamak için
 // kullanılıyor, blok bu evin dilimine yerleştiriliyor.)
 
@@ -2042,7 +2059,7 @@ function evalBlockFit(list,span,start,ascDeg){
   const arcHalfLen=(span*Math.PI/180)*centerR/2;
   const fitsRadial=radialHalf<=bandHalfDepth;
   const fitsTangential=tangentialHalf<=arcHalfLen;
-  return{box,centerA,centerR,radialHalf,fitsRadial,fitsTangential,fits:fitsRadial&&fitsTangential};
+  return{box,centerA,centerR,centerLon,radialHalf,fitsRadial,fitsTangential,fits:fitsRadial&&fitsTangential};
 }
 
 // Bir blok yerleşimi (tek bir ev YA DA komşu evlerin BİRLEŞMİŞ yayı - bkz.
@@ -2107,27 +2124,29 @@ function placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,forceExtraOver
   }
   const mainSet=new Set(mainList);
   const overflowMembers=sorted.filter(x=>!mainSet.has(x));
-  // Taşma alt-bloğu: bandın İÇ duvarına (PLANET_BAND_IN) yaslanır, ana
-  // bloğun aynı açısal merkezinde (centerA), ana bloğun İÇ kenarını aşmaz.
-  let overflowFit=null;
-  if(overflowMembers.length){
-    const ofBox=blockBoxFor(overflowMembers.length);
+  // Taşma alt-bloğunun verilen KUTU ile sığıp sığmadığını hesaplar - bandın
+  // İÇ duvarına ("içe doğru") yaslanır, ana bloğun aynı açısal merkezinde
+  // (centerA). Üye sayısı fazlaysa bloğun kendi yüksekliği bandın
+  // TAMAMINDAN bile büyük olabilir - bu durumda iç duvara yaslamak dış
+  // duvarı AŞIRIR (ölçülüp yakalandı); böyle bir pathological durumda
+  // bandın ORTASINA alınır (aşımı simetrik dağıt, tek yöne yığma).
+  function evalOverflowFit(ofBox){
     const ofRadialHalf=radialExtent(mainFit.centerA,ofBox)/2+WALL_PAD;
-    // Taşma bloğu normalde İÇ duvara ("içe doğru") yaslanır. Ama üye sayısı
-    // fazlaysa (ör. birleşmiş büyük bir kümenin taşan kısmı) bloğun kendi
-    // yüksekliği bandın TAMAMINDAN bile büyük olabilir - bu durumda iç
-    // duvara yaslamak dış duvarı AŞIRIR (ölçülüp yakalandı). Böyle bir
-    // pathological durumda bandın ORTASINA al - aşımı simetrik dağıt, tek
-    // yöne yığma; hâlâ aşıyorsa (`fits:false`) bu gerçek, çözülemeyen bir
-    // kapasite sınırıdır, render bunu render eder ama overflowFit.fits
-    // false olarak dürüstçe işaretli kalır.
     const bandMidR=(PLANET_BAND_IN+PLANET_BAND_OUT)/2;
     const hugsInnerWall=(PLANET_BAND_IN+ofRadialHalf)<=(PLANET_BAND_OUT-ofRadialHalf);
     const ofCenterR=hugsInnerWall?PLANET_BAND_IN+ofRadialHalf:bandMidR;
-    const mainInnerEdge=mainFit.centerR-mainFit.radialHalf;
     const ofOuterEdge=ofCenterR+ofRadialHalf;
     const ofInnerEdge=ofCenterR-ofRadialHalf;
-    const fitsRadialVsMain=ofOuterEdge<=mainInnerEdge&&ofOuterEdge<=PLANET_BAND_OUT&&ofInnerEdge>=PLANET_BAND_IN;
+    const fitsBand=ofOuterEdge<=PLANET_BAND_OUT&&ofInnerEdge>=PLANET_BAND_IN;
+    // Ana blok ile GERÇEK (dünya koordinatlarında) dikdörtgen kesişimi -
+    // radialExtent'in "aynı açıda, salt yarıçap ayrımı" varsayımı, iki blok
+    // FARKLI açılarda merkezlenmişse (birleşmiş kümede olabiliyor) veya blok
+    // yeterince büyükse yanıltıcı olabilir (ölçülüp yakalandı: analitik
+    // kontrol "sığıyor" derken gerçek getBBox testinde hâlâ çakışma vardı).
+    // subBlockRect/rectsOverlap DOM testiyle birebir aynı yöntemi kullanıyor.
+    const mainRect=subBlockRect(mainFit.centerA,mainFit.centerR,mainFit.box);
+    const ofRect=subBlockRect(mainFit.centerA,ofCenterR,ofBox);
+    const fitsRadialVsMain=fitsBand&&!rectsOverlap(mainRect,ofRect);
     // Taşma bloğu içe itildiğinde yarıçap küçüldüğü için o yarıçaptaki yay
     // uzunluğu da küçülür (arcHalfLen yarıçapla orantılı) - bu yüzden
     // teğetsel sığmayı da AYRICA, kendi (küçültülmüş) yarıçapında kontrol
@@ -2135,7 +2154,64 @@ function placeBlockForSpan(members,pos,cuspLons,start,span,ascDeg,forceExtraOver
     const ofTangentialHalf=tangentialExtent(mainFit.centerA,ofBox)/2;
     const ofArcHalfLen=(span*Math.PI/180)*ofCenterR/2;
     const fitsTangentialOwn=ofTangentialHalf<=ofArcHalfLen;
-    overflowFit={box:ofBox,centerA:mainFit.centerA,centerR:ofCenterR,fitsRadialVsMain,fitsTangentialOwn,fits:fitsRadialVsMain&&fitsTangentialOwn};
+    return{box:ofBox,centerA:mainFit.centerA,centerR:ofCenterR,fitsRadialVsMain,fitsTangentialOwn,fits:fitsRadialVsMain&&fitsTangentialOwn};
+  }
+  // Taşma bloğunu ana bloğun YANINA (aynı yarıçapta, açısal olarak kaydırılmış)
+  // yerleştirmeyi dener - "içe yasla" ile aynı radyal dilimi PAYLAŞMAK yerine,
+  // birleşmiş kümenin (geniş yay - 12+ derece) kullanılmayan açısal boşluğunu
+  // kullanır. Ölçülüp doğrulandı (1962): birleşmiş büyük bir grupta (7 üye)
+  // TÜM üyeler tek bir dikey sütunda üst üste dizilse bile (sembol-only,
+  // etiketsiz) toplam yükseklik bandın derinliğinden BÜYÜK olabiliyor - bu
+  // durumda "içe yasla" mekanizması ne kadar daraltılırsa daraltılsın asla
+  // sığmaz (matematiksel bir tavan), oysa geniş birleşik yayda bolca
+  // KULLANILMAYAN açısal alan var. Ana bloğun ortalama boylamundan (mainFit.
+  // centerLon) uzaklaşarak (küme sınırları içinde kalarak) ilk GERÇEKTEN
+  // (rectsOverlap ile) çakışmayan konumu arar.
+  function findBesidePlacement(ofBox){
+    const centerR=mainFit.centerR;
+    const mainRect=subBlockRect(mainFit.centerA,centerR,mainFit.box);
+    const stepDeg=0.5,maxOffset=span/2;
+    for(const side of[1,-1]){
+      for(let d=stepDeg;d<=maxOffset;d+=stepDeg){
+        const candLon=norm(mainFit.centerLon+side*d);
+        const rel=norm(candLon-start);
+        if(rel>span)continue;
+        const candA=wheelAngle(candLon,ascDeg);
+        const ofRect=subBlockRect(candA,centerR,ofBox);
+        if(rectsOverlap(mainRect,ofRect))continue;
+        const radialHalf=radialExtent(candA,ofBox)/2+WALL_PAD;
+        if(radialHalf>(PLANET_BAND_OUT-PLANET_BAND_IN)/2)continue;
+        const tangentialHalf=tangentialExtent(candA,ofBox)/2;
+        const arcHalfLen=(span*Math.PI/180)*centerR/2;
+        // Üyenin kendi dilim ucundan taşmadığını da kabaca doğrula (rel
+        // sınırın içinde VE yeterli teğetsel pay var).
+        if(tangentialHalf>arcHalfLen)continue;
+        return{box:ofBox,centerA:candA,centerR,fitsRadialVsMain:true,fitsTangentialOwn:true,fits:true};
+      }
+    }
+    return null;
+  }
+  let overflowFit=null;
+  if(overflowMembers.length){
+    const fullLabelFit=evalOverflowFit(blockBoxFor(overflowMembers.length));
+    // 14. tur: tam etiketli taşma bloğu bile bandın kapasitesini aşarsa
+    // (ölçülüp doğrulanan gerçek bir durum - bkz. 1962), etiket sütununu
+    // TAMAMEN kaldırıp sadece sembol sütunuyla tekrar dene - etiket
+    // (LABEL_BOX_FULL) sembolden (GLYPH_BOX) çok daha geniş olduğundan bu
+    // teğetsel/radyal ayak izini büyük ölçüde küçültür. Derece bilgisi zaten
+    // alttaki gezegen tablosunda tam olarak var - burada kaybolmuyor, sadece
+    // bu dar alanda TEKRARLANMIYOR. Sadece bu SIĞMAYAN grup için - sığan
+    // ana blok üyeleri her zaman tam etiketli kalır.
+    if(fullLabelFit.fits){
+      overflowFit=fullLabelFit;
+    }else{
+      const symbolOnlyBox=symbolOnlyBoxFor(overflowMembers.length);
+      const innerHug=evalOverflowFit(symbolOnlyBox);
+      // Sembol-only bile İÇE yaslanınca sığmıyorsa (ana blok zaten radyal
+      // alanın çoğunu kullanıyor - dikey satır sayısı fiziksel tavanı
+      // aşıyor), aynı yarıçapta YANA kaydırmayı dene - bkz. yukarı.
+      overflowFit=innerHug.fits?innerHug:(findBesidePlacement(symbolOnlyBox)||innerHug);
+    }
   }
   return{sorted,mainMembers:mainList,overflowMembers,overflowFit,box:mainFit.box,centerA:mainFit.centerA,centerR:mainFit.centerR,fitsRadial:mainFit.fitsRadial,fitsTangential:mainFit.fitsTangential,fits:full.fits};
 }
@@ -2391,7 +2467,9 @@ function renderWheel(pos,ascDeg,cusps,mc){
       }else{
         out+=`<text data-planet="${p.id}" data-role="symbol" data-house="${s.house}" data-block="${role}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
       }
-      out+=`<text data-planet="${p.id}" data-role="label" data-house="${s.house}" data-block="${role}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="${LABEL_FONT_FAMILY}">${fmtDegSignMinInSign(s.lon)}</text>`;
+      if(!box.symbolOnly){
+        out+=`<text data-planet="${p.id}" data-role="label" data-house="${s.house}" data-block="${role}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="${LABEL_FONT_FAMILY}">${fmtDegSignMinInSign(s.lon)}</text>`;
+      }
       const trueA=wheelAngle(s.lon,ascDeg);
       if(role==='overflow'){
         // Son çare: bu üye ana bloğa sığmadı, bandın iç duvarına yaslanan
