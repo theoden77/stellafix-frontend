@@ -137,9 +137,20 @@
   .chat-remaining{font-size:11px;color:var(--ink);opacity:.5;margin-top:8px;font-style:normal;}
   .chat-remaining.exhausted{color:var(--crimson);opacity:1;font-style:normal;}
   #astroWheel{width:100%;max-width:440px;cursor:zoom-in;}
-  .wheel-lightbox-backdrop{position:fixed;inset:0;background:rgba(30,27,46,.75);display:flex;align-items:center;justify-content:center;z-index:600;padding:24px;}
-  .wheel-lightbox-content{position:relative;background:#fff;border-radius:16px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
-  .wheel-lightbox-content svg{display:block;width:min(82vw,82vh);height:min(82vw,82vh);cursor:default;}
+  /* 8. tur: tipografi R'nin kesri olarak küçültüldü - küçük satır-içi wheel'de
+     (440px) gezegen etiketleri artık okunamayacak kadar küçük render olur.
+     Detay zaten lightbox'ta (büyütülmüş render, aşağıya bakın) var, bu yüzden
+     küçük wheel'de SADECE sembol+tik gösterilip etiketler gizleniyor - aynı
+     SVG içeriği paylaşıldığından (lightbox innerHTML klonu) bu kural sadece
+     #astroWheel'in kendi ID'siyle kapsamlanıyor, lightbox etkilenmiyor. */
+  #astroWheel [data-role="label"]{display:none;}
+  .wheel-lightbox-backdrop{position:fixed;inset:0;background:rgba(30,27,46,.75);display:flex;align-items:center;justify-content:center;z-index:600;padding:10px;}
+  .wheel-lightbox-content{position:relative;background:#fff;border-radius:16px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  /* 8. tur: tipografi R'nin kesri olarak küçültüldü (referans oranlarına
+     uydurmak için) - okunabilirlik artık render BOYUTUNDAN geliyor, bu
+     yüzden lightbox viewport'un izin verdiği kadar büyütüldü (82vw/82vh'den
+     96vw/96vh'ye, + iç dolgu payları küçültüldü). */
+  .wheel-lightbox-content svg{display:block;width:min(96vw,96vh);height:min(96vw,96vh);cursor:default;}
   .wheel-lightbox-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:28px;line-height:1;color:var(--ink);cursor:pointer;padding:4px 8px;}
   .wheel-lightbox-close:hover{color:var(--lapis);}
   .ref-table{width:100%;border-collapse:collapse;font-size:14px;}
@@ -1330,8 +1341,15 @@ const PLANETS=[
 // varyant) - hem wheel'de hem "Gezegen Pozisyonları" tablosunda. Diğer 10
 // sembol (Ay Düğümü dahil) 1993'ten beri temel fontlarda mevcut olduğu için
 // Unicode metin glyph'i olarak bırakıldı.
+// 8. tur: kod incelendi, Plüton SVG ikonu (path/circle/line) hâlâ doğru
+// bağlı ve Unicode karaktere DÖNMEMİŞ - regresyon yok. Ama tipografi R'nin
+// kesri olarak küçülünce (SYMBOL_FONT_SIZE artık ~0.05R) ikonun hilal kısmı
+// o kadar ince render oluyor ki gözle Venüs sembolüyle (♀) karışıyordu
+// (ekran görüntüsüyle doğrulandı). Hilalin kendi stroke-width'i orantısal
+// olarak kalınlaştırıldı (1.5x) - genel ikon boyutu/oranı DEĞİŞMEDİ, sadece
+// onu Venüs'ten ayıran tek öğe küçük punto boyutunda da görünür kaldı.
 function plutoIconPaths(color,sw){
-  return `<path d="M-3.2,-4 Q0,-8.8 3.2,-4" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+  return `<path d="M-3.2,-4 Q0,-8.8 3.2,-4" fill="none" stroke="${color}" stroke-width="${sw*1.5}" stroke-linecap="round"/>`+
     `<circle cx="0" cy="0.3" r="2.6" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
     `<line x1="0" y1="2.9" x2="0" y2="7.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
     `<line x1="-2" y1="5.3" x2="2" y2="5.3" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
@@ -1870,14 +1888,21 @@ const ASPECT_OUT=R*0.45,ASPECT_IN=0;
 function radialExtent(angleRad,box){return Math.abs(Math.cos(angleRad))*box.w+Math.abs(Math.sin(angleRad))*box.h;}
 function tangentialExtent(angleRad,box){return Math.abs(Math.sin(angleRad))*box.w+Math.abs(Math.cos(angleRad))*box.h;}
 
-// Sembol wheel'in en büyük/en okunaklı öğesi - artık kutupsal açı geometrisine
-// bağlı bir kapasite kısıtı olmadığından (blok modelinde bir satırın maliyeti
-// SABİT satır yüksekliği, açıdan bağımsız), önceki turun açı-güvenliği için
-// zorunlu küçük değeri (7) gerekmiyor - okunaklılık için gerçekten büyük,
-// sabit bir punto seçildi.
-const SYMBOL_FONT_SIZE=13;
-const CUSP_LABEL_FONT_SIZE=6.5;
-const LABEL_FONT_SIZE=CUSP_LABEL_FONT_SIZE;
+// 8. TUR - TİPOGRAFİ R'NİN KESRİ OLARAK YENİDEN TANIMLANDI: 6. turdaki "sembol
+// mutlak sabit punto (13), wheel'in en büyük öğesi" kuralı YANLIŞTI - kabul
+// kriterlerini karşılamamasının nedeni geometri değil ölçekti. Referans
+// yazılımın (Solar Fire) gerçek görselinden ölçülen oranlar: sembol punto
+// ≈0.05R, etiket GENİŞLİĞİ ≈0.15R, bant derinliği 0.26R (bizimkiyle AYNI).
+// Bant oranımız zaten doğruydu; yazımız 2-3 kat büyüktü. Bu oranlarla blok
+// genişliği ≈0.21R'ye iner - 0.26R'lik banda HER açıda sığar (aşağıdaki
+// placeHouseBlock'taki radyal/teğetsel kontrolle ayrıca doğrulanıyor).
+const SYMBOL_FONT_SIZE=0.05*R;
+// Etiket GENİŞLİĞİ hedefi 0.15R - LABEL_BOX_FULL'ün referans punto 6'daki
+// genişliği (23) üzerinden bu genişliğe ulaşacak punto geriye çözülüyor.
+const LABEL_FONT_SIZE=0.15*R*6/LABEL_BOX_FULL.w;
+// Cusp derece etiketi artık gezegen etiketiyle AYNI punto (6. turdaki ayrı
+// sabit 6.5 değeri geri alındı - okunabilirlik artık oran kaynaklı).
+const CUSP_LABEL_FONT_SIZE=LABEL_FONT_SIZE;
 // B bandının kendi duvarına karşı küçük bir sabit güvenlik payı (ölçüm/
 // yuvarlama toleransı - eskisi gibi açıya bağlı bir "gap/step" değil, çünkü
 // blok içi satır aralığı zaten sabit ve deterministik).
@@ -1888,11 +1913,12 @@ function boxAt(box,fontSize,refFontSize){const s=fontSize/refFontSize;return{w:b
 // Bir evin BLOK kutusu: sembol sütunu genişliği + sütun arası boşluk + etiket
 // sütunu genişliği (SABİT, N'den bağımsız); yükseklik ise N*satır yüksekliği
 // + aradaki boşluklar (N ile DOĞRUSAL büyür - kutupsaldaki gibi açıya bağlı
-// katlanarak değil).
+// katlanarak değil). Sütun arası boşluk ve satır arası boşluk da R'nin
+// kesri (mutlak sabit değil) - referans oranıyla tutarlı kalsın diye.
 function blockBoxFor(n){
   const glyphBox=boxAt(GLYPH_BOX,SYMBOL_FONT_SIZE,15);
   const labelBox=boxAt(LABEL_BOX_FULL,LABEL_FONT_SIZE,6);
-  const colGap=3,rowGap=1.2;
+  const colGap=0.02*R,rowGap=0.01*R;
   const rowH=Math.max(glyphBox.h,labelBox.h);
   const w=glyphBox.w+colGap+labelBox.w;
   const h=n*rowH+Math.max(0,n-1)*rowGap;
