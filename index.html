@@ -76,7 +76,7 @@
   .planet-table tr:hover td{background:var(--parchment);}
   .tech-col{display:none;}
   body.show-tech-details .tech-col{display:table-cell;}
-  .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;}
+  .planet-glyph{font-size:18px;display:inline-block;width:26px;text-align:center;font-family:'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif;}
   .dignity-badge{font-size:10px;padding:3px 8px;font-family:'Inter',sans-serif;font-weight:600;letter-spacing:.02em;border-radius:6px;display:inline-block;}
   .d-domicile{background:#EDE9FE;color:#6D28D9;}
   .d-exaltation{background:#DCFCE7;color:#15803D;}
@@ -1320,52 +1320,21 @@ const PLANETS=[
   {id:'saturn',name:'Satürn',nameEn:'Saturn',glyph:'♄',color:'#787878'},
   {id:'uranus',name:'Uranüs',nameEn:'Uranus',glyph:'♅',color:'#4aa8c8'},
   {id:'neptune',name:'Neptün',nameEn:'Neptune',glyph:'♆',color:'#3a5ac8'},
-  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'♇︎',color:'#6a3a5c'},
+  {id:'pluto',name:'Plüton',nameEn:'Pluto',glyph:'⯓',color:'#6a3a5c'},
   {id:'true_node',name:'Ay Düğümü',nameEn:'North Node',glyph:'☊',color:'#a0a060'},
   {id:'asc',name:'Asc',nameEn:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
 
-// Plüton'un Unicode sembolü (♇, U+2647) gerçek üretim ortamında bazı
-// platformlarda (özellikle mobil/bazı işletim sistemlerinde) HİÇBİR fontla
-// eşleşmiyor ve tamamen boş/görünmez render oluyor - doğrulandı. Bu, daha
-// önce burç glyph'lerinde çözülen emoji-font çakışmasından TAMAMEN FARKLI
-// bir sorun (orada karakter render oluyordu ama yanlış görünüyordu; burada
-// hiç render olmuyor) - VS-15 gibi bir sunum seçici bunu düzeltemez, çünkü
-// sorun "yanlış sunum" değil "hiç glif yok". Kök neden: klasik 7 gezegen +
-// Uranüs/Neptün/Ay Düğümü çok daha eski (1993 Unicode 1.1) ve yaygın
-// desteklenen sembollerdir (Arial/Times/Helvetica gibi temel fontlarda bile
-// var); Plüton 1930'da keşfedilen görece yeni bir gökcismi olduğu için
-// sembolü birçok fontun kapsamına hiç girmemiş. Bu yüzden Plüton'a özel,
-// font'tan tamamen bağımsız, elle çizilmiş bir SVG ikon kullanılıyor
-// (hilal-daire-artı, modern astroloji yazılımlarının kullandığı yaygın
-// varyant) - hem wheel'de hem "Gezegen Pozisyonları" tablosunda. Diğer 10
-// sembol (Ay Düğümü dahil) 1993'ten beri temel fontlarda mevcut olduğu için
-// Unicode metin glyph'i olarak bırakıldı.
-// 10. tur - KESİN KARAR: 9. turdaki "PL monogramı" ve önerilen merkez-nokta
-// fikri her ikisi de İPTAL. Hedef şekil U+2BD3'ün gösterdiği, referans
-// yazılımın (Solar Fire) kullandığı GERÇEK Plüton sembolü: üstte yukarı
-// bakan HİLAL, ortada İÇİ BOŞ DAİRE (nokta yok), altta HAÇ (dikey+yatay).
-// Unicode karakteri DOĞRUDAN BASILMIYOR (U+2BD3 yaygın sistem fontlarında
-// karşılıksız, tofu kutusu riski) - şekil inline SVG path olarak çiziliyor,
-// font'tan tamamen bağımsız (bkz. 492dad3, orijinal SVG-ikon kararı).
-// 0.05R'de üç öğenin de seçilebilir kalması için daire GÖRECELİ OLARAK
-// KÜÇÜK tutuldu, hilal ve haç ise daire çapına oranla belirgin büyük -
-// gözle doğrulandı (bkz. PR açıklaması).
-function plutoIconPaths(color,sw){
-  return `<path d="M-3.6,-4.6 Q0,-9.6 3.6,-4.6" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
-    `<circle cx="0" cy="-2.2" r="2.1" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
-    `<line x1="0" y1="-0.1" x2="0" y2="6.8" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
-    `<line x1="-2.6" y1="3.6" x2="2.6" y2="3.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
-}
-// "Gezegen Pozisyonları" tablosundaki düz metin glyph hücreleri için -
-// wheel'deki <g transform> yaklaşımının aksine, burada bağımsız küçük bir
-// inline <svg> kullanılıyor (bir <span> içine gömülebilmesi için).
-function plutoIconInlineSVG(color){
-  return `<svg width="16" height="20" viewBox="-6 -10 12 20" style="vertical-align:middle">${plutoIconPaths(color,1.3)}</svg>`;
-}
-function planetGlyphHTML(p){
-  return p.id==='pluto'?plutoIconInlineSVG(p.color):p.glyph;
-}
+// 11. tur - KESİN KARAR: Plüton'un elle çizilmiş SVG ikonu (üç turluk deneme
+// - hilal-daire-artı, PL monogramı, tekrar hilal-daire-artı) tamamen
+// kaldırıldı. Kullanıcının doğrudan karşılaştırma görüntüsüyle doğruladığı
+// sonuç: U+2BD3 karakteri BU ortamda (Chromium + sistem sans-serif fallback)
+// hedef şekli (hilal-daire-artı) doğru render ediyor ve mevcut SVG'den DAHA
+// TEMİZ görünüyor. Plüton artık diğer 10 gezegenle AYNI <text> render
+// yolundan geçiyor, özel durum kod yolu kalmadı (bkz. aşağıdaki
+// SYMBOL_FONT_FAMILY - Inter bu Unicode aralığını kapsamadığından, platformlar
+// arası tutarlılık için tüm gezegen sembollerine ortak, sembol-kapsamlı bir
+// font stack veriliyor).
 
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
 const SIGNS_EN=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
@@ -1708,7 +1677,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
     const pObj=PLANETS.find(x=>x.id===p.key)||{glyph:p.name[0],color:'#888'};
     const tr=document.createElement('tr');
     tr.innerHTML=`
-      <td><span class="planet-glyph" style="color:${pObj.color}">${planetGlyphHTML(pObj)}</span></td>
+      <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -1813,7 +1782,7 @@ function renderTable(pos,daytime,houses,getH){
     const house=p.id==='asc'?1:getH(si);
     const pct=Math.max(0,(dg.s/5)*100);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${planetGlyphHTML(p)}</span></td>
+    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
       <td style="font-family:monospace;font-size:12px">${fmtDeg(deg)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -1910,6 +1879,26 @@ const CUSP_LABEL_FONT_SIZE=LABEL_FONT_SIZE;
 // yuvarlama toleransı - eskisi gibi açıya bağlı bir "gap/step" değil, çünkü
 // blok içi satır aralığı zaten sabit ve deterministik).
 const WALL_PAD=1.0;
+// 11. tur: Inter bu Unicode aralığını (astrolojik semboller) kapsamıyor,
+// tarayıcı sistem sans-serif fallback'ine düşüyor - hangi glif kullanılacağı
+// platforma göre değişebiliyor. Tüm gezegen sembollerine (Plüton dahil,
+// artık özel SVG'si yok) ortak, sembol kapsamı geniş bir font stack veriliyor
+// ki platformlar arası tutarlı olsun. Sırayla: Windows'un sembol fontu,
+// macOS/iOS'un sembol fontu, Google'ın geniş kapsamlı sembol fontu, en son
+// sistem varsayılanı.
+const SYMBOL_FONT_FAMILY="'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif";
+// Bazı gezegen glifleri aynı punto+fontta GÖRSEL OLARAK farklı optik boyut/
+// dikey hizaya sahip olabilir (fontun kendi glif tasarımına bağlı) - bu
+// yüzden per-karakter telafi mekanizması burada duruyor. ÖLÇÜLDÜ (getBBox,
+// SYMBOL_FONT_FAMILY uygulandıktan sonra): Plüton'un (U+2BD3) gerçek glif
+// yüksekliği (6.459) diğer 10 sembolle TAM eşit, genişliği ise en GENİŞİ
+// (5.80, diğerleri 4.35-5.20) - önceki turdaki "biraz küçük" gözlemi, o
+// karşılaştırmanın BU font stack'i olmadan (Inter fallback'iyle, farklı bir
+// sistem fontuna düşerek) çekilmiş olmasından kaynaklanıyordu. Explicit
+// font-family ile ek telafiye gerek KALMADI - varsayılan (scale:1, dy:0)
+// hiçbir şeyi değiştirmiyor.
+const SYMBOL_ADJUST_DEFAULT={scale:1,dy:0};
+const SYMBOL_ADJUST={};
 
 function boxAt(box,fontSize,refFontSize){const s=fontSize/refFontSize;return{w:box.w*s,h:box.h*s};}
 
@@ -2114,11 +2103,8 @@ function renderWheel(pos,ascDeg,cusps,mc){
         symCx=bx-blockW/2+labelBox.w+colGap+glyphBox.w/2;
       }
       const p=s.p;
-      if(p.id==='pluto'){
-        h+=`<g data-planet="${p.id}" data-role="symbol" data-house="${block.house}" transform="translate(${symCx},${rowY}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
-      }else{
-        h+=`<text data-planet="${p.id}" data-role="symbol" data-house="${block.house}" x="${symCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE}" fill="${p.color}">${p.glyph}</text>`;
-      }
+      const adj=SYMBOL_ADJUST[p.id]||SYMBOL_ADJUST_DEFAULT;
+      h+=`<text data-planet="${p.id}" data-role="symbol" data-house="${block.house}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
       h+=`<text data-planet="${p.id}" data-role="label" data-house="${block.house}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${fmtDegSignMinInSign(s.lon)}</text>`;
       const trueA=wheelAngle(s.lon,ascDeg);
       const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
