@@ -1325,16 +1325,81 @@ const PLANETS=[
   {id:'asc',name:'Asc',nameEn:'Asc',glyph:'Asc',color:'#b8860b'},
 ];
 
-// 11. tur - KESİN KARAR: Plüton'un elle çizilmiş SVG ikonu (üç turluk deneme
-// - hilal-daire-artı, PL monogramı, tekrar hilal-daire-artı) tamamen
-// kaldırıldı. Kullanıcının doğrudan karşılaştırma görüntüsüyle doğruladığı
-// sonuç: U+2BD3 karakteri BU ortamda (Chromium + sistem sans-serif fallback)
-// hedef şekli (hilal-daire-artı) doğru render ediyor ve mevcut SVG'den DAHA
-// TEMİZ görünüyor. Plüton artık diğer 10 gezegenle AYNI <text> render
-// yolundan geçiyor, özel durum kod yolu kalmadı (bkz. aşağıdaki
-// SYMBOL_FONT_FAMILY - Inter bu Unicode aralığını kapsamadığından, platformlar
-// arası tutarlılık için tüm gezegen sembollerine ortak, sembol-kapsamlı bir
-// font stack veriliyor).
+// 11. tur: Plüton U+2BD3 Unicode karakterine geçirildi (kullanıcının
+// doğrudan karşılaştırma görüntüsüyle doğrulanmış karar - bu ortamda hedef
+// şekli mevcut SVG'den daha temiz render ediyor). 12. tur: bu kararın
+// PLATFORM RİSKİ var - U+2647 gibi U+2BD3 de "Miscellaneous Symbols and
+// Arrows" bloğunda, Segoe UI Symbol/Apple Symbols/Noto Sans Symbols 2
+// üçünün de bulunmadığı bir platformda (özellikle parçalı Android font
+// dağılımı) tofu kutusu riski taşıyor. Stellafix uluslararası hedeflediği
+// için bu risk kabul edilemez - bu yüzden RUNTIME TESPİT + elle çizilmiş
+// SVG'ye OTOMATİK DÜŞÜŞ eklendi (SVG kod yolu silinmedi, bkz. plutoIconPaths
+// aşağıda).
+//
+// TESPİT YÖNTEMİ VE DÜRÜST SINIRLARI (ölçülüp test edildi): U+2BD3'ün
+// GERÇEK render edilmiş ink kutusunu (canvas measureText'in advance-width'i
+// DEĞİL - SVG <text>'in getBBox'ı, gerçek wheel render yoluyla AYNI),
+// KASITLI OLARAK hiçbir fontta atanmamış bir Unicode "noncharacter"
+// (U+FFFF) referansıyla karşılaştırıyoruz. Genişlik belirgin farklıysa
+// (U+2BD3 muhtemelen gerçek bir glif render ediyor) desteklenmiş sayılıyor.
+// SINIR: bu sandbox'ta test edildi - font-family'yi KASITLI OLARAK var
+// olmayan bir isme (hatta 'serif'/'monospace' gibi jenerik ailelere)
+// değiştirmek bile U+2BD3'ün ölçümünü DEĞİŞTİRMEDİ (her durumda tam 1em
+// genişlik) - bu, işletim sisteminin (bu konteynerdeki fontconfig) kendi
+// evrensel fallback zincirinin, sayfanın font-family listesinden BAĞIMSIZ
+// olarak devreye girdiğini gösteriyor. Yani bu ortamda GERÇEK bir "font
+// eksik" senaryosunu simüle edip doğrulayamadım - tespit fonksiyonu makul
+// bir sezgisel yöntem ama gerçek bir font-eksik cihazda (ör. Noto Symbols
+// paketi olmayan bir Android) davranışı BU oturumda doğrulanamadı. Native
+// bir "bu font bu karakteri kapsıyor mu" API'si yok (document.fonts.check()
+// sistem fontlarında tarayıcılar arası tutarsız) - bu yüzden bu, mevcut en
+// iyi pratik yöntem, ama %100 garanti değil. Sonuç SAYFA YÜKLENİNCE BİR KEZ
+// hesaplanıp önbelleğe alınıyor.
+let _plutoUnicodeSupported=null;
+function plutoUnicodeSupported(){
+  if(_plutoUnicodeSupported!==null)return _plutoUnicodeSupported;
+  try{
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.style.position='absolute';svg.style.opacity='0';svg.style.pointerEvents='none';
+    document.body.appendChild(svg);
+    const bboxOf=ch=>{
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('font-size','40');
+      t.setAttribute('font-family',SYMBOL_FONT_FAMILY);
+      t.textContent=ch;
+      svg.appendChild(t);
+      const b=t.getBBox();
+      svg.removeChild(t);
+      return b;
+    };
+    const target=bboxOf('⯓');
+    const nonch=bboxOf(String.fromCharCode(0xFFFF));
+    document.body.removeChild(svg);
+    _plutoUnicodeSupported=target.width>0&&Math.abs(target.width-nonch.width)>1;
+  }catch(e){
+    _plutoUnicodeSupported=false;
+  }
+  return _plutoUnicodeSupported;
+}
+// Elle çizilmiş SVG ikon (hilal-daire-artı, U+2BD3'ün gösterdiği aynı şekil)
+// - artık birincil yol değil, SADECE plutoUnicodeSupported() false dönerse
+// (yukarıdaki tespit U+2BD3'ün bu platformda gerçek bir glif render
+// etmediğini düşünürse) devreye giren YEDEK yol. Font'tan tamamen bağımsız.
+function plutoIconPaths(color,sw){
+  return `<path d="M-3.6,-4.6 Q0,-9.6 3.6,-4.6" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<circle cx="0" cy="-2.2" r="2.1" fill="none" stroke="${color}" stroke-width="${sw}"/>`+
+    `<line x1="0" y1="-0.1" x2="0" y2="6.8" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`+
+    `<line x1="-2.6" y1="3.6" x2="2.6" y2="3.6" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
+function plutoIconInlineSVG(color){
+  return `<svg width="16" height="20" viewBox="-6 -10 12 20" style="vertical-align:middle">${plutoIconPaths(color,1.3)}</svg>`;
+}
+// "Gezegen Pozisyonları" tablosu için - Plüton'un Unicode desteklenip
+// desteklenmediğine göre glif ya da SVG ikon döner, diğer gezegenler
+// dokunulmadan kendi glyph'ini döner.
+function planetGlyphHTML(p){
+  return(p.id==='pluto'&&!plutoUnicodeSupported())?plutoIconInlineSVG(p.color):p.glyph;
+}
 
 const SIGNS=['Koç','Boğa','İkizler','Yengeç','Aslan','Başak','Terazi','Akrep','Yay','Oğlak','Kova','Balık'];
 const SIGNS_EN=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
@@ -1677,7 +1742,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
     const pObj=PLANETS.find(x=>x.id===p.key)||{glyph:p.name[0],color:'#888'};
     const tr=document.createElement('tr');
     tr.innerHTML=`
-      <td><span class="planet-glyph" style="color:${pObj.color}">${pObj.glyph}</span></td>
+      <td><span class="planet-glyph" style="color:${pObj.color}">${planetGlyphHTML(pObj)}</span></td>
       <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -1782,7 +1847,7 @@ function renderTable(pos,daytime,houses,getH){
     const house=p.id==='asc'?1:getH(si);
     const pct=Math.max(0,(dg.s/5)*100);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${p.glyph}</span></td>
+    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${planetGlyphHTML(p)}</span></td>
       <td><strong>${planetDisplayName(p)}</strong></td>
       <td style="font-family:monospace;font-size:12px">${fmtDeg(deg)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
@@ -2104,7 +2169,11 @@ function renderWheel(pos,ascDeg,cusps,mc){
       }
       const p=s.p;
       const adj=SYMBOL_ADJUST[p.id]||SYMBOL_ADJUST_DEFAULT;
-      h+=`<text data-planet="${p.id}" data-role="symbol" data-house="${block.house}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
+      if(p.id==='pluto'&&!plutoUnicodeSupported()){
+        h+=`<g data-planet="${p.id}" data-role="symbol" data-house="${block.house}" transform="translate(${symCx},${rowY}) scale(${(SYMBOL_FONT_SIZE/15).toFixed(3)})">${plutoIconPaths(p.color,1.6)}</g>`;
+      }else{
+        h+=`<text data-planet="${p.id}" data-role="symbol" data-house="${block.house}" x="${symCx}" y="${rowY+adj.dy}" text-anchor="middle" dominant-baseline="central" font-size="${SYMBOL_FONT_SIZE*adj.scale}" font-family="${SYMBOL_FONT_FAMILY}" fill="${p.color}">${p.glyph}</text>`;
+      }
       h+=`<text data-planet="${p.id}" data-role="label" data-house="${block.house}" x="${labCx}" y="${rowY}" text-anchor="middle" dominant-baseline="central" font-size="${LABEL_FONT_SIZE}" fill="${p.color}" opacity="0.75" font-family="Inter,sans-serif">${fmtDegSignMinInSign(s.lon)}</text>`;
       const trueA=wheelAngle(s.lon,ascDeg);
       const[t1x,t1y]=wheelPt(cx,cy,PLANET_BAND_IN,trueA);
