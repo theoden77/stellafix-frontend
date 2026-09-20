@@ -150,6 +150,12 @@
   .chat-bubble.assistant{align-self:flex-start;background:var(--parchment);border-left:3px solid var(--gold);border-radius:4px 12px 12px 12px;}
   .chat-bubble.user{align-self:flex-end;background:var(--lapis);color:#fff;border-radius:12px 4px 12px 12px;}
   .chat-bubble.error{align-self:flex-start;background:#FEF2F2;border-left:3px solid var(--crimson);color:var(--crimson);border-radius:4px 12px 12px 12px;}
+  .chat-bubble-action{display:block;margin-top:10px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:8px 14px;cursor:pointer;}
+  .chat-bubble-action:hover{background:var(--lapis-light);}
+  .credit-status{font-size:12px;color:var(--ink);opacity:.65;margin-bottom:12px;padding:8px 12px;background:var(--parchment-dark);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .credit-status.exhausted{color:var(--crimson);opacity:1;background:#FEF2F2;}
+  .credit-status-action{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap;}
+  .credit-status-action:hover{background:var(--lapis-light);}
   .chat-loading{display:flex;align-items:center;gap:12px;padding:10px 2px;font-style:normal;font-size:13px;color:var(--ink);opacity:.6;}
   .chat-spinner{width:20px;height:20px;border:2px solid var(--parchment-dark);border-top-color:var(--lapis);border-radius:50%;animation:chatspin .8s linear infinite;flex-shrink:0;}
   @keyframes chatspin{to{transform:rotate(360deg);}}
@@ -407,6 +413,7 @@
   <div class="interpret-area" id="interpretArea" style="display:none">
     <div class="panel" id="categoryPanel">
       <div class="panel-title" data-i18n="interpretPanelTitle">Yıldızlarla Sohbet Et</div>
+      <div class="credit-status" id="reportCreditStatus" style="display:none"></div>
       <div id="categoryGroups"></div>
     </div>
     <div class="panel" id="chatPanel" style="display:none">
@@ -524,8 +531,22 @@ const I18N = {
     chatLoadingNote: "Bu biraz sürebilir",
     chatInputPlaceholder: "Bir soru sor...",
     btnSend: "Gönder",
-    chatExhausted: "Bu konudaki ücretsiz soru hakkın doldu, yakında ek soru satın alma eklenecek.",
+    chatExhausted: "Bu rapor için soru hakkın doldu.",
+    chatUnlimitedActive: "Bu raporda sınırsız soru hakkın var (Abonelik)",
     chatErrorMessage: "Şu an yıldızlarla bağlantı kurulamadı, tekrar dene.",
+    errAuthRequired: "Devam etmek için giriş yapman gerekiyor.",
+    errReportCreditsExhausted: "Ücretsiz raporlarını kullandın.",
+    errQuestionCreditsExhausted: "Bu rapor için soru hakkın doldu.",
+    errCreditsGeneric: "Hakkın doldu.",
+    errForbidden: "Bu rapora erişimin yok.",
+    errNotFoundSession: "Bu görüşme bulunamadı, lütfen yeniden başla.",
+    errRateLimited: "Biraz hızlı gidiyorsun, bir dakika bekleyip tekrar dene.",
+    errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
+    errUpstream: "Şu an yanıt oluşturulamadı, tekrar dene.",
+    ctaSubscribe: "Abone Ol",
+    ctaBackToCategories: "← Kategorilere Dön",
+    creditStatusUnlimited: "Sınırsız rapor hakkın var (Abonelik)",
+    creditStatusReportsExhausted: "Ücretsiz raporlarını kullandın.",
     btnLogin: "Giriş Yap",
     btnLogout: "Çıkış Yap",
     authModalTitle: "Giriş Yap",
@@ -541,7 +562,6 @@ const I18N = {
     authConfirming: "Onaylanıyor...",
     authWelcomeMessage: "Giriş başarılı, hoş geldin!",
     errPersonLimit: "Ücretsiz hesabınla en fazla 2 kişi için harita oluşturabilirsin.",
-    errWeeklyLimitGeneric: "Bu haftaki ücretsiz sorgu hakkın doldu, yakında yenilenecek.",
     btnUpgrade: "Premium'a Geç",
     btnUpgrading: "Yönlendiriliyor...",
     premiumBadge: "✨ Premium Üye",
@@ -649,8 +669,22 @@ const I18N = {
     chatLoadingNote: "This may take a moment",
     chatInputPlaceholder: "Ask a question...",
     btnSend: "Send",
-    chatExhausted: "You've used your free questions on this topic — additional question purchases are coming soon.",
+    chatExhausted: "You've used your questions for this report.",
+    chatUnlimitedActive: "You have unlimited questions on this report (Subscription)",
     chatErrorMessage: "Couldn't connect to the stars right now, please try again.",
+    errAuthRequired: "You need to sign in to continue.",
+    errReportCreditsExhausted: "You've used your free reports.",
+    errQuestionCreditsExhausted: "You've used your questions for this report.",
+    errCreditsGeneric: "You're out of credits.",
+    errForbidden: "You don't have access to this report.",
+    errNotFoundSession: "This conversation couldn't be found, please start again.",
+    errRateLimited: "You're going a bit fast — wait a minute and try again.",
+    errInvalidInput: "Something in your request wasn't valid, please try again.",
+    errUpstream: "Couldn't generate a response right now, please try again.",
+    ctaSubscribe: "Subscribe",
+    ctaBackToCategories: "← Back to Categories",
+    creditStatusUnlimited: "You have unlimited reports (Subscription)",
+    creditStatusReportsExhausted: "You've used your free reports.",
     btnLogin: "Log In",
     btnLogout: "Log Out",
     authModalTitle: "Log In",
@@ -666,7 +700,6 @@ const I18N = {
     authConfirming: "Confirming...",
     authWelcomeMessage: "Login successful, welcome!",
     errPersonLimit: "Your free account can create charts for up to 2 people.",
-    errWeeklyLimitGeneric: "You've used this week's free queries, resets soon.",
     btnUpgrade: "Upgrade to Premium",
     btnUpgrading: "Redirecting...",
     premiumBadge: "✨ Premium Member",
@@ -759,6 +792,8 @@ function setLocale(loc){
   currentLocale=loc;
   applyStaticText();
   updateTzBadge();
+  renderCreditStatus();
+  updateRemainingUI();
   if(lastCalculatedBirthData){
     const d=lastCalculatedBirthData;
     document.getElementById('birthDate').value=d.dateStr;
@@ -813,14 +848,11 @@ function extractEmailFromToken(token){
   return payload&&typeof payload.email==='string'?payload.email:null;
 }
 
-// Eski token'larda (bu alan backend'e eklenmeden önce verilmiş) subscription_tier
-// hiç yok - böyle bir tokende de olmayan/tanınmayan bir değerde de güvenli taraf
-// olan "free" varsayılıyor (yani buton gösterilir, rozet gösterilmez).
-function extractSubscriptionTierFromToken(token){
-  const payload=decodeJwtPayload(token);
-  return payload&&payload.subscription_tier==='paid'?'paid':'free';
-}
-
+// updateAuthUI sadece GİRİŞ DURUMUNU (oturum açık mı, hangi email) yansıtır.
+// Abonelik rozeti/"Premium'a Geç" butonu artık JWT'deki subscription_tier'a
+// DEĞİL (bu sadece giriş anının fotoğrafı - abonelik sonradan başlamış/iptal
+// edilmiş olabilir), gerçek zamanlı GET /api/v1/credits/balance sonucuna
+// (has_active_subscription) göre belirleniyor - bkz. renderCreditStatus().
 function updateAuthUI(){
   const loggedIn=!!authToken;
   document.getElementById('authLoginBtn').style.display=loggedIn?'none':'inline-block';
@@ -829,9 +861,74 @@ function updateAuthUI(){
   const email=loggedIn?extractEmailFromToken(authToken):null;
   emailEl.textContent=email||'';
   emailEl.style.display=email?'inline':'none';
-  const isPaid=loggedIn&&extractSubscriptionTierFromToken(authToken)==='paid';
-  document.getElementById('premiumBadge').style.display=isPaid?'inline-block':'none';
-  document.getElementById('authUpgradeBtn').style.display=isPaid?'none':'inline-block';
+  // Bakiye henüz çekilmediyse (sayfa yeni yüklendi) geçici olarak ikisini de
+  // gizle - renderCreditStatus() bakiye gelince doğru duruma geçirecek, bu
+  // sayede "yükseltmeli" gösterip hemen "aslında abonesin"e dönen bir
+  // titreşim olmaz.
+  if(!loggedIn){
+    document.getElementById('premiumBadge').style.display='none';
+    document.getElementById('authUpgradeBtn').style.display='none';
+  }
+}
+
+// GET /api/v1/credits/balance sonucunun ham hali -
+// {has_active_subscription, subscription_ends_at, report_credits, question_credits}.
+// Aktiflik için has_active_subscription'a bakılır, subscription_ends_at'e
+// DEĞİL (backend sözleşmesi: geçmiş bir tarih olabilir).
+let creditBalance=null;
+
+async function fetchCreditBalance(){
+  if(!authToken){ creditBalance=null; renderCreditStatus(); return; }
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/credits/balance`,{headers:authHeaders()});
+    if(!resp.ok){
+      if(resp.status===401){ handleUnauthorized(); return; }
+      creditBalance=null; renderCreditStatus();
+      return;
+    }
+    creditBalance=await resp.json();
+    renderCreditStatus();
+  }catch(e){
+    // Ağ hatası - gösterge boş/eski kalır, ana işlevsellik (harita/yorum) engellenmez
+  }
+}
+
+function creditStatusReportsText(n){
+  return currentLocale==='en'?`${n} report${n===1?'':'s'} remaining`:`${n} rapor hakkın kaldı`;
+}
+
+// Header'daki abonelik rozeti/"Premium'a Geç" butonu VE kategori panelindeki
+// rapor-hakkı göstergesi - ikisi de burada, TEK gerçek kaynaktan
+// (creditBalance.has_active_subscription) güncellenir.
+function renderCreditStatus(){
+  const loggedIn=!!authToken;
+  const isSubscribed=loggedIn&&!!(creditBalance&&creditBalance.has_active_subscription);
+  document.getElementById('premiumBadge').style.display=isSubscribed?'inline-block':'none';
+  document.getElementById('authUpgradeBtn').style.display=(loggedIn&&!isSubscribed)?'inline-block':'none';
+
+  const el=document.getElementById('reportCreditStatus');
+  if(!loggedIn||!creditBalance){ el.style.display='none'; return; }
+  el.style.display='flex';
+  if(isSubscribed){
+    el.textContent=t('creditStatusUnlimited');
+    el.classList.remove('exhausted');
+  }else{
+    const n=creditBalance.report_credits||0;
+    el.textContent=n>0?creditStatusReportsText(n):t('creditStatusReportsExhausted');
+    el.classList.toggle('exhausted',n<=0);
+  }
+}
+
+// 401 - token geçersiz/süresi dolmuş (giriş sırasında değil, DAHA SONRA bir
+// istekte alınmışsa). Bayat token'ı temizleyip çıkış yapılmış gibi
+// davranıyoruz, sonra giriş ekranını açıyoruz.
+function handleUnauthorized(){
+  authToken=null;
+  clearStoredToken();
+  creditBalance=null;
+  updateAuthUI();
+  renderCreditStatus();
+  openAuthModal();
 }
 
 function openAuthModal(){
@@ -900,7 +997,9 @@ async function requestMagicLink(){
 function logout(){
   authToken=null;
   clearStoredToken();
+  creditBalance=null;
   updateAuthUI();
+  renderCreditStatus();
 }
 
 function showSubscribeError(msg){
@@ -989,6 +1088,7 @@ async function confirmMagicLink(){
         authToken=data.access_token;
         setStoredToken(authToken);
         updateAuthUI();
+        fetchCreditBalance();
         showAuthWelcomeBanner();
       }
     }
@@ -1007,21 +1107,37 @@ async function confirmMagicLink(){
   }
 }
 
-function weeklyLimitMessage(dateStr){
-  return currentLocale==='en'
-    ?`You've used this week's free queries. Resets on ${dateStr}.`
-    :`Bu haftaki ücretsiz sorgu hakkın doldu, ${dateStr}'te yenilenecek.`;
+// /interpret/* hata sözleşmesi (stellafix-api PR #25): dallanma HTTP status'a
+// ve (402 için) `error`/`credit_type` alanlarına göre yapılır - backend'in
+// insan-okunur mesaj metnine (detail) GÖRE DEĞİL, o metin değişebilir/
+// jargon içerebilir. Kullanıcıya gösterilen tüm metinler burada, jargonsuz
+// ve TR/EN olarak tanımlı (bkz. I18N: errAuthRequired, errReportCreditsExhausted, ...).
+async function parseInterpretErrorBody(resp){
+  try{ return await resp.json(); }catch(e){ return {}; }
 }
-// Backend'in 403 detail alanının tam şekli bu oturumdan doğrulanamadı — hem düz
-// string hem de tarihi taşıyan bir obje ({reset_at|reset_date|resets_at|date})
-// olma ihtimaline karşı toleranslı okunuyor
-function extractResetDate(err){
-  if(!err)return '';
-  if(typeof err.detail==='string')return err.detail;
-  if(err.detail&&typeof err.detail==='object'){
-    return err.detail.reset_at||err.detail.reset_date||err.detail.resets_at||err.detail.date||'';
+// status+body'den {textKey, ctaKey, onCta, onShow} çıkarır - appendChatBubble'a
+// doğrudan verilebilecek bir "aksiyon" (ör. Abone Ol/Kategorilere Dön butonu)
+// ve gösterim öncesi yan etki (ör. 401'de giriş modalını açmak) içerir.
+function interpretErrorInfo(status,body){
+  if(status===401)return{textKey:'errAuthRequired',onShow:handleUnauthorized};
+  if(status===402&&body&&body.error==='insufficient_credits'){
+    if(body.credit_type==='report')return{textKey:'errReportCreditsExhausted',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
+    if(body.credit_type==='question')return{textKey:'errQuestionCreditsExhausted',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
+    return{textKey:'errCreditsGeneric',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
   }
-  return err.reset_at||err.reset_date||'';
+  if(status===403)return{textKey:'errForbidden',ctaKey:'ctaBackToCategories',onCta:backToCategories};
+  if(status===404)return{textKey:'errNotFoundSession',ctaKey:'ctaBackToCategories',onCta:backToCategories};
+  if(status===429)return{textKey:'errRateLimited'};
+  if(status===422)return{textKey:'errInvalidInput'};
+  if(status===502)return{textKey:'errUpstream'};
+  return{textKey:'chatErrorMessage'};
+}
+async function handleInterpretErrorResponse(resp){
+  const body=await parseInterpretErrorBody(resp);
+  const info=interpretErrorInfo(resp.status,body);
+  if(info.onShow)info.onShow();
+  const action=info.ctaKey?{label:t(info.ctaKey),onClick:info.onCta}:null;
+  appendChatBubble('error',t(info.textKey),action);
 }
 
 // ============================================================
@@ -2675,10 +2791,22 @@ function renderSkyToday(){
 
 let lastChartId=null;
 let interpretSessionId=null;
-let questionsRemaining=null;
 let currentCategory=null;
+// /interpret/continue yanıtının ham kredi alanları - {questions_included,
+// questions_used, questions_remaining_free, question_credits_remaining,
+// unlimited}. /start bunları döndürmüyor (bkz. handleStartResponse), bu
+// yüzden ilk soru cevaplanana kadar null kalır ve gösterge boş görünür.
+let questionCreditInfo=null;
 
-function chatRemainingText(n){
+function totalQuestionsRemaining(info){
+  if(!info)return null;
+  if(info.unlimited)return Infinity;
+  return (info.questions_remaining_free||0)+(info.question_credits_remaining||0);
+}
+
+function chatRemainingText(info){
+  if(info.unlimited)return t('chatUnlimitedActive');
+  const n=totalQuestionsRemaining(info);
   return currentLocale==='en'?`${n} question${n===1?'':'s'} remaining`:`Kalan soru hakkın: ${n}`;
 }
 
@@ -2695,7 +2823,7 @@ function showInterpretArea(chartId){
 
 function resetInterpretArea(){
   interpretSessionId=null;
-  questionsRemaining=null;
+  questionCreditInfo=null;
   currentCategory=null;
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatLoading').style.display='none';
@@ -2709,6 +2837,7 @@ function resetInterpretArea(){
   document.getElementById('chatPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='block';
   renderCategoryGrid();
+  renderCreditStatus();
 }
 
 function renderCategoryGrid(){
@@ -2732,12 +2861,17 @@ function backToCategories(){
 }
 
 function showChatLoading(show){
+  const exhausted=questionCreditInfo&&totalQuestionsRemaining(questionCreditInfo)===0;
   document.getElementById('chatLoading').style.display=show?'flex':'none';
-  document.getElementById('chatInput').disabled=show||questionsRemaining===0;
-  document.getElementById('chatSendBtn').disabled=show||questionsRemaining===0;
+  document.getElementById('chatInput').disabled=show||exhausted;
+  document.getElementById('chatSendBtn').disabled=show||exhausted;
 }
 
-function appendChatBubble(role,text){
+// action (opsiyonel): {label, onClick} - hata balonlarına "Abone Ol"/"Kategorilere
+// Dön" gibi tıklanabilir bir sonraki-adım butonu eklemek için. Buton metni de
+// textContent ile basılır (label her zaman t() üzerinden gelen sabit bir
+// çeviri anahtarı - kullanıcı girdisi değil, ama yine de innerHTML kullanılmıyor).
+function appendChatBubble(role,text,action){
   const wrap=document.getElementById('chatMessages');
   const div=document.createElement('div');
   div.className='chat-bubble '+role;
@@ -2745,6 +2879,14 @@ function appendChatBubble(role,text){
   textDiv.className='chat-bubble-text';
   textDiv.textContent=text; // backend metni innerHTML değil textContent ile basılır (XSS'e kapalı)
   div.appendChild(textDiv);
+  if(action){
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='chat-bubble-action';
+    btn.textContent=action.label;
+    btn.onclick=action.onClick;
+    div.appendChild(btn);
+  }
   wrap.appendChild(div);
   wrap.scrollTop=wrap.scrollHeight;
 }
@@ -2757,40 +2899,50 @@ function updateRemainingUI(){
   const el=document.getElementById('chatRemaining');
   const input=document.getElementById('chatInput');
   const btn=document.getElementById('chatSendBtn');
-  if(questionsRemaining===0){
+  if(!questionCreditInfo){
+    el.textContent='';
+    el.classList.remove('exhausted');
+    return;
+  }
+  const remaining=totalQuestionsRemaining(questionCreditInfo);
+  if(remaining===0){
     el.textContent=t('chatExhausted');
     el.classList.add('exhausted');
     input.disabled=true;
     btn.disabled=true;
-  } else if(typeof questionsRemaining==='number'){
-    el.textContent=chatRemainingText(questionsRemaining);
+  } else {
+    el.textContent=chatRemainingText(questionCreditInfo);
     el.classList.remove('exhausted');
     input.disabled=false;
     btn.disabled=false;
-  } else {
-    el.textContent='';
-    el.classList.remove('exhausted');
   }
 }
 
-// Gerçek backend response şemaları (canlı API'den doğrulandı):
-//   POST /interpret/start   -> {session_id, message, language}   — questions_remaining YOK
-//   POST /interpret/continue -> {message, questions_remaining}   — session_id YOK, /start'ta
-//     alınan session_id istemci tarafında saklanıp sonraki her /continue çağrısında
-//     tekrar gönderilmeli; backend onu bir daha döndürmüyor.
+// Gerçek backend response şemaları (stellafix-api PR #25):
+//   POST /interpret/start   -> {session_id, message, language} — kredi alanı YOK
+//     (ilk rapor mesajı henüz soru içermiyor; bir rapor kredisi burada düşülüyor).
+//   POST /interpret/continue -> {message, questions_included, questions_used,
+//     questions_remaining_free, question_credits_remaining, unlimited} —
+//     session_id YOK, /start'ta alınan session_id istemci tarafında saklanıp
+//     sonraki her /continue çağrısında tekrar gönderilmeli.
 function handleStartResponse(data){
   interpretSessionId=data.session_id;
   appendChatBubble('assistant',data.message);
-  // /start questions_remaining döndürmüyor; gösterge ilk /continue yanıtına kadar boş kalır
+  // /start soru-kredisi alanı döndürmüyor; gösterge ilk /continue yanıtına kadar boş kalır
   updateRemainingUI();
 }
 function handleContinueResponse(data){
   appendChatBubble('assistant',data.message);
-  questionsRemaining=data.questions_remaining;
+  questionCreditInfo=data;
   updateRemainingUI();
 }
 
 async function selectCategory(catId){
+  // /interpret/* artık auth zorunlu (stellafix-api PR #25) - girişsiz kullanıcıyı
+  // boşuna bir round-trip beklemeden doğrudan giriş ekranına yönlendir. Token
+  // süresi mid-session dolarsa da handleInterpretErrorResponse'daki 401 dalı
+  // (handleUnauthorized) ikinci bir savunma hattı olarak aynı işi yapar.
+  if(!authToken){ openAuthModal(); return; }
   currentCategory=catId;
   const cfg=CATEGORIES.find(c=>c.id===catId);
   document.getElementById('categoryPanel').style.display='none';
@@ -2799,7 +2951,7 @@ async function selectCategory(catId){
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatRemaining').textContent='';
   interpretSessionId=null;
-  questionsRemaining=null;
+  questionCreditInfo=null;
   showChatLoading(true);
   try{
     const resp=await fetch(`${API_URL}/api/v1/interpret/start`,{
@@ -2809,17 +2961,12 @@ async function selectCategory(catId){
     });
     showChatLoading(false);
     if(!resp.ok){
-      if(resp.status===403){
-        let err={}; try{ err=await resp.json(); }catch(e){}
-        const dateStr=extractResetDate(err);
-        appendChatBubble('error',dateStr?weeklyLimitMessage(dateStr):t('errWeeklyLimitGeneric'));
-        return;
-      }
-      appendChatError();
+      await handleInterpretErrorResponse(resp);
       return;
     }
     const data=await resp.json();
     handleStartResponse(data);
+    fetchCreditBalance(); // bir rapor kredisi düştü - göstergeyi tazele
   }catch(e){
     showChatLoading(false);
     appendChatError();
@@ -2829,7 +2976,12 @@ async function selectCategory(catId){
 async function sendFollowUp(){
   const input=document.getElementById('chatInput');
   const q=input.value.trim();
-  if(!q||questionsRemaining===0)return;
+  if(!q)return;
+  if(!authToken){ openAuthModal(); return; }
+  if(questionCreditInfo&&totalQuestionsRemaining(questionCreditInfo)===0){
+    appendChatBubble('error',t('errQuestionCreditsExhausted'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
+    return;
+  }
   appendChatBubble('user',q);
   input.value='';
   showChatLoading(true);
@@ -2841,7 +2993,10 @@ async function sendFollowUp(){
       body:JSON.stringify({session_id:interpretSessionId,question:q})
     });
     showChatLoading(false);
-    if(!resp.ok){appendChatError();return;}
+    if(!resp.ok){
+      await handleInterpretErrorResponse(resp);
+      return;
+    }
     const data=await resp.json();
     handleContinueResponse(data);
   }catch(e){
@@ -2854,6 +3009,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.form-group'))closeD
 document.getElementById('birthDate').addEventListener('change',onDateChange);
 applyStaticText();
 updateAuthUI();
+fetchCreditBalance();
 checkMagicLinkToken();
 loadSkyToday();
 </script>
