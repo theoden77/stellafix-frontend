@@ -2472,13 +2472,15 @@ function renderWheel(pos,ascDeg,cusps,mc){
     }
   });
 
-  // AÇI DİSKİ (<0.45R): SADECE açı çizgileri + açı sembolleri. Gezegenlerin
-  // gerçek boylamları arasında, açı diskinin (ASPECT_OUT) sınırında çizilir,
+  // AÇI DİSKİ (<0.45R): açı çizgileri + açı sembolleri. Gezegenlerin gerçek
+  // boylamları arasında, açı diskinin (ASPECT_OUT) sınırında çizilir,
   // astro.com tarzı. Sert açılar (kavuşum/kare/karşıt) kırmızı, yumuşak
-  // açılar (sextil/üçgen) mavi; her açının orta noktasına küçük bir sembol
-  // (☌ □ △ ✶ ☍) konur. <g class="tech-details-field"> ile mevcut "Teknik
-  // Detayları Göster/Gizle" toggle'ının aynısına bağlı - varsayılan gizli.
-  let aspectLines='';
+  // açılar (sextil/üçgen) mavi. Çizgiler haritanın görsel bütünlüğünün
+  // parçası (Solar Fire referansında her zaman görünür) - varsayılan
+  // GÖRÜNÜR, toggle'a bağlı değil. Sembol katmanı (☌ □ △ ✶ ☍) ayrı bir
+  // <g> - hâlâ "Teknik Detayları Göster/Gizle" toggle'ına bağlı, varsayılan
+  // gizli (yoğun haritalarda merkezde okunabilirliği bozuyor - ölçüldü).
+  let aspectLines='',aspectSymbols='';
   for(let i=0;i<drawnPlanets.length;i++){
     for(let j=i+1;j<drawnPlanets.length;j++){
       const p1=drawnPlanets[i],p2=drawnPlanets[j];
@@ -2489,10 +2491,11 @@ function renderWheel(pos,ascDeg,cusps,mc){
       const col=asp.hard?'#DC2626':'#2563EB';
       aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${col}" stroke-width="0.8" opacity="0.6"/>`;
       const midx=(ax1l+ax2l)/2,midy=(ay1l+ay2l)/2;
-      aspectLines+=`<text x="${midx}" y="${midy}" text-anchor="middle" dominant-baseline="central" font-size="6.5" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}" opacity="0.85">${asp.symbol}</text>`;
+      aspectSymbols+=`<text x="${midx}" y="${midy}" text-anchor="middle" dominant-baseline="central" font-size="6.5" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}" opacity="0.85">${asp.symbol}</text>`;
     }
   }
-  if(aspectLines)h+=`<g class="tech-details-field">${aspectLines}</g>`;
+  if(aspectLines)h+=`<g>${aspectLines}</g>`;
+  if(aspectSymbols)h+=`<g class="tech-details-field">${aspectSymbols}</g>`;
 
   // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
   // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
