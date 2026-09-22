@@ -1576,6 +1576,21 @@ function elementColorOf(si){return ELEMENT_COLORS[si%4];}
 function signName(si){return currentLocale==='en'?SIGNS_EN[si]:SIGNS[si];}
 function lordName(si){return currentLocale==='en'?LORDS_EN[si]:LORDS[si];}
 function planetDisplayName(p){return currentLocale==='en'?(p.nameEn||p.name):p.name;}
+// Backend'in ham p.name alanı bazı gezegenler için (ör. Ay Düğümü) parantez
+// içinde ek bir hesaplama notu taşıyabilir (gerçek örnek: "Ay Düğümü (Kuzey,
+// Mean)"). Bu not gezegenin KENDİSİNDEN (locale'e göre) bağımsız - "Kuzey"
+// zaten "Ay Düğümü"/"North Node" ile örtüştüğü için EN'de düşürülür, kalan
+// not (ör. "Mean"/"True" - iki dilde de aynı astrolojik terim, çevrilmiyor)
+// yerel çeviriye ekleniyor. pObj yerel PLANETS tablosunda YOKSA (bilinmeyen
+// bir p.key - olmamalı ama savunmacı) backend'in ham adına aynen düşülür.
+function apiPlanetDisplayName(pObj,apiName){
+  if(!pObj.name)return apiName;
+  const base=planetDisplayName(pObj);
+  const m=apiName.match(/\(([^)]*)\)\s*$/);
+  if(!m)return base;
+  const parts=m[1].split(',').map(s=>s.trim()).filter(s=>!['Kuzey','Güney','North','South'].includes(s));
+  return parts.length?`${base} (${parts.join(', ')})`:base;
+}
 function houseLabel(n){return currentLocale==='en'?`House ${n}`:`${n}. Ev`;}
 function tzBadgeText(offsetStr,year,cityName){
   return currentLocale==='en'?`${offsetStr} — ${cityName}, ${year}`:`${offsetStr} — ${year} ${t('tzYearSuffix')} ${cityName}`;
@@ -1898,10 +1913,15 @@ function renderFromAPI(data,name,dateStr,timeStr){
     pos[p.key]=lon;
     const dg=dignityInfo(p.dignity,p.dignity_score);
     const pObj=PLANETS.find(x=>x.id===p.key)||{glyph:p.name[0],color:'#888'};
+    // Gezegen adı backend'in p.name alanından DEĞİL (her zaman Türkçe/ASCII -
+    // "Gunes", "Merkur", "Neptun", "Ay Dugumu" - locale'e göre değişmiyor VE
+    // Türkçe karakterler eksik), yerel PLANETS tablosundan (apiPlanetDisplayName,
+    // locale'e göre name/nameEn seçer + backend'in olası parantez notunu -ör.
+    // "(Mean)"- korur, ikisi de doğru aksanlı) okunuyor.
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td><span class="planet-glyph" style="color:${pObj.color}">${planetGlyphHTML(pObj)}</span></td>
-      <td><strong>${p.name}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
+      <td><strong>${apiPlanetDisplayName(pObj,p.name)}</strong>${p.retrograde?'<span style="color:#c84040;font-size:11px"> R</span>':''}</td>
       <td style="font-family:monospace;font-size:12px">${degreeOnly(p.degree_fmt)}</td>
       <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
       <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(p.house)}</td>
