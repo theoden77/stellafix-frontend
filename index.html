@@ -137,8 +137,11 @@
   .category-group:last-child{margin-bottom:0;}
   .category-group-label{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--lapis);text-transform:uppercase;margin-bottom:8px;}
   .category-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
-  .category-card{text-align:left;background:var(--parchment);border:1px solid var(--rule);border-radius:11px;padding:13px 15px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;}
+  .category-card{position:relative;text-align:left;background:var(--parchment);border:1px solid var(--rule);border-radius:11px;padding:13px 15px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;}
   .category-card:hover{background:#fff;border-color:var(--lapis);box-shadow:0 4px 12px rgba(30,27,46,.08);}
+  .category-card.locked{opacity:.55;background:var(--parchment-dark);}
+  .category-card.locked:hover{opacity:.85;border-color:var(--rule);box-shadow:none;}
+  .category-lock-icon{position:absolute;top:10px;right:12px;font-size:12px;opacity:.7;}
   .category-card-title{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px;}
   .category-card-desc{font-size:12px;color:var(--ink);opacity:.6;line-height:1.4;}
   .chat-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--rule);}
@@ -539,6 +542,7 @@ const I18N = {
     errQuestionCreditsExhausted: "Bu rapor için soru hakkın doldu.",
     errCreditsGeneric: "Hakkın doldu.",
     errForbidden: "Bu rapora erişimin yok.",
+    errCategoryLocked: "Bu değerlendirme abonelere özel.",
     errNotFoundSession: "Bu görüşme bulunamadı, lütfen yeniden başla.",
     errRateLimited: "Biraz hızlı gidiyorsun, bir dakika bekleyip tekrar dene.",
     errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
@@ -677,6 +681,7 @@ const I18N = {
     errQuestionCreditsExhausted: "You've used your questions for this report.",
     errCreditsGeneric: "You're out of credits.",
     errForbidden: "You don't have access to this report.",
+    errCategoryLocked: "This reading is for subscribers only.",
     errNotFoundSession: "This conversation couldn't be found, please start again.",
     errRateLimited: "You're going a bit fast — wait a minute and try again.",
     errInvalidInput: "Something in your request wasn't valid, please try again.",
@@ -905,6 +910,11 @@ function renderCreditStatus(){
   const isSubscribed=loggedIn&&!!(creditBalance&&creditBalance.has_active_subscription);
   document.getElementById('premiumBadge').style.display=isSubscribed?'inline-block':'none';
   document.getElementById('authUpgradeBtn').style.display=(loggedIn&&!isSubscribed)?'inline-block':'none';
+  // Kategori kartlarının kilitli/açık görünümü de aynı veriye (has_active_
+  // subscription) bağlı - bakiye her değiştiğinde (giriş/çıkış, locale,
+  // ilk yükleme) ızgarayı da tazele (kategori paneli henüz render
+  // edilmediyse renderCategoryGrid kendi içinde no-op).
+  renderCategoryGrid();
 
   const el=document.getElementById('reportCreditStatus');
   if(!loggedIn||!creditBalance){ el.style.display='none'; return; }
@@ -1124,6 +1134,15 @@ function interpretErrorInfo(status,body){
     if(body.credit_type==='report')return{textKey:'errReportCreditsExhausted',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
     if(body.credit_type==='question')return{textKey:'errQuestionCreditsExhausted',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
     return{textKey:'errCreditsGeneric',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
+  }
+  if(status===403&&body&&body.error==='category_requires_subscription'){
+    // stellafix-api PR #30 - bu, session sahipliği (errForbidden) ile AYNI HTTP
+    // kodunu ama FARKLI bir `error` alanını paylaşıyor; ayrı ele alınmazsa
+    // aboneliğe özel bir kategoriye tıklayan kullanıcı yanlışlıkla "bu rapora
+    // erişimin yok" görür. Önleyici kontrol (selectCategory içinde) bunu
+    // normalde hiç API'ye ulaştırmıyor - bu dal sadece SAVUNMACI (abonelik
+    // oturum ortasında bitmişse) devreye girer.
+    return{textKey:'errCategoryLocked',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
   }
   if(status===403)return{textKey:'errForbidden',ctaKey:'ctaBackToCategories',onCta:backToCategories};
   if(status===404)return{textKey:'errNotFoundSession',ctaKey:'ctaBackToCategories',onCta:backToCategories};
@@ -2720,6 +2739,28 @@ const CATEGORY_ICONS={
   eclipse_nearest:'🌑',
 };
 
+// stellafix-api PR #30: bu üç zaman-bazlı kategori artık sadece aktif
+// aboneliği olan kullanıcılara açık. Kilitliyi belirlemek için JWT'deki
+// subscription_tier'a DEĞİL (giriş anının fotoğrafı), gerçek zamanlı
+// creditBalance.has_active_subscription'a bakılıyor - bkz. isCategoryLocked.
+const SUBSCRIBER_ONLY_CATEGORIES=['weekly_review','monthly_review','yearly_review'];
+function isCategoryLocked(catId){
+  if(!SUBSCRIBER_ONLY_CATEGORIES.includes(catId))return false;
+  // Bakiye henüz çekilmediyse (creditBalance===null - sayfa yeni yüklendi ya
+  // da giriş henüz yapılmadı) güvenli taraf kilitli GÖRÜNÜMDÜR (aşağıdaki
+  // görsel içindir); ama TIKLAMA anında selectCategory kendi kontrolünü
+  // yapar - bakiye hâlâ yüklenmediyse kilitlemez, API'ye bırakır (bkz. orada).
+  return !(creditBalance&&creditBalance.has_active_subscription);
+}
+// selectCategory'nin önleyici geçiş kontrolü - isCategoryLocked'tan (görsel)
+// KASITLI OLARAK farklı: bakiye henüz yüklenmediyse (creditBalance===null)
+// ENGELLEMEZ, API'ye bırakır (403/category_requires_subscription savunmacı
+// dalı yakalar) - aksi halde bakiyesi henüz gelmemiş gerçek bir abone,
+// sırf zamanlama yüzünden yanlışlıkla kilitlenmiş görünür.
+function categoryBlockedByLock(catId){
+  return SUBSCRIBER_ONLY_CATEGORIES.includes(catId)&&!!creditBalance&&!creditBalance.has_active_subscription;
+}
+
 // ============================================================
 // HOMEPAGE — kategori önizleme rozetleri, natal form'a kaydırma
 // ============================================================
@@ -2836,20 +2877,21 @@ function resetInterpretArea(){
   rem.classList.remove('exhausted');
   document.getElementById('chatPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='block';
-  renderCategoryGrid();
-  renderCreditStatus();
+  renderCreditStatus(); // renderCategoryGrid'i de kendi içinde çağırır
 }
 
 function renderCategoryGrid(){
   const wrap=document.getElementById('categoryGroups');
   if(!wrap)return;
   wrap.innerHTML=CATEGORY_GROUPS.map(g=>{
-    const cards=CATEGORIES.filter(c=>c.group===g.id).map(c=>
-      `<button type="button" class="category-card" onclick="selectCategory('${c.id}')">`+
-      `<div class="category-card-title">${t(c.titleKey)}</div>`+
-      `<div class="category-card-desc">${t(c.descKey)}</div>`+
-      `</button>`
-    ).join('');
+    const cards=CATEGORIES.filter(c=>c.group===g.id).map(c=>{
+      const locked=isCategoryLocked(c.id);
+      return `<button type="button" class="category-card${locked?' locked':''}" onclick="selectCategory('${c.id}')">`+
+        (locked?`<span class="category-lock-icon" aria-hidden="true">🔒</span>`:'')+
+        `<div class="category-card-title">${t(c.titleKey)}</div>`+
+        `<div class="category-card-desc">${t(c.descKey)}</div>`+
+        `</button>`;
+    }).join('');
     return `<div class="category-group"><div class="category-group-label">${t(g.labelKey)}</div>`+
       `<div class="category-cards">${cards}</div></div>`;
   }).join('');
@@ -2952,6 +2994,21 @@ async function selectCategory(catId){
   document.getElementById('chatRemaining').textContent='';
   interpretSessionId=null;
   questionCreditInfo=null;
+
+  // Önleyici kontrol (stellafix-api PR #30): kilitli bir kategoriye
+  // tıklandığında API'ye HİÇ gitmeden, mevcut jargonsuz hata-balonu +
+  // aksiyon-butonu altyapısıyla (appendChatBubble) aynı mesaj gösterilir.
+  // Backend sırası auth→rate limit→kategori erişimi→kredi harcaması
+  // olduğundan zaten rapor hakkı düşmüyor, ama boşuna bir round-trip de
+  // gerekmiyor. Bakiye henüz yüklenmediyse engellemez - bkz.
+  // categoryBlockedByLock üstündeki not.
+  if(categoryBlockedByLock(catId)){
+    appendChatBubble('error',t('errCategoryLocked'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
+    document.getElementById('chatInput').disabled=true;
+    document.getElementById('chatSendBtn').disabled=true;
+    return;
+  }
+
   showChatLoading(true);
   try{
     const resp=await fetch(`${API_URL}/api/v1/interpret/start`,{
