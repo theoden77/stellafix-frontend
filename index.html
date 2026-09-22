@@ -789,9 +789,15 @@ function updateTechToggleLabel(){
   const el=document.getElementById('techToggleLabel');
   if(el)el.textContent=t(techDetailsVisible?'btnHideTechnical':'btnShowTechnical');
 }
-// Son başarıyla hesaplanan doğum verisi — dil değişince backend'i aynı
-// veriyle yeni locale'de tekrar sorgulamak için kullanılır
+// Son başarıyla hesaplanan doğum verisi (form alanlarını geri doldurmak için)
+// ve backend'in ham yanıtı (dil değişince YENİDEN İSTEK ATMADAN, elde tutulan
+// veriden tüm harita bölümlerini yeniden render etmek için). Önceden burada
+// backend'i aynı veriyle yeni locale'de tekrar sorguluyorduk - ama bu, re-fetch
+// başarısız olursa (ör. geçici ağ hatası) eski locale'deki haritanın hata
+// mesajının ALTINDA sessizce kalmasına yol açıyordu (statik metin İngilizce'ye
+// geçerken tablo Türkçe kalıyordu). Artık ağ hiç devreye girmiyor.
 let lastCalculatedBirthData=null;
+let lastApiData=null;
 
 function setLocale(loc){
   if(loc===currentLocale)return;
@@ -800,14 +806,20 @@ function setLocale(loc){
   updateTzBadge();
   renderCreditStatus();
   updateRemainingUI();
-  if(lastCalculatedBirthData){
+  if(lastApiData&&lastCalculatedBirthData){
     const d=lastCalculatedBirthData;
     document.getElementById('birthDate').value=d.dateStr;
     document.getElementById('birthTime').value=d.timeStr;
     document.getElementById('nameInput').value=d.nameInputRaw;
     document.getElementById('houseSystem').value=d.houseSystem;
     selectedCity=d.city;
-    calculateChart();
+    const name=d.nameInputRaw||(currentLocale==='en'?'Natal Chart':'Natal Harita');
+    try{
+      renderFromAPI(lastApiData,name,d.dateStr,d.timeStr);
+    }catch(renderErr){
+      console.error('Locale switch re-render error:',renderErr);
+      showErr(t('errRenderFailed'));
+    }
   }
 }
 
@@ -1723,6 +1735,9 @@ async function calculateChart(){
     }
 
     const data = await resp.json();
+    // Ham yanıt saklanıyor - dil değişince (setLocale) bu veriden backend'e
+    // tekrar sormadan yeniden render edilecek.
+    lastApiData=data;
     // renderFromAPI'nin İÇİNDEKİ bir hata (beklenmeyen veri şekli, eksik
     // alan vb.) artık AĞ hatasıyla AYNI catch'e düşmüyor - ayrı bir mesaj
     // gösteriyor ve gerçek hatayı console'a yazıyor. Bir render bug'ının
