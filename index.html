@@ -789,9 +789,15 @@ function updateTechToggleLabel(){
   const el=document.getElementById('techToggleLabel');
   if(el)el.textContent=t(techDetailsVisible?'btnHideTechnical':'btnShowTechnical');
 }
-// Son başarıyla hesaplanan doğum verisi — dil değişince backend'i aynı
-// veriyle yeni locale'de tekrar sorgulamak için kullanılır
+// Son başarıyla hesaplanan doğum verisi (form alanlarını geri doldurmak için)
+// ve backend'in ham yanıtı (dil değişince YENİDEN İSTEK ATMADAN, elde tutulan
+// veriden tüm harita bölümlerini yeniden render etmek için). Önceden burada
+// backend'i aynı veriyle yeni locale'de tekrar sorguluyorduk - ama bu, re-fetch
+// başarısız olursa (ör. geçici ağ hatası) eski locale'deki haritanın hata
+// mesajının ALTINDA sessizce kalmasına yol açıyordu (statik metin İngilizce'ye
+// geçerken tablo Türkçe kalıyordu). Artık ağ hiç devreye girmiyor.
 let lastCalculatedBirthData=null;
+let lastApiData=null;
 
 function setLocale(loc){
   if(loc===currentLocale)return;
@@ -800,14 +806,20 @@ function setLocale(loc){
   updateTzBadge();
   renderCreditStatus();
   updateRemainingUI();
-  if(lastCalculatedBirthData){
+  if(lastApiData&&lastCalculatedBirthData){
     const d=lastCalculatedBirthData;
     document.getElementById('birthDate').value=d.dateStr;
     document.getElementById('birthTime').value=d.timeStr;
     document.getElementById('nameInput').value=d.nameInputRaw;
     document.getElementById('houseSystem').value=d.houseSystem;
     selectedCity=d.city;
-    calculateChart();
+    const name=d.nameInputRaw||(currentLocale==='en'?'Natal Chart':'Natal Harita');
+    try{
+      renderFromAPI(lastApiData,name,d.dateStr,d.timeStr);
+    }catch(renderErr){
+      console.error('Locale switch re-render error:',renderErr);
+      showErr(t('errRenderFailed'));
+    }
   }
 }
 
@@ -1723,6 +1735,9 @@ async function calculateChart(){
     }
 
     const data = await resp.json();
+    // Ham yanıt saklanıyor - dil değişince (setLocale) bu veriden backend'e
+    // tekrar sormadan yeniden render edilecek.
+    lastApiData=data;
     // renderFromAPI'nin İÇİNDEKİ bir hata (beklenmeyen veri şekli, eksik
     // alan vb.) artık AĞ hatasıyla AYNI catch'e düşmüyor - ayrı bir mesaj
     // gösteriyor ve gerçek hatayı console'a yazıyor. Bir render bug'ının
@@ -2457,13 +2472,15 @@ function renderWheel(pos,ascDeg,cusps,mc){
     }
   });
 
-  // AÇI DİSKİ (<0.45R): SADECE açı çizgileri + açı sembolleri. Gezegenlerin
-  // gerçek boylamları arasında, açı diskinin (ASPECT_OUT) sınırında çizilir,
+  // AÇI DİSKİ (<0.45R): açı çizgileri + açı sembolleri. Gezegenlerin gerçek
+  // boylamları arasında, açı diskinin (ASPECT_OUT) sınırında çizilir,
   // astro.com tarzı. Sert açılar (kavuşum/kare/karşıt) kırmızı, yumuşak
-  // açılar (sextil/üçgen) mavi; her açının orta noktasına küçük bir sembol
-  // (☌ □ △ ✶ ☍) konur. <g class="tech-details-field"> ile mevcut "Teknik
-  // Detayları Göster/Gizle" toggle'ının aynısına bağlı - varsayılan gizli.
-  let aspectLines='';
+  // açılar (sextil/üçgen) mavi. Çizgiler haritanın görsel bütünlüğünün
+  // parçası (Solar Fire referansında her zaman görünür) - varsayılan
+  // GÖRÜNÜR, toggle'a bağlı değil. Sembol katmanı (☌ □ △ ✶ ☍) ayrı bir
+  // <g> - hâlâ "Teknik Detayları Göster/Gizle" toggle'ına bağlı, varsayılan
+  // gizli (yoğun haritalarda merkezde okunabilirliği bozuyor - ölçüldü).
+  let aspectLines='',aspectSymbols='';
   for(let i=0;i<drawnPlanets.length;i++){
     for(let j=i+1;j<drawnPlanets.length;j++){
       const p1=drawnPlanets[i],p2=drawnPlanets[j];
@@ -2474,10 +2491,11 @@ function renderWheel(pos,ascDeg,cusps,mc){
       const col=asp.hard?'#DC2626':'#2563EB';
       aspectLines+=`<line x1="${ax1l}" y1="${ay1l}" x2="${ax2l}" y2="${ay2l}" stroke="${col}" stroke-width="0.8" opacity="0.6"/>`;
       const midx=(ax1l+ax2l)/2,midy=(ay1l+ay2l)/2;
-      aspectLines+=`<text x="${midx}" y="${midy}" text-anchor="middle" dominant-baseline="central" font-size="6.5" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}" opacity="0.85">${asp.symbol}</text>`;
+      aspectSymbols+=`<text x="${midx}" y="${midy}" text-anchor="middle" dominant-baseline="central" font-size="6.5" font-family="${SYMBOL_FONT_FAMILY}" fill="${col}" opacity="0.85">${asp.symbol}</text>`;
     }
   }
-  if(aspectLines)h+=`<g class="tech-details-field">${aspectLines}</g>`;
+  if(aspectLines)h+=`<g>${aspectLines}</g>`;
+  if(aspectSymbols)h+=`<g class="tech-details-field">${aspectSymbols}</g>`;
 
   // ASC — tanım gereği her zaman saat 9 yönünde (wheelAngle(ascDeg,ascDeg)=180°);
   // artık sabit yatay çizgi değil, wheel'in gerçek dönüş referans noktası
