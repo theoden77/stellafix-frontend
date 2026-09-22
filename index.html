@@ -472,7 +472,14 @@
 // BACKEND API
 // ============================================================
 const API_URL = "https://api.stellafix.io";
-let useBackend = true; // false yapınca JS hesabına döner
+// 13. tur: JS yaklaşık hesap fallback'i tamamen kaldırıldı - Merkür/Venüs/
+// Mars/Jüpiter/Satürn için heliosentrik boylamı geosentrik (zodyaktaki
+// gerçek) konummuş gibi gösteriyordu (Venüs örneğinde 145° hata ölçüldü -
+// yanlış burç, yanlış ev, "Harita Lordu"/dignity analizi baştan yanlış).
+// Backend'e ulaşılamadığında artık harita HİÇ gösterilmiyor, sadece hata
+// mesajı (bkz. calculateChart) - "veri olmadan analiz yapılmaz" ilkesi.
+// fetch'e artık bir zaman aşımı da var - bkz. CALC_TIMEOUT_MS.
+const CALC_TIMEOUT_MS=45000;
 
 // ============================================================
 // I18N — tarayıcı oturumu boyunca (sayfa yenilenene kadar) hatırlanır,
@@ -508,15 +515,12 @@ const I18N = {
     houseSectionTitle: "Ev Başlangıçları",
     errNoDateTime: "Doğum tarihi ve saati gereklidir.",
     errNoCity: "Lütfen doğum yerini seçin. Şehir adı yazıp listeden tıklayın.",
-    errFileProtocol: "⚠️ API bağlantısı için dosyayı bir web sunucusundan açın veya aşağıdaki GitHub Pages linkini kullanın. Şimdilik JS hesabına geçiliyor...",
+    errFileProtocol: "⚠️ API bağlantısı için dosyayı bir web sunucusundan aç veya aşağıdaki GitHub Pages linkini kullan.",
     errApiPrefix: "API Hatası: ",
-    errConnPrefix: "Bağlantı hatası: ",
-    errConnSuffix: ". JS hesabına geçiliyor...",
+    errCalcFailed: "Şu an haritanı hesaplayamadık - bağlantı sorunu olabilir. Birkaç saniye sonra tekrar dene.",
+    errRenderFailed: "Harita hesaplandı ama gösterilirken beklenmedik bir sorun oluştu. Tekrar dene.",
     sunLabel: "Güneş", moonLabel: "Ay",
     ptsWord: "puan",
-    dayLabel: "☀️ Gündüz", nightLabel: "🌙 Gece",
-    chartLabel: "haritası",
-    jsApproxNote: "⚠️ JS yaklaşık hesap",
     fullAnalysisNote: "Tam analiz için: Natal gösterge + Zaman Lordu + Transit tetik zinciri.",
     tzYearSuffix: "yılı",
     interpretPanelTitle: "Yıldızlarla Sohbet Et",
@@ -647,15 +651,12 @@ const I18N = {
     houseSectionTitle: "House Cusps",
     errNoDateTime: "Birth date and time are required.",
     errNoCity: "Please select a birth place. Type a city name and click one from the list.",
-    errFileProtocol: "⚠️ Open this file from a web server to use the API connection. Falling back to the JS calculator for now...",
+    errFileProtocol: "⚠️ Open this file from a web server to use the API connection.",
     errApiPrefix: "API Error: ",
-    errConnPrefix: "Connection error: ",
-    errConnSuffix: ". Falling back to JS calculation...",
+    errCalcFailed: "We couldn't calculate your chart right now - there may be a connection issue. Please try again in a few seconds.",
+    errRenderFailed: "Your chart was calculated but something unexpected happened while displaying it. Please try again.",
     sunLabel: "Sun", moonLabel: "Moon",
     ptsWord: "pts",
-    dayLabel: "☀️ Day", nightLabel: "🌙 Night",
-    chartLabel: "chart",
-    jsApproxNote: "⚠️ JS approximate calculation",
     fullAnalysisNote: "For full analysis: Natal significator + Time Lord + Transit trigger chain.",
     tzYearSuffix: "",
     interpretPanelTitle: "Chat with the Stars",
@@ -1616,30 +1617,6 @@ function sentPlanetDignity(kind,planetLabel,sign,deg,dignityLabel,scoreText,scor
     ? `<strong>${planetLabel}</strong> is at ${deg} ${sign} — <em>${dignityLabel}</em> (${scoreText} ${t('ptsWord')}). ${advice}`
     : `<strong>${planetLabel}</strong> ${sign} ${deg}'de — <em>${dignityLabel}</em> (${scoreText} ${t('ptsWord')}). ${advice}`;
 }
-const DIGNITY={
-  sun:{domicile:[4],exaltation:{sign:0,degree:19},detriment:[10],fall:{sign:6,degree:19},td:[0,4,8],tn:[0,4,8]},
-  moon:{domicile:[3],exaltation:{sign:1,degree:3},detriment:[9],fall:{sign:7,degree:3},td:[3,7,11],tn:[3,7,11]},
-  mercury:{domicile:[2,5],exaltation:{sign:5,degree:15},detriment:[8,11],fall:{sign:11,degree:15},td:[1,5,9],tn:[1,5,9]},
-  venus:{domicile:[1,6],exaltation:{sign:11,degree:27},detriment:[7,0],fall:{sign:5,degree:27},td:[3,7,11],tn:[1,5,9]},
-  mars:{domicile:[0,7],exaltation:{sign:9,degree:28},detriment:[1,6],fall:{sign:3,degree:28},td:[0,4,8],tn:[0,4,8]},
-  jupiter:{domicile:[8,11],exaltation:{sign:3,degree:15},detriment:[2,5],fall:{sign:9,degree:15},td:[1,5,9],tn:[3,7,11]},
-  saturn:{domicile:[9,10],exaltation:{sign:6,degree:21},detriment:[3,4],fall:{sign:0,degree:21},td:[2,6,10],tn:[2,6,10]},
-};
-const TERMS=[
-  [['jupiter',6],['venus',14],['mercury',21],['mars',26],['saturn',30]],
-  [['venus',8],['mercury',15],['jupiter',22],['saturn',26],['mars',30]],
-  [['mercury',7],['jupiter',14],['venus',21],['saturn',25],['mars',30]],
-  [['mars',6],['jupiter',13],['mercury',20],['venus',27],['saturn',30]],
-  [['jupiter',6],['venus',13],['saturn',19],['mercury',25],['mars',30]],
-  [['mercury',7],['venus',13],['jupiter',18],['saturn',24],['mars',30]],
-  [['saturn',6],['mercury',14],['jupiter',21],['venus',28],['mars',30]],
-  [['mars',7],['venus',11],['mercury',19],['jupiter',24],['saturn',30]],
-  [['jupiter',8],['venus',14],['mercury',19],['saturn',25],['mars',30]],
-  [['mercury',7],['jupiter',14],['venus',22],['saturn',26],['mars',30]],
-  [['mercury',7],['venus',13],['jupiter',20],['mars',25],['saturn',30]],
-  [['venus',8],['jupiter',14],['mercury',20],['mars',26],['saturn',30]],
-];
-const FL=[['mars','sun','venus'],['mercury','moon','saturn'],['jupiter','mars','sun'],['venus','mercury','moon'],['saturn','jupiter','mars'],['sun','venus','mercury'],['moon','saturn','jupiter'],['mars','sun','venus'],['mercury','moon','saturn'],['jupiter','mars','sun'],['venus','mercury','moon'],['saturn','jupiter','mars']];
 
 function norm(d){return((d%360)+360)%360;}
 function fmtDeg(d){const dd=Math.floor(d),m=Math.floor((d-dd)*60),s=Math.floor(((d-dd)*60-m)*60);return`${dd}°${m}'${s}"`;}
@@ -1654,127 +1631,6 @@ function fmtDegSignMinInSign(lon){
   const l=norm(lon),inSign=l%30,dd=Math.floor(inSign),mm=Math.floor((inSign-dd)*60),si=Math.floor(l/30);
   return`${dd}°${SIGN_GLYPHS[si]}${String(mm).padStart(2,'0')}'`;
 }
-function jd(y,mo,d,h,mi){if(mo<=2){y--;mo+=12;}const A=Math.floor(y/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(mo+1))+d+h/24+mi/1440+B-1524.5;}
-
-function calcPlanets(JD){
-  const T=(JD-2451545)/36525;
-  const r=Math.PI/180;
-
-  // Kepler denklemi
-  function kepE(M,e){let E=M;for(let i=0;i<12;i++)E=M+e*Math.sin(E);return E;}
-  // Gerçek anomali → derece
-  function trueAnom(M_deg,e){
-    const M=norm(M_deg)*r;
-    const E=kepE(M,e);
-    return 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2),Math.sqrt(1-e)*Math.cos(E/2))/r;
-  }
-
-  // ── GÜNEŞ ──────────────────────────────────────────────────
-  const sL=norm(280.46646+36000.76983*T+0.0003032*T*T);
-  const sM=norm(357.52911+35999.05029*T-0.0001537*T*T)*r;
-  const sC=(1.914602-0.004817*T-0.000014*T*T)*Math.sin(sM)
-          +(0.019993-0.000101*T)*Math.sin(2*sM)
-          +0.000290*Math.sin(3*sM);
-  const sun=norm(sL+sC-0.00569-0.00478*Math.sin((125.04-1934.136*T)*r));
-
-  // ── AY ──────────────────────────────────────────────────────
-  const D   =norm(297.85036+445267.111480*T-0.0019142*T*T)*r;
-  const Msun=norm(357.52772+35999.050340*T-0.0001603*T*T)*r;
-  const Mm  =norm(134.96298+477198.867398*T+0.0086972*T*T)*r;
-  const Fm  =norm( 93.27191+483202.017538*T-0.0036825*T*T)*r;
-  const moon=norm(218.3165+481267.8813*T
-    +6.289*Math.sin(Mm)       -1.274*Math.sin(Mm-2*D)
-    +0.658*Math.sin(2*D)      +0.214*Math.sin(2*Mm)
-    -0.186*Math.sin(Msun)     -0.114*Math.sin(2*Fm)
-    +0.059*Math.sin(2*Mm-2*D) -0.057*Math.sin(Mm-2*D+Msun)
-    +0.053*Math.sin(Mm+2*D)   +0.046*Math.sin(2*D-Msun)
-    +0.041*Math.sin(Mm-Msun)  -0.035*Math.sin(D)
-    -0.031*Math.sin(Mm+Msun)  -0.015*Math.sin(2*Fm-2*D)
-    +0.011*Math.sin(Mm-4*D));
-
-  // ── MERKÜR ──────────────────────────────────────────────────
-  // Meeus Ch.31: orbital elemanlar + pertürbasyonlar
-  const Me_L=norm(252.250906+149472.6746358*T-0.00000536*T*T);
-  const Me_w=norm( 77.456119+  0.1588643*T+0.00001342*T*T);
-  const Me_e=0.20563069+0.00002527*T-0.0000000018*T*T;
-  const Me_v=trueAnom(Me_L-Me_w, Me_e);
-  const Ju_L_=norm(34.351519+3034.9056746*T);
-  const Sa_L_=norm(50.077444+1222.1138488*T);
-  const Me_pert=
-    +0.00204*Math.sin(norm(5*Ju_L_-2*Me_L+12.22)*r)
-    +0.00103*Math.sin(norm(2*Ju_L_-  Me_L-160.918)*r)
-    +0.00091*Math.sin(norm(2*Sa_L_-  Me_L-  3.6  )*r)
-    +0.00078*Math.sin(norm(5*Ju_L_-3*Me_L+  2.0  )*r);
-  const mercury=norm(Me_v+Me_w+Me_pert);
-
-  // ── VENÜS ──────────────────────────────────────────────────
-  const Ve_L=norm(181.979801+58517.8156760*T+0.00000165*T*T);
-  const Ve_w=norm(131.563703+  0.00484*T-0.00138*T*T);
-  const Ve_e=0.00677188-0.000047766*T+0.0000000975*T*T;
-  const Ve_v=trueAnom(Ve_L-Ve_w, Ve_e);
-  const Ve_pert=
-    +0.00313*Math.sin(norm(2*Ve_L -2*Me_L       )*r)
-    -0.00097*Math.sin(norm(4*Ve_L -8*Me_L+3*Ju_L_)*r)
-    +0.00072*Math.sin(norm(  Ve_L -  Me_L        )*r)
-    -0.00050*Math.sin(norm(2*Ve_L -3*Me_L        )*r);
-  const venus=norm(Ve_v+Ve_w+Ve_pert);
-
-  // ── MARS ────────────────────────────────────────────────────
-  const Ma_L=norm(355.433000+19140.2993313*T+0.00000261*T*T);
-  const Ma_w=norm(336.060234+  0.4439016*T+0.00001735*T*T);
-  const Ma_e=0.09340062+0.000090483*T-0.0000000806*T*T;
-  const Ma_v=trueAnom(Ma_L-Ma_w, Ma_e);
-  // Jüpiter pertürbasyonu — büyük terimler (Meeus Tablo 33.c)
-  const Ma_pert=
-    +0.65024*Math.sin(norm(  Ma_L-2*Ju_L_+49.0 )*r)
-    +0.16094*Math.sin(norm(2*Ma_L-4*Ju_L_+49.0 )*r)
-    -0.04976*Math.sin(norm(  Ma_L-3*Ju_L_+13.0 )*r)
-    +0.00986*Math.sin(norm(2*Ma_L-3*Ju_L_+124.0)*r)
-    -0.00536*Math.sin(norm(3*Ma_L-6*Ju_L_+49.0 )*r);
-  const mars=norm(Ma_v+Ma_w+Ma_pert);
-
-  // ── JÜPİTER ─────────────────────────────────────────────────
-  const Ju_L=norm(34.351519+3034.9056746*T-0.00008501*T*T);
-  const Ju_w=norm(14.331309+  0.21847*T+0.00018*T*T);
-  const Ju_e=0.04849485+0.000163244*T-0.0000004719*T*T;
-  const Ju_v=trueAnom(Ju_L-Ju_w, Ju_e);
-  const Sa_L=norm(50.077444+1222.1138488*T);
-  const G =norm(2*Ju_L-5*Sa_L-67.6)*r;  // büyük eşitsizlik
-  const Ju_pert=
-    -0.33200*Math.sin(G)
-    -0.05600*Math.sin(2*G)
-    +0.04200*Math.cos(G)
-    +0.01400*Math.cos(2*G)
-    -0.01400*Math.sin(G-norm(Ju_L)*r);
-  const jupiter=norm(Ju_v+Ju_w+Ju_pert);
-
-  // ── SATÜRN ──────────────────────────────────────────────────
-  const Sa_w=norm(93.057237+0.5667*T+0.00052*T*T);
-  const Sa_e=0.05550825-0.000346641*T-0.0000006488*T*T;
-  const Sa_v=trueAnom(Sa_L-Sa_w, Sa_e);
-  const G2=norm(2*Ju_L-5*Sa_L-67.6)*r;
-  const Sa_pert=
-    +0.81200*Math.sin(G2)
-    +0.22900*Math.cos(G2)
-    -0.01900*Math.sin(2*G2)
-    +0.02100*Math.cos(2*G2)
-    -0.01600*Math.sin(G2-norm(Sa_L)*r);
-  const saturn=norm(Sa_v+Sa_w+Sa_pert);
-
-  return{sun,moon,mercury,venus,mars,jupiter,saturn};
-}
-
-function calcASC(JD,lat,lon){
-  const T=(JD-2451545)/36525;
-  const theta=norm(280.46061837+360.98564736629*(JD-2451545)+0.000387933*T*T);
-  const RAMC=norm(theta+lon);
-  const eps=(23.439291111-0.013004167*T)*Math.PI/180;
-  const latR=lat*Math.PI/180,RR=RAMC*Math.PI/180;
-  return norm(Math.atan2(Math.cos(RR),-(Math.sin(RR)*Math.cos(eps)+Math.tan(latR)*Math.sin(eps)))*180/Math.PI);
-}
-
-function lonToSign(l){return{si:Math.floor(l/30),deg:l%30};}
-
 // Backend response şeması alan isimleri sürüme göre değişebilir
 // (sign_index sayısı, sign metni veya sadece lon) — ikisini de destekle
 function signIndexOf(signIndexField,signNameField,lonField){
@@ -1805,21 +1661,6 @@ function dignityInfo(dignityArr,score){
   return{badges,label:names.join(', '),scoreText:(score>0?'+':'')+score,neg:score<0,pct:Math.max(0,(score/5)*100)};
 }
 
-function getDignity(pid,si,deg,day){
-  if(pid==='asc')return{d:'—',s:0,c:''};
-  const dg=DIGNITY[pid];if(!dg)return{d:'Peregrine',s:0,c:'d-peregrine'};
-  if(dg.domicile.includes(si))return{d:'Domicile',s:5,c:'d-domicile'};
-  if(dg.detriment&&dg.detriment.includes(si))return{d:'Detriment',s:-5,c:'d-detriment'};
-  if(dg.exaltation&&dg.exaltation.sign===si)return{d:'Exaltation',s:4,c:'d-exaltation'};
-  if(dg.fall&&dg.fall.sign===si)return{d:'Fall',s:-4,c:'d-fall'};
-  const tri=day?dg.td:dg.tn;
-  if(tri&&tri.includes(si))return{d:'Triplicity',s:3,c:'d-triplicity'};
-  const term=TERMS[si].find(([,m],i,a)=>deg<m)?.[0];
-  if(term===pid)return{d:'Term',s:2,c:'d-term'};
-  if(FL[si][Math.floor(deg/10)]===pid)return{d:'Face',s:1,c:'d-face'};
-  return{d:'Peregrine',s:0,c:'d-peregrine'};
-}
-
 // ============================================================
 // ANA HESAPLAMA
 // ============================================================
@@ -1838,63 +1679,73 @@ async function calculateChart(){
   // sorgulayabilmek için son hesaplamada kullanılan girdileri sakla
   lastCalculatedBirthData={dateStr,timeStr,nameInputRaw,houseSystem,city:{...selectedCity}};
 
-  const[y,mo,d]=dateStr.split('-').map(Number);
-  const[lh,lm]=timeStr.split(':').map(Number);
-
-  // Backend API kullan
-  if(useBackend){
-    const btn=document.getElementById('calcBtn');
-    btn.textContent=t('btnCalculating');
-    btn.disabled=true;
-
-    try {
-      // file:// protokolünde çalışmaz — HTTP sunucusunda açılmalı
-      if(window.location.protocol === 'file:'){
-        showErr(t('errFileProtocol'));
-        useBackend=false;
-        calculateChartJS(y,mo,d,lh,lm,name,houseSystem);
-        document.getElementById('calcBtn').textContent=t('btnCalculate');
-        document.getElementById('calcBtn').disabled=false;
-        return;
-      }
-      const resp = await fetch(`${API_URL}/natal?locale=${currentLocale}`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json',...authHeaders()},
-        body: JSON.stringify({
-          name:name,
-          birth_date:dateStr, // "YYYY-MM-DD" — <input type="date"> zaten bu formatta
-          birth_time:timeStr, // "HH:MM" — <input type="time"> zaten bu formatta
-          birth_place:`${selectedCity.name}, ${selectedCity.country}`,
-          latitude:selectedCity.lat,
-          longitude:selectedCity.lon
-        })
-      });
-
-      if(!resp.ok){
-        if(resp.status===403){
-          showErr(t('errPersonLimit'));
-          return;
-        }
-        let err={}; try{ err=await resp.json(); }catch(e){}
-        showErr(`${t('errApiPrefix')}${err.detail||resp.status}`);
-        return;
-      }
-
-      const data = await resp.json();
-      renderFromAPI(data,name,dateStr,timeStr);
-
-    } catch(e){
-      showErr(`${t('errConnPrefix')}${e.message}${t('errConnSuffix')}`);
-      useBackend=false;
-      calculateChartJS(y,mo,d,lh,lm,name,houseSystem);
-    } finally {
-      btn.textContent=t('btnCalculate');
-      btn.disabled=false;
-    }
+  // file:// protokolünde fetch farklı origin'e güvenilir çalışmayabilir -
+  // HTTP sunucusundan açılması gerekiyor. Artık JS fallback'i olmadığından
+  // burada sadece bilgilendirip çıkıyoruz.
+  if(window.location.protocol === 'file:'){
+    showErr(t('errFileProtocol'));
     return;
   }
 
-  calculateChartJS(y,mo,d,lh,lm,name,houseSystem);
+  const btn=document.getElementById('calcBtn');
+  btn.textContent=t('btnCalculating');
+  btn.disabled=true;
+
+  // Backend yanıt vermezse (soğuk başlangıç, geçici kesinti) fetch artık
+  // süresiz beklemiyor - CALC_TIMEOUT_MS sonra istek iptal edilir, kullanıcı
+  // sonsuza kadar "Hesaplanıyor..." durumunda kalmaz.
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),CALC_TIMEOUT_MS);
+
+  try {
+    const resp = await fetch(`${API_URL}/natal?locale=${currentLocale}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json',...authHeaders()},
+      signal: controller.signal,
+      body: JSON.stringify({
+        name:name,
+        birth_date:dateStr, // "YYYY-MM-DD" — <input type="date"> zaten bu formatta
+        birth_time:timeStr, // "HH:MM" — <input type="time"> zaten bu formatta
+        birth_place:`${selectedCity.name}, ${selectedCity.country}`,
+        latitude:selectedCity.lat,
+        longitude:selectedCity.lon
+      })
+    });
+
+    if(!resp.ok){
+      if(resp.status===403){
+        showErr(t('errPersonLimit'));
+        return;
+      }
+      let err={}; try{ err=await resp.json(); }catch(e){}
+      showErr(`${t('errApiPrefix')}${err.detail||resp.status}`);
+      return;
+    }
+
+    const data = await resp.json();
+    // renderFromAPI'nin İÇİNDEKİ bir hata (beklenmeyen veri şekli, eksik
+    // alan vb.) artık AĞ hatasıyla AYNI catch'e düşmüyor - ayrı bir mesaj
+    // gösteriyor ve gerçek hatayı console'a yazıyor. Bir render bug'ının
+    // "sunucuya ulaşılamıyor" gibi görünüp teşhisi gizlemesini önlemek için.
+    try{
+      renderFromAPI(data,name,dateStr,timeStr);
+    }catch(renderErr){
+      console.error('Natal chart render error - backend yanıtı alındı ama işlenemedi:',renderErr);
+      showErr(t('errRenderFailed'));
+    }
+
+  } catch(e){
+    if(e.name==='AbortError'){
+      showErr(t('errCalcFailed'));
+    }else{
+      console.error('Natal chart fetch error:',e);
+      showErr(t('errCalcFailed'));
+    }
+  } finally {
+    clearTimeout(timeoutId);
+    btn.textContent=t('btnCalculate');
+    btn.disabled=false;
+  }
 }
 
 function renderFromAPI(data,name,dateStr,timeStr){
@@ -1936,10 +1787,9 @@ function renderFromAPI(data,name,dateStr,timeStr){
   // Asc satırı — backend'in planets[] listesi bir "gezegen" değil (bkz.
   // stellafix-backend/app/schemas.py: NatalResponse.planets sadece
   // PlanetOut'lardan oluşuyor, Asc ayrı bir üst-seviye float alan), bu yüzden
-  // yukarıdaki döngüye hiç girmiyor - JS-fallback yolundaki (renderTable)
-  // Asc satırıyla tutarlı olacak şekilde burada manuel ekleniyor. Dignity/puan
-  // sütunları getDignity('asc',...)'ın döndürdüğü placeholder'la birebir aynı
-  // ({d:'—',s:0,c:''}) - Asc bir gezegen olmadığı için dignity'si yok.
+  // yukarıdaki döngüye hiç girmiyor - manuel ekleniyor. Dignity/puan
+  // sütunları placeholder ({d:'—',s:0,c:''}) - Asc bir gezegen olmadığı için
+  // dignity'si yok.
   {
     const ascSI=signIndexOf(undefined,data.asc_sign,data.asc);
     const ascDegInSign=norm(data.asc)%30;
@@ -1987,54 +1837,6 @@ function renderFromAPI(data,name,dateStr,timeStr){
 
   // Yıldızlarla Sohbet — sadece gerçek backend'den chart_id geldiğinde kullanılabilir
   showInterpretArea(data.chart_id);
-}
-
-function calculateChartJS(y,mo,d,lh,lm,name,houseSystem){
-  // Fallback JS hesabı (yaklaşık) — backend'e bağlı olmadığı için sohbet özelliği yok
-  showInterpretArea(null);
-  const off=getOffset(selectedCity.tz,y,mo,d);
-  let uh=lh-Math.floor(off), um=lm-Math.round((off%1)*60), dayAdj=0;
-  if(um<0){um+=60;uh--;}if(um>=60){um-=60;uh++;}
-  if(uh<0){uh+=24;dayAdj=-1;}if(uh>=24){uh-=24;dayAdj=1;}
-  const JD=jd(y,mo,d+dayAdj,uh,um);
-  const pos=calcPlanets(JD);
-  pos.asc=calcASC(JD,selectedCity.lat,selectedCity.lon);
-  const daytime=norm(pos.sun-pos.asc)<180;
-  const ascSI=Math.floor(pos.asc/30);
-  const houses=Array.from({length:12},(_,i)=>(ascSI+i)%12);
-  const getH=si=>houses.indexOf(si)+1;
-  const sign=off>=0?'+':'-';
-  const oh=Math.floor(Math.abs(off)),om=Math.round((Math.abs(off)-oh)*60);
-  document.getElementById('chartArea').style.display='grid';
-  document.getElementById('chartMeta').innerHTML=
-    `${name}<br>${selectedCity.name}, ${selectedCity.country}<br>`+
-    `UTC${sign}${oh}:${String(om).padStart(2,'0')} · JD ${JD.toFixed(2)}<br>`+
-    `${daytime?t('dayLabel'):t('nightLabel')} ${t('chartLabel')} · ${t('jsApproxNote')}`;
-  renderTable(pos,daytime,houses,getH);
-  renderWheel(pos,pos.asc,[]);
-  renderAnalysis(pos,daytime,getH);
-  renderHouses(houses);
-}
-
-function renderTable(pos,daytime,houses,getH){
-  const tb=document.getElementById('planetBody');tb.innerHTML='';
-  for(const p of PLANETS){
-    const l=pos[p.id];if(l===undefined)continue;
-    const{si,deg}=lonToSign(l);
-    const dg=getDignity(p.id,si,deg,daytime);
-    const house=p.id==='asc'?1:getH(si);
-    const pct=Math.max(0,(dg.s/5)*100);
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span class="planet-glyph" style="color:${p.color}">${planetGlyphHTML(p)}</span></td>
-      <td><strong>${planetDisplayName(p)}</strong></td>
-      <td style="font-family:monospace;font-size:12px">${fmtDeg(deg)}</td>
-      <td><span style="color:${elementColorOf(si)}">${SIGN_GLYPHS[si]}</span> ${signName(si)}</td>
-      <td style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--lapis)">${houseLabel(house)}</td>
-      <td class="tech-col"><span class="dignity-badge ${dg.c}">${dg.d}</span></td>
-      <td class="tech-col"><span style="font-family:monospace;font-size:12px;color:${dg.s>0?'#15803D':dg.s<0?'#DC2626':'#888'}">${dg.s>0?'+':''}${dg.s}</span>
-      ${p.id!=='asc'?`<div class="score-bar"><div class="score-fill ${dg.s<0?'neg':''}" style="width:${pct}%"></div></div>`:''}</td>`;
-    tb.appendChild(tr);
-  }
 }
 
 // Ekran açısı: ASC her zaman saat 9 yönünde (sol) sabitlenir, wheel bu referansa
@@ -2707,27 +2509,6 @@ function renderWheel(pos,ascDeg,cusps,mc){
 
   h+=`<circle cx="${cx}" cy="${cy}" r="3" fill="#8a8378"/>`;
   svg.innerHTML=h;
-}
-
-function renderAnalysis(pos,daytime,getH){
-  const ss=lonToSign(pos.sun),ms=lonToSign(pos.moon),as_=lonToSign(pos.asc);
-  const sd=getDignity('sun',ss.si,ss.deg,daytime);
-  const md=getDignity('moon',ms.si,ms.deg,daytime);
-  document.getElementById('analysisBox').style.display='block';
-  document.getElementById('analysisText').innerHTML=
-    `${sentChartLord(signName(as_.si),lordName(as_.si))}<br><br>`+
-    `${sentPlanetDignity('sun',t('sunLabel'),signName(ss.si),fmtDeg(ss.deg),sd.d,(sd.s>0?'+':'')+sd.s,sd.s)}<br><br>`+
-    `${sentPlanetDignity('moon',t('moonLabel'),signName(ms.si),fmtDeg(ms.deg),md.d,(md.s>0?'+':'')+md.s,md.s)}<br><br>`+
-    `<em style="font-size:12px;color:#888">${t('fullAnalysisNote')}</em>`;
-}
-
-function renderHouses(houses){
-  const s=document.getElementById('houseStrip');s.innerHTML='';
-  for(let i=0;i<12;i++){
-    const c=document.createElement('div');c.className='house-chip';
-    c.innerHTML=`<strong>${houseLabel(i+1)}</strong>${SIGN_GLYPHS[houses[i]]} ${signName(houses[i])}`;
-    s.appendChild(c);
-  }
 }
 
 function showErr(m){const b=document.getElementById('errorBox');b.textContent=m;b.style.display='block';}
