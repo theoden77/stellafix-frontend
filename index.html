@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stellafix · Klasik Astroloji Demo</title>
+<!-- Favicon: 4 uçlu yıldız (rehber yıldız/astroloji teması), marka renkleriyle
+     (--ink zemin, --gold yıldız, --lapis merkez) - inline SVG data URI, tek
+     dosyalık mimariyle uyumlu (ayrı bir favicon dosyası eklemiyor). -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFFMUIyRSIvPjxwYXRoIGQ9Ik0xNiAzLjUgTDE4LjcgMTMuMyBMMjguNSAxNiBMMTguNyAxOC43IEwxNiAyOC41IEwxMy4zIDE4LjcgTDMuNSAxNiBMMTMuMyAxMy4zIFoiIGZpbGw9IiNENEE1NzQiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIyLjIiIGZpbGw9IiM3QzNBRUQiLz48L3N2Zz4K">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
   /* StellaSymbols: gezegen/burc/acisi sembolleri icin self-hosted webfont subseti.
@@ -51,6 +55,11 @@
   .auth-user-email{font-family:'Inter',sans-serif;font-style:normal;font-size:13px;color:var(--ink);opacity:.65;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .auth-confirm-banner{background:var(--gold-pale);border-bottom:1px solid var(--gold);color:var(--ink);padding:12px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
   .auth-confirm-btn{width:auto;padding:8px 20px;margin-top:0;font-size:11px;}
+  /* "Giriş Yap"a basıldığında, bekleyen bir magic-link token'ı varsa (e-posta
+     kutusu yerine) bu banner'a kaydırılıp kısa bir kez vurgulanıyor - zaten
+     görünür olsa bile kullanıcının fark etmesi için. */
+  @keyframes authConfirmPulse{0%,100%{box-shadow:none;}50%{box-shadow:0 0 0 3px var(--gold-dark) inset;}}
+  .auth-confirm-banner.pulse-attn{animation:authConfirmPulse .6s ease-in-out 2;}
   .auth-welcome-banner{background:#EAF7EE;border-bottom:1px solid #16A34A;color:#15803D;padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
   .auth-welcome-dismiss{background:none;border:none;font-size:16px;line-height:1;color:inherit;cursor:pointer;padding:0;}
   .auth-btn-upgrade{background:var(--lapis);color:#fff;border-color:var(--lapis);}
@@ -248,7 +257,7 @@
 <div class="header">
   <div class="logo">STELLAFIX</div>
   <div style="display:flex;align-items:center;gap:14px">
-    <button type="button" class="auth-btn" id="authLoginBtn" onclick="openAuthModal()" data-i18n="btnLogin">Giriş Yap</button>
+    <button type="button" class="auth-btn" id="authLoginBtn" onclick="onLoginButtonClick()" data-i18n="btnLogin">Giriş Yap</button>
     <div class="auth-account" id="authAccount" style="display:none">
       <span class="auth-user-email" id="authUserEmail"></span>
       <span class="premium-badge" id="premiumBadge" style="display:none" data-i18n="premiumBadge">✨ Premium Üye</span>
@@ -954,6 +963,24 @@ function handleUnauthorized(){
   openAuthModal();
 }
 
+// "Giriş Yap"a basılınca çağrılır. URL'den gelen bekleyen bir magic-link
+// token'ı varsa (üstte "Girişi Onayla" banner'ı gösteriliyorsa) e-posta
+// kutusunu AÇMIYORUZ - kullanıcı zaten bir token'la gelmiş, yeniden e-posta
+// istemek kafa karıştırıcı. Bunun yerine mevcut banner'a kaydırıp
+// vurguluyoruz; asıl /auth/verify çağrısı hâlâ SADECE "Girişi Onayla"
+// butonuna tıklanınca tetikleniyor (bkz. confirmMagicLink üstündeki not).
+function onLoginButtonClick(){
+  if(pendingMagicLinkToken){
+    const banner=document.getElementById('authConfirmBanner');
+    banner.scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('authConfirmBtn').focus();
+    banner.classList.remove('pulse-attn');
+    void banner.offsetWidth; // reflow - animasyonu yeniden tetiklemek için
+    banner.classList.add('pulse-attn');
+    return;
+  }
+  openAuthModal();
+}
 function openAuthModal(){
   document.getElementById('authEmailInput').value='';
   const msg=document.getElementById('authModalMessage');
