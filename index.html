@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stellafix · Klasik Astroloji Demo</title>
+<title>Stellafix · Klasik Astroloji</title>
 <!-- Favicon: 4 uçlu yıldız (rehber yıldız/astroloji teması), marka renkleriyle
      (--ink zemin, --gold yıldız, --lapis merkez) - inline SVG data URI, tek
      dosyalık mimariyle uyumlu (ayrı bir favicon dosyası eklemiyor). -->
@@ -391,9 +391,9 @@
       </tbody>
     </table>
     <div class="method-note" style="margin-top:16px">
-      <strong style="color:var(--gold-dark);font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em">DEMO v0.3</strong><br>
-      <span data-i18n="noteDemo">500+ şehir veritabanı · Offline çalışır · Jean Meeus algoritmaları ·
-      Production'da Swiss Ephemeris Python bağlaması kullanılacaktır.</span>
+      <strong style="color:var(--gold-dark);font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em" data-i18n="noteTechLabel">YÖNTEM</strong><br>
+      <span data-i18n="noteTechInfo">133 şehir veritabanı · Klasik Batı Astrolojisi · Placidus ev sistemi ·
+      Hesaplamalar Swiss Ephemeris ile yapılıyor.</span>
     </div>
   </div>
 
@@ -497,7 +497,7 @@ const CALC_TIMEOUT_MS=45000;
 let currentLocale = 'tr';
 const I18N = {
   tr: {
-    pageTitle: "Stellafix · Klasik Astroloji Demo",
+    pageTitle: "Stellafix · Klasik Astroloji",
     panelNatalTitle: "Natal Harita Verisi",
     labelName: "Ad (isteğe bağlı)",
     placeholderName: "Kişi adı",
@@ -516,7 +516,8 @@ const I18N = {
     descDomicile: "Ev sahibi", descExaltation: "Yüceltme", descTriplicity: "Üçlük lordu",
     descTerm: "Sınır lordu", descFace: "Decan / Yüz", descPeregrine: "Yabancı",
     descDetriment: "Sürgün", descFall: "Düşüş",
-    noteDemo: "500+ şehir veritabanı · Offline çalışır · Jean Meeus algoritmaları · Production'da Swiss Ephemeris Python bağlaması kullanılacaktır.",
+    noteTechLabel: "YÖNTEM",
+    noteTechInfo: "133 şehir veritabanı · Klasik Batı Astrolojisi · Placidus ev sistemi · Hesaplamalar Swiss Ephemeris ile yapılıyor.",
     wheelPanelTitle: "Natal Harita",
     resultsPanelTitle: "Gezegen Pozisyonları · Essential Dignity",
     thPlanet: "Gezegen", thDegree: "Derece", thSign: "Burç", thHouse: "Ev", thScoreCol: "Puan",
@@ -633,7 +634,7 @@ const I18N = {
     bioDoserText: "Öner Döşer (1966, İstanbul), Türkiye'de klasik ve Ortaçağ astrolojisinin tanınmış isimlerinden biridir. 1996'da astrolojiyle ilgilenmeye başlamış, Ortaçağ astrolojisi alanında Robert Zoller'den eğitim almıştır. AstroArt Astroloji Okulu'nun kurucusu olup çok sayıda astroloji kitabı yazmış, düzenli olarak astroloji eğitimleri ve Uluslararası Astroloji Günleri etkinliğini yürütmektedir.",
   },
   en: {
-    pageTitle: "Stellafix · Classical Astrology Demo",
+    pageTitle: "Stellafix · Classical Astrology",
     panelNatalTitle: "Natal Chart Data",
     labelName: "Name (optional)",
     placeholderName: "Person's name",
@@ -652,7 +653,8 @@ const I18N = {
     descDomicile: "Home sign", descExaltation: "Exaltation", descTriplicity: "Triplicity lord",
     descTerm: "Term lord", descFace: "Decan / Face", descPeregrine: "Unaffiliated",
     descDetriment: "Exile", descFall: "Fall",
-    noteDemo: "500+ city database · Works offline · Jean Meeus algorithms · Production will use a Swiss Ephemeris Python binding.",
+    noteTechLabel: "METHOD",
+    noteTechInfo: "133-city database · Classical Western Astrology · Placidus house system · Calculations powered by Swiss Ephemeris.",
     wheelPanelTitle: "Natal Chart",
     resultsPanelTitle: "Planet Positions · Essential Dignity",
     thPlanet: "Planet", thDegree: "Degree", thSign: "Sign", thHouse: "House", thScoreCol: "Score",
