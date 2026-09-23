@@ -93,12 +93,16 @@
   .city-name{font-size:15px;font-weight:500;}
   .city-detail{font-size:12px;color:#888;font-style:italic;margin-top:1px;}
   .city-dropdown-status{padding:14px;font-size:13px;color:#888;text-align:center;}
-  .city-dropdown-status.error{color:var(--crimson);}
-  .city-dropdown-status.error a{color:var(--lapis);text-decoration:underline;}
+  .city-dropdown-notice{padding:11px 14px;font-size:12px;color:var(--ink);opacity:.85;background:var(--gold-pale);border-bottom:1px solid var(--gold);}
+  .city-dropdown-notice-actions{display:flex;align-items:center;gap:12px;margin-top:7px;}
+  .city-retry-btn{padding:6px 14px;background:var(--lapis);color:#fff;border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;}
+  .city-retry-btn:hover{background:var(--lapis-light);}
+  .city-fallback-manual-link{font-size:12px;color:var(--ink);opacity:.65;text-decoration:underline;cursor:pointer;}
   .city-confirmed{background:var(--gold-pale);border:1px solid var(--gold);padding:8px 13px;font-size:13px;margin-top:6px;display:none;border-radius:9px;}
   .city-confirmed strong{color:var(--lapis);}
   .manual-location-link{display:inline-block;margin-top:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--lapis);text-decoration:underline;cursor:pointer;}
   .manual-location-panel{margin-top:10px;padding:14px;background:var(--parchment);border:1px solid var(--rule);border-radius:10px;}
+  .manual-location-tip{font-size:12px;font-weight:600;color:var(--lapis);line-height:1.5;margin-bottom:8px;}
   .manual-location-hint{font-size:12px;color:var(--ink);opacity:.7;line-height:1.5;margin-bottom:12px;}
   .manual-location-actions{display:flex;gap:8px;margin-top:12px;}
   .manual-location-actions .btn-primary{margin-top:0;flex:1;}
@@ -379,6 +383,7 @@
       <div class="tz-badge" id="tzBadge"></div>
       <span class="manual-location-link" id="manualLocationLink" onclick="openManualLocation()" data-i18n="manualLocationLink">Şehrimi listede bulamıyorum</span>
       <div class="manual-location-panel" id="manualLocationPanel" style="display:none">
+        <div class="manual-location-tip" data-i18n="manualLocationTip">Listede yoksa en yakın büyük şehri seçebilir ya da koordinat girebilirsin.</div>
         <div class="manual-location-hint" data-i18n="manualLocationHint">Bu iki sayıyı bir harita uygulamasından (ör. Google Haritalar) bulabilirsin: konumuna uzun bas, açılan bilgide görünen iki ondalıklı sayıyı buraya kopyala.</div>
         <div class="form-row">
           <div>
@@ -427,7 +432,7 @@
     </table>
     <div class="method-note" style="margin-top:16px">
       <strong style="color:var(--gold-dark);font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em" data-i18n="noteTechLabel">YÖNTEM</strong><br>
-      <span data-i18n="noteTechInfo">133 şehir veritabanı · Klasik Batı Astrolojisi ·
+      <span data-i18n="noteTechInfo">34.006 şehir veritabanı · Klasik Batı Astrolojisi ·
       Hassas astronomik hesaplama.</span>
     </div>
   </div>
@@ -549,6 +554,7 @@ const I18N = {
     labelBirthPlace: "Doğum Yeri",
     placeholderCity: "Şehir adı yazın...",
     manualLocationLink: "Şehrimi listede bulamıyorum",
+    manualLocationTip: "Listede yoksa en yakın büyük şehri seçebilir ya da koordinat girebilirsin.",
     manualLocationHint: "Bu iki sayıyı bir harita uygulamasından (ör. Google Haritalar) bulabilirsin: konumuna uzun bas, açılan bilgide görünen iki ondalıklı sayıyı buraya kopyala.",
     manualLatLabel: "Enlem",
     manualLonLabel: "Boylam",
@@ -558,7 +564,8 @@ const I18N = {
     manualCancelBtn: "Şehir aramaya dön",
     manualConfirmBtn: "Bu konumu kullan",
     cityLoadingText: "Şehir listesi yükleniyor...",
-    cityLoadErrorText: "Şehir listesi yüklenemedi.",
+    cityFallbackText: "Tam şehir listesi yüklenemedi - şu an sadece en büyük 200 şehir gösteriliyor.",
+    cityRetryBtn: "Tekrar dene",
     cityLoadErrorLink: "Enlem/boylam ile devam et",
     btnCalculate: "⚷ Natal Harita Hesapla",
     btnCalculating: "⏳ Hesaplanıyor...",
@@ -570,7 +577,7 @@ const I18N = {
     descTerm: "Sınır lordu", descFace: "Decan / Yüz", descPeregrine: "Yabancı",
     descDetriment: "Sürgün", descFall: "Düşüş",
     noteTechLabel: "YÖNTEM",
-    noteTechInfo: "133 şehir veritabanı · Klasik Batı Astrolojisi · Hassas astronomik hesaplama.",
+    noteTechInfo: "34.006 şehir veritabanı · Klasik Batı Astrolojisi · Hassas astronomik hesaplama.",
     wheelPanelTitle: "Natal Harita",
     resultsPanelTitle: "Gezegen Pozisyonları · Essential Dignity",
     thPlanet: "Gezegen", thDegree: "Derece", thSign: "Burç", thHouse: "Ev", thScoreCol: "Puan",
@@ -702,6 +709,7 @@ const I18N = {
     labelBirthPlace: "Birth Place",
     placeholderCity: "Type a city name...",
     manualLocationLink: "I can't find my city in the list",
+    manualLocationTip: "If it's not on the list, you can pick the nearest large city or enter coordinates.",
     manualLocationHint: "You can find these two numbers in any map app (e.g. Google Maps): press and hold your location, then copy the two decimal numbers that appear.",
     manualLatLabel: "Latitude",
     manualLonLabel: "Longitude",
@@ -711,7 +719,8 @@ const I18N = {
     manualCancelBtn: "Back to city search",
     manualConfirmBtn: "Use this location",
     cityLoadingText: "Loading city list...",
-    cityLoadErrorText: "Couldn't load the city list.",
+    cityFallbackText: "Couldn't load the full city list - showing only the 200 largest cities for now.",
+    cityRetryBtn: "Try again",
     cityLoadErrorLink: "Continue with coordinates",
     btnCalculate: "⚷ Calculate Natal Chart",
     btnCalculating: "⏳ Calculating...",
@@ -723,7 +732,7 @@ const I18N = {
     descTerm: "Term lord", descFace: "Decan / Face", descPeregrine: "Unaffiliated",
     descDetriment: "Exile", descFall: "Fall",
     noteTechLabel: "METHOD",
-    noteTechInfo: "133-city database · Classical Western Astrology · Precise astronomical calculation.",
+    noteTechInfo: "34,006-city database · Classical Western Astrology · Precise astronomical calculation.",
     wheelPanelTitle: "Natal Chart",
     resultsPanelTitle: "Planet Positions · Essential Dignity",
     thPlanet: "Planet", thDegree: "Degree", thSign: "Sign", thHouse: "House", thScoreCol: "Score",
@@ -1302,23 +1311,269 @@ async function handleInterpretErrorResponse(resp){
 // dokunana kadar (onfocus) hiç indirilmiyor. Aynı domainden, aynı deploy'la
 // giden statik bir veri dosyası - dış bir bağımlılık YARATMIYOR, sadece
 // indirme zamanlamasını erteliyor. Ana sayfa artık ~90KB gzip.
+//
+// YEDEK LİSTE: cities.json 3 denemede de (1 ilk + 2 sessiz retry)
+// yüklenemezse, aşağıdaki gömülü CITIES_FALLBACK devreye giriyor - arama
+// tamamen kesintiye uğramak yerine en azından dünyanın en büyük 200
+// şehrinde çalışmaya devam ediyor. Aynı GeoNames kaynağından (CC BY 4.0),
+// aynı format, nüfusa göre azalan sırayla. ~4.7KB gzip - göz ardı
+// edilebilir boyut. Not: eski (bu proje ilk sürümündeki) 133 şehirlik
+// elle-derlenmiş liste artık kodda YOK (GeoNames genişlemesiyle
+// kaldırıldı) - bu, onun yerine yeni oluşturulmuş bir yedek.
 // ============================================================
+const CITIES_FALLBACK=[
+["Shanghai","CN",31.2222,121.4581,"Asia/Shanghai",24874],
+["Beijing","CN",39.9075,116.3972,"Asia/Shanghai",18961],
+["Shenzhen","CN",22.5455,114.0683,"Asia/Shanghai",17494],
+["Guangzhou","CN",23.1167,113.25,"Asia/Shanghai",16097],
+["Kinshasa","CD",-4.3276,15.3136,"Africa/Kinshasa",16000],
+["Istanbul","TR",41.0138,28.9497,"Europe/Istanbul",15702],
+["Lagos","NG",6.4541,3.3947,"Africa/Lagos",15388],
+["Ho Chi Minh City","VN",10.823,106.6296,"Asia/Ho_Chi_Minh",14003],
+["Chengdu","CN",30.6667,104.0667,"Asia/Shanghai",13568],
+["Lahore","PK",31.558,74.3507,"Asia/Karachi",13004],
+["Mumbai","IN",19.0728,72.8826,"Asia/Kolkata",12692],
+["São Paulo","BR",-23.5475,-46.6361,"America/Sao_Paulo",12400],
+["Mexico City","MX",19.4285,-99.1277,"America/Mexico_City",12294],
+["Karachi","PK",24.8608,67.0104,"Asia/Karachi",11624],
+["Tianjin","CN",39.1422,117.1767,"Asia/Shanghai",11090],
+["Delhi","IN",28.6519,77.2315,"Asia/Kolkata",11035],
+["Wuhan","CN",30.5833,114.2667,"Asia/Shanghai",10393],
+["Moscow","RU",55.752,37.6178,"Europe/Moscow",10381],
+["Dhaka","BD",23.7104,90.4074,"Asia/Dhaka",10356],
+["Seoul","KR",37.566,126.9784,"Asia/Seoul",10349],
+["Tokyo","JP",35.6895,139.6917,"Asia/Tokyo",9733],
+["Dongguan","CN",23.018,113.7487,"Asia/Shanghai",9645],
+["Cairo","EG",30.0626,31.2497,"Africa/Cairo",9607],
+["Xi’an","CN",34.2583,108.9286,"Asia/Shanghai",9600],
+["Johannesburg","ZA",-26.2023,28.0436,"Africa/Johannesburg",9418],
+["Nanjing","CN",32.0617,118.7778,"Asia/Shanghai",9315],
+["Hangzhou","CN",30.2936,120.1614,"Asia/Shanghai",9236],
+["Foshan","CN",23.0268,113.1315,"Asia/Shanghai",9043],
+["London","GB",51.5085,-0.1257,"Europe/London",8962],
+["New York City","US",40.7143,-74.006,"America/New_York",8804],
+["Jakarta","ID",-6.2146,106.8451,"Asia/Jakarta",8540],
+["Bengaluru","IN",12.9719,77.5937,"Asia/Kolkata",8495],
+["Hanoi","VN",21.0245,105.8412,"Asia/Bangkok",8054],
+["Taipei","TW",25.0531,121.5264,"Asia/Taipei",7872],
+["Lima","PE",-12.0432,-77.0282,"America/Lima",7737],
+["Bogotá","CO",4.6097,-74.0817,"America/Bogota",7674],
+["Chongqing","CN",29.5603,106.5577,"Asia/Shanghai",7458],
+["Hong Kong","HK",22.2783,114.1747,"Asia/Hong_Kong",7396],
+["Baghdad","IQ",33.3406,44.4009,"Asia/Baghdad",7216],
+["Wuzhong","CN",37.9867,106.201,"Asia/Shanghai",7203],
+["Qingdao","CN",36.0649,120.3804,"Asia/Shanghai",7172],
+["Tehran","IR",35.6944,51.4215,"Asia/Tehran",7153],
+["Shenyang","CN",41.7922,123.4328,"Asia/Shanghai",7050],
+["Hyderabad","IN",17.384,78.4564,"Asia/Kolkata",6993],
+["Rio de Janeiro","BR",-22.9064,-43.1822,"America/Sao_Paulo",6748],
+["Suzhou","CN",31.3041,120.5954,"Asia/Shanghai",6716],
+["Puxi","CN",31.2441,121.4659,"Asia/Shanghai",6684],
+["Ahmedabad","IN",23.0258,72.5873,"Asia/Kolkata",6358],
+["Abidjan","CI",5.3544,-4.0017,"Africa/Abidjan",6321],
+["Pudong","CN",31.24,121.5009,"Asia/Shanghai",5682],
+["Sydney","AU",-33.8678,151.2073,"Australia/Sydney",5639],
+["Singapore","SG",1.2897,103.8501,"Asia/Singapore",5639],
+["Melbourne","AU",-37.814,144.9633,"Australia/Melbourne",5436],
+["Dar es Salaam","TZ",-6.8235,39.2695,"Africa/Dar_es_Salaam",5384],
+["Saint Petersburg","RU",59.9386,30.3141,"Europe/Moscow",5352],
+["Alexandria","EG",31.2018,29.9158,"Africa/Cairo",5264],
+["Harbin","CN",45.75,126.65,"Asia/Shanghai",5243],
+["Bangkok","TH",13.754,100.5014,"Asia/Bangkok",5104],
+["Hefei","CN",31.8639,117.2808,"Asia/Shanghai",5050],
+["Dalian","CN",38.9122,121.6022,"Asia/Shanghai",4914],
+["Kano","NG",12.0001,8.5167,"Africa/Lagos",4910],
+["Santiago","CL",-33.4569,-70.6483,"America/Santiago",4837],
+["Cape Town","ZA",-33.9258,18.4232,"Africa/Johannesburg",4773],
+["Peshawar","PK",34.008,71.5785,"Asia/Karachi",4759],
+["Changchun","CN",43.88,125.3228,"Asia/Shanghai",4715],
+["Jeddah","SA",21.4901,39.1862,"Asia/Riyadh",4697],
+["Chennai","IN",13.0878,80.2785,"Asia/Kolkata",4681],
+["Kolkata","IN",22.5626,88.363,"Asia/Kolkata",4631],
+["Xiamen","CN",24.4798,118.0819,"Asia/Shanghai",4617],
+["Surat","IN",21.1959,72.8302,"Asia/Kolkata",4591],
+["Yangon","MM",16.8053,96.1561,"Asia/Yangon",4478],
+["Bao'an","CN",22.5521,113.8829,"Asia/Shanghai",4477],
+["Kabul","AF",34.5281,69.1723,"Asia/Kabul",4435],
+["Wuxi","CN",31.5689,120.2886,"Asia/Shanghai",4397],
+["Nairobi","KE",-1.2833,36.8167,"Africa/Nairobi",4397],
+["Giza","EG",30.0094,31.2086,"Africa/Cairo",4367],
+["Jinan","CN",36.6683,116.9972,"Asia/Shanghai",4336],
+["Taiyuan","CN",37.8694,112.5603,"Asia/Shanghai",4304],
+["Zhengzhou","CN",34.7578,113.6486,"Asia/Shanghai",4254],
+["Bamako","ML",12.6091,-7.9752,"Africa/Bamako",4228],
+["Riyadh","SA",24.6877,46.7219,"Asia/Riyadh",4206],
+["New Taipei City","TW",25.062,121.457,"Asia/Taipei",4004],
+["New Territories","HK",22.4244,114.111,"Asia/Hong_Kong",3984],
+["Shijiazhuang","CN",38.0414,114.4786,"Asia/Shanghai",3939],
+["Chattogram","BD",22.3384,91.8317,"Asia/Dhaka",3920],
+["Addis Ababa","ET",9.025,38.7469,"Africa/Addis_Ababa",3860],
+["Kunming","CN",25.0389,102.7183,"Asia/Shanghai",3855],
+["Zhongshan","CN",22.5231,113.3791,"Asia/Shanghai",3842],
+["Nanning","CN",22.8167,108.3167,"Asia/Shanghai",3840],
+["Shantou","CN",23.3549,116.6788,"Asia/Shanghai",3839],
+["Los Angeles","US",34.0522,-118.2437,"America/Los_Angeles",3821],
+["Faisalabad","PK",31.4155,73.0897,"Asia/Karachi",3800],
+["Dubai","AE",25.0772,55.3093,"Asia/Dubai",3790],
+["Yokohama","JP",35.4333,139.65,"Asia/Tokyo",3777],
+["Fuzhou","CN",26.0614,119.3061,"Asia/Shanghai",3740],
+["Ningbo","CN",29.8782,121.5494,"Asia/Shanghai",3731],
+["Casablanca","MA",33.5883,-7.6114,"Africa/Casablanca",3666],
+["Ibadan","NG",7.3776,3.9059,"Africa/Lagos",3649],
+["Puyang","CN",29.4568,119.8887,"Asia/Shanghai",3590],
+["Ankara","TR",39.9199,32.8543,"Europe/Istanbul",3517],
+["Shiyan","CN",32.6475,110.7781,"Asia/Shanghai",3460],
+["Berlin","DE",52.5244,13.4105,"Europe/Berlin",3426],
+["Tangshan","CN",39.6438,118.1832,"Asia/Shanghai",3372],
+["Rawalpindi","PK",33.5973,73.0479,"Asia/Karachi",3358],
+["Lüliang","CN",37.5192,111.1444,"Asia/Shanghai",3346],
+["Durban","ZA",-29.8579,31.0292,"Africa/Johannesburg",3338],
+["Changzhou","CN",31.7736,119.954,"Asia/Shanghai",3291],
+["Busan","KR",35.1017,129.03,"Asia/Seoul",3285],
+["Madrid","ES",40.4165,-3.7026,"Europe/Madrid",3256],
+["Pyongyang","KP",39.0339,125.7543,"Asia/Pyongyang",3222],
+["Zibo","CN",36.7906,118.0633,"Asia/Shanghai",3129],
+["Pune","IN",18.5196,73.8554,"Asia/Kolkata",3124],
+["Bursa","TR",40.1956,29.0601,"Europe/Istanbul",3102],
+["Changsha","CN",28.1987,112.9709,"Asia/Shanghai",3094],
+["Quezon City","PH",14.6488,121.0509,"Asia/Manila",3084],
+["Jaipur","IN",26.9196,75.7878,"Asia/Kolkata",3046],
+["Guiyang","CN",26.5833,106.7167,"Asia/Shanghai",3037],
+["Ürümqi","CN",43.801,87.6005,"Asia/Urumqi",3029],
+["Surabaya","ID",-7.2492,112.7508,"Asia/Jakarta",3018],
+["Incheon","KR",37.4565,126.7052,"Asia/Seoul",3015],
+["Lanzhou","CN",36.057,103.8399,"Asia/Shanghai",3000],
+["Caracas","VE",10.488,-66.8792,"America/Caracas",3000],
+["Kyiv","UA",50.4547,30.5238,"Europe/Kyiv",2952],
+["İzmir","TR",38.4127,27.1384,"Europe/Istanbul",2938],
+["Huizhou","CN",23.1115,114.4152,"Asia/Shanghai",2900],
+["Buenos Aires","AR",-34.6131,-58.3772,"America/Argentina/Buenos_Aires",2891],
+["Haikou","CN",20.0342,110.3465,"Asia/Shanghai",2873],
+["Taichung","TW",24.1469,120.6839,"Asia/Taipei",2850],
+["Kanpur","IN",26.4652,80.3498,"Asia/Kolkata",2823],
+["Toronto","CA",43.7064,-79.3986,"America/Toronto",2794],
+["Quito","EC",-0.2298,-78.525,"America/Guayaquil",2782],
+["Brisbane","AU",-27.4679,153.0281,"Australia/Brisbane",2780],
+["Luanda","AO",-8.8368,13.2343,"Africa/Luanda",2776],
+["Osaka","JP",34.6938,135.5011,"Asia/Tokyo",2754],
+["Linyi","CN",35.0631,118.3428,"Asia/Shanghai",2744],
+["Baoding","CN",38.8729,115.4625,"Asia/Shanghai",2740],
+["Kaohsiung","TW",22.6163,120.3133,"Asia/Taipei",2738],
+["Brooklyn","US",40.6501,-73.9496,"America/New_York",2736],
+["Guayaquil","EC",-2.1962,-79.8862,"America/Guayaquil",2724],
+["Belo Horizonte","BR",-19.9208,-43.9378,"America/Sao_Paulo",2722],
+["Minhang","CN",31.1088,121.3747,"Asia/Shanghai",2717],
+["Bazhong","CN",31.8694,106.7443,"Asia/Shanghai",2713],
+["Salvador","BR",-12.9756,-38.491,"America/Bahia",2712],
+["Abuja","NG",9.0579,7.4951,"Africa/Lagos",2690],
+["Gazipur","BD",23.9984,90.4223,"Asia/Dhaka",2675],
+["Chicago","US",41.85,-87.65,"America/Chicago",2664],
+["Wenzhou","CN",27.9994,120.6668,"Asia/Shanghai",2650],
+["Bekasi","ID",-6.2349,106.9896,"Asia/Jakarta",2648],
+["Dakar","SN",14.6937,-17.4441,"Africa/Dakar",2647],
+["Haiphong","VN",20.8648,106.6834,"Asia/Bangkok",2625],
+["Yunfu","CN",22.9279,112.0381,"Asia/Shanghai",2613],
+["Navi Mumbai","IN",19.0368,73.0158,"Asia/Kolkata",2600],
+["Mogadishu","SO",2.0371,45.3438,"Africa/Mogadishu",2587],
+["Kumasi","GH",6.6885,-1.6244,"Africa/Accra",2545],
+["Bandung","ID",-6.9222,107.6069,"Asia/Jakarta",2528],
+["Gujranwala","PK",32.1557,74.187,"Asia/Karachi",2511],
+["Huai'an","CN",33.5886,119.0192,"Asia/Shanghai",2494],
+["Medan","ID",3.5833,98.6667,"Asia/Jakarta",2486],
+["Lucknow","IN",26.8393,80.9231,"Asia/Kolkata",2472],
+["Ouagadougou","BF",12.3657,-1.5339,"Africa/Ouagadougou",2415],
+["Nagpur","IN",21.1463,79.0849,"Asia/Kolkata",2406],
+["Fortaleza","BR",-3.7172,-38.5431,"America/Fortaleza",2400],
+["Cali","CO",3.4305,-76.5199,"America/Bogota",2393],
+["Perth","AU",-31.9522,115.8614,"Australia/Perth",2384],
+["Daegu","KR",35.8703,128.5911,"Asia/Seoul",2366],
+["Algiers","DZ",36.7323,3.0875,"Africa/Algiers",2364],
+["Nanchang","CN",28.684,115.8531,"Asia/Shanghai",2358],
+["Baku","AZ",40.3777,49.892,"Asia/Baku",2351],
+["Hohhot","CN",40.8106,111.6522,"Asia/Shanghai",2350],
+["Nagoya","JP",35.1815,136.9064,"Asia/Tokyo",2332],
+["Rome","IT",41.8919,12.5113,"Europe/Rome",2319],
+["Queens","US",40.6815,-73.8365,"America/New_York",2317],
+["Houston","US",29.7633,-95.3633,"America/Chicago",2314],
+["Mashhad","IR",36.2981,59.6057,"Asia/Tehran",2307],
+["Shaoxing","CN",30.0024,120.5786,"Asia/Shanghai",2300],
+["Nantong","CN",32.0303,120.8747,"Asia/Shanghai",2273],
+["Baoshan","CN",31.4084,121.4896,"Asia/Shanghai",2266],
+["Kowloon","HK",22.3167,114.1833,"Asia/Hong_Kong",2232],
+["Yantai","CN",37.4765,121.4408,"Asia/Shanghai",2228],
+["Lubumbashi","CD",-11.6609,27.4794,"Africa/Lubumbashi",2222],
+["Gaziantep","TR",37.0594,37.3825,"Europe/Istanbul",2222],
+["Manaus","BR",-3.1019,-60.025,"America/Manaus",2220],
+["Lusaka","ZM",-15.4067,28.2871,"Africa/Lusaka",2212],
+["Brasília","BR",-15.7797,-47.9297,"America/Sao_Paulo",2208],
+["Zhuhai","CN",22.2769,113.5678,"Asia/Shanghai",2207],
+["Santo Domingo","DO",18.4719,-69.8923,"America/Santo_Domingo",2202],
+["Lomé","TG",6.1287,1.2215,"Africa/Lome",2188],
+["Multan","PK",30.1968,71.4782,"Asia/Karachi",2170],
+["Havana","CU",23.133,-82.383,"America/Havana",2164],
+["Depok","ID",-6.4,106.8186,"Asia/Jakarta",2164],
+["Baotou","CN",40.6516,109.8439,"Asia/Shanghai",2150],
+["Paris","FR",48.8534,2.3488,"Europe/Paris",2139],
+["Coimbatore","IN",11.0055,76.9661,"Asia/Kolkata",2137],
+["Qingyang","CN",35.7098,107.6445,"Asia/Shanghai",2125],
+["Port Harcourt","NG",4.7774,7.0134,"Africa/Lagos",2120],
+["Pretoria","ZA",-25.7449,28.1878,"Africa/Johannesburg",2113],
+["Córdoba","AR",-31.4065,-64.1885,"America/Argentina/Cordoba",2107],
+["Mbuji-Mayi","CD",-6.136,23.5898,"Africa/Lubumbashi",2101],
+["Aleppo","SY",36.2012,37.1612,"Asia/Damascus",2098],
+["Kunshan","CN",31.3776,120.9543,"Asia/Shanghai",2092]
+];
+
 let CITIES = null; // yüklenene kadar null - loadCities()/doCityFilter() bakın
 let citiesLoadPromise = null;
+let citiesIsFallback = false; // true ise CITIES şu an CITIES_FALLBACK'e işaret ediyor
+const CITIES_FETCH_MAX_ATTEMPTS = 3; // 1 ilk deneme + 2 sessiz retry
+const CITIES_FETCH_RETRY_DELAY_MS = 700;
+
+async function fetchCitiesJson(){
+  const resp = await fetch('cities.json');
+  if(!resp.ok) throw new Error('HTTP '+resp.status);
+  return resp.json();
+}
+
 function loadCities(){
   if(citiesLoadPromise)return citiesLoadPromise;
-  citiesLoadPromise=fetch('cities.json').then(resp=>{
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    return resp.json();
-  }).then(data=>{
-    CITIES=data;
+  citiesLoadPromise=(async()=>{
+    for(let attempt=1; attempt<=CITIES_FETCH_MAX_ATTEMPTS; attempt++){
+      try{
+        const data=await fetchCitiesJson();
+        CITIES=data;
+        citiesIsFallback=false;
+        CITY_NAME_NORM=null; // önceki (varsa yedek) diziye ait önbellek artık geçersiz
+        return CITIES;
+      }catch(err){
+        console.error(`cities.json yükleme denemesi ${attempt}/${CITIES_FETCH_MAX_ATTEMPTS} başarısız:`,err);
+        if(attempt<CITIES_FETCH_MAX_ATTEMPTS){
+          await new Promise(r=>setTimeout(r,CITIES_FETCH_RETRY_DELAY_MS));
+        }
+      }
+    }
+    // 3 denemede de olmadı - arama tamamen kesilmesin diye gömülü yedeğe düş.
+    // Bu artık HİÇ reddetmiyor (throw) - her zaman kullanılabilir bir CITIES
+    // ile dönüyor, tam liste olmasa bile.
+    console.error(`cities.json ${CITIES_FETCH_MAX_ATTEMPTS} denemede de yüklenemedi, gömülü yedek listeye geçiliyor (${CITIES_FALLBACK.length} şehir).`);
+    CITIES=CITIES_FALLBACK;
+    citiesIsFallback=true;
+    CITY_NAME_NORM=null;
     return CITIES;
-  }).catch(err=>{
-    console.error('Şehir veritabanı yüklenemedi:',err);
-    citiesLoadPromise=null; // bir sonraki etkileşimde tekrar denensin (geçici ağ sorunu olabilir)
-    throw err;
-  });
+  })();
   return citiesLoadPromise;
+}
+
+// Kullanıcı yedek listedeyken "Tekrar dene"ye basınca çağrılır - önceki
+// (başarısız) promise'i unutup tam listeyi yeniden fetch etmeyi dener.
+function retryLoadCities(){
+  citiesLoadPromise=null;
+  showCityDropdownStatus(t('cityLoadingText'));
+  loadCities().then(()=>{
+    const q=normalizeStr(document.getElementById('cityInput').value.trim());
+    if(q.length>=2) runCityFilter(q); else closeDropdown();
+  });
 }
 
 // ============================================================
@@ -1423,20 +1678,16 @@ function onCityInput() {
 // CITIES henüz yüklenmediyse (ör. odaklanma anındaki fetch hâlâ sürüyor,
 // ya da kullanıcı onfocus'u atlayıp doğrudan yapıştırma yaptıysa) önce
 // sakin bir "yükleniyor" göstergesi gösterip yüklemeyi bekliyor - panik
-// yaratmadan kullanıcı beklediğini anlasın. Başarısız olursa (ağ hatası)
-// sessizce boş liste GÖSTERMİYORUZ - jargonsuz bir mesaj + manuel konum
-// girişine doğrudan giden bir bağlantı sunuyoruz.
+// yaratmadan kullanıcı beklediğini anlasın. loadCities() artık HİÇ
+// reddetmiyor (3 denemeden sonra gömülü yedek listeye düşüyor, bkz.
+// yukarısı) - bu yüzden burada ayrı bir "başarısız" dalına gerek yok;
+// yedek liste aktifse renderDropdown() bunu kendi bildiriyor.
 async function doCityFilter() {
   const q = normalizeStr(document.getElementById('cityInput').value.trim());
   if (q.length < 2) { closeDropdown(); return; }
   if (!CITIES) {
     showCityDropdownStatus(t('cityLoadingText'));
-    try {
-      await loadCities();
-    } catch (e) {
-      showCityDropdownError();
-      return;
-    }
+    await loadCities();
     // Yükleme sırasında kullanıcı yazmaya devam etmiş olabilir - input'un
     // GÜNCEL değerini tekrar oku, yükleme başlarkenki eski sorguyu değil.
     const q2 = normalizeStr(document.getElementById('cityInput').value.trim());
@@ -1469,11 +1720,18 @@ function showCityDropdownStatus(text) {
   dd.style.display = 'block';
   dd.innerHTML = `<div class="city-dropdown-status">${text}</div>`;
 }
-function showCityDropdownError() {
-  const dd = document.getElementById('cityDropdown');
-  dd.style.display = 'block';
-  dd.innerHTML = `<div class="city-dropdown-status error">${t('cityLoadErrorText')} `
-    + `<a href="javascript:void(0)" onclick="closeDropdown();openManualLocation();">${t('cityLoadErrorLink')}</a></div>`;
+// Yedek liste aktifken dropdown'ın en üstünde sürekli görünen bildirim -
+// arama SONUÇLARINI engellemiyor (yedek listede de arama çalışıyor),
+// sadece durumu bildirip iki eylem sunuyor: birincil "Tekrar dene" (tam
+// listeyi yeniden fetch etmeyi dener), ikincil/küçük "Enlem/boylam ile
+// devam et" (doğrudan manuel girişe gider).
+function cityFallbackNoticeHTML() {
+  return `<div class="city-dropdown-notice">`
+    + `<div>${t('cityFallbackText')}</div>`
+    + `<div class="city-dropdown-notice-actions">`
+    + `<button type="button" class="city-retry-btn" onclick="retryLoadCities()">${t('cityRetryBtn')}</button>`
+    + `<a href="javascript:void(0)" class="city-fallback-manual-link" onclick="closeDropdown();openManualLocation();">${t('cityLoadErrorLink')}</a>`
+    + `</div></div>`;
 }
 
 function onCityKey(e) {
@@ -1487,9 +1745,17 @@ function onCityKey(e) {
 
 function renderDropdown() {
   const dd = document.getElementById('cityDropdown');
-  if (!filteredCities.length) { dd.style.display='none'; return; }
+  // Yedek liste aktifken bildirim HER render'da üstte kalıyor - arama
+  // sonucu olsun olmasın, kullanıcı azaltılmış kapsamda olduğunu bilsin.
+  const notice = citiesIsFallback ? cityFallbackNoticeHTML() : '';
+  if (!filteredCities.length) {
+    if (!notice) { dd.style.display='none'; return; }
+    dd.style.display = 'block';
+    dd.innerHTML = notice;
+    return;
+  }
   dd.style.display = 'block';
-  dd.innerHTML = filteredCities.map((idx, i) => {
+  dd.innerHTML = notice + filteredCities.map((idx, i) => {
     const c = CITIES[idx];
     return `<div class="city-option${i===activeIdx?' active':''}" onclick="pickCity(${idx})">
       <div class="city-name">${c[0]}</div>
