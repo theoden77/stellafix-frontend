@@ -246,6 +246,7 @@
   .zodiac-item .zi-range{opacity:.65;font-size:12px;white-space:nowrap;}
   .zodiac-disclaimer{font-size:12px;color:var(--ink);opacity:.55;margin-top:12px;font-style:italic;}
   .history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .history-grid .history-card:last-child:nth-child(odd){grid-column:1/-1;}
   @media(max-width:700px){.history-grid{grid-template-columns:1fr;}}
   .history-card{background:var(--parchment);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:14px 16px;}
   .history-card-name{font-weight:700;color:var(--ink);margin-bottom:6px;font-size:14px;}
@@ -352,7 +353,7 @@
     <div class="form-group tech-details-field">
       <label data-i18n="labelHouseSystem">Ev Sistemi</label>
       <select id="houseSystem">
-        <option value="P" data-i18n="optionPlacidus">Placidus (Solar Fire uyumlu)</option>
+        <option value="P" data-i18n="optionPlacidus">Placidus</option>
       </select>
     </div>
 
@@ -370,7 +371,7 @@
 
     <div class="method-note" data-i18n="noteMethod">
       Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi ·
-      Essential dignity Ptolemy term'leri · Veri yoksa analiz yapılmaz
+      Veri yoksa analiz yapılmaz
     </div>
   </div>
 
@@ -392,8 +393,8 @@
     </table>
     <div class="method-note" style="margin-top:16px">
       <strong style="color:var(--gold-dark);font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:.03em" data-i18n="noteTechLabel">YÖNTEM</strong><br>
-      <span data-i18n="noteTechInfo">133 şehir veritabanı · Klasik Batı Astrolojisi · Placidus ev sistemi ·
-      Hesaplamalar Swiss Ephemeris ile yapılıyor.</span>
+      <span data-i18n="noteTechInfo">133 şehir veritabanı · Klasik Batı Astrolojisi ·
+      Hassas astronomik hesaplama.</span>
     </div>
   </div>
 
@@ -454,23 +455,27 @@
     <div class="zodiac-disclaimer" data-i18n="eduZodiacDisclaimer">Tarihler yaklaşıktır, yıldan yıla birkaç saat kayabilir.</div>
   </div>
   <div class="edu-block">
-    <div class="edu-block-title" data-i18n="eduHistoryTitle">Klasik Astroloji Geleneği</div>
+    <div class="edu-block-title" data-i18n="eduHistoryTitle">Astrolojinin Kısa Tarihi</div>
     <div class="history-grid">
       <div class="history-card">
-        <div class="history-card-name" data-i18n="bioAbuMasharName">Ebû Ma'şer el-Belhî</div>
-        <div class="history-card-text" data-i18n="bioAbuMasharText"></div>
+        <div class="history-card-name" data-i18n="eraMesopotamiaName">Mezopotamya ve Babil</div>
+        <div class="history-card-text" data-i18n="eraMesopotamiaText"></div>
       </div>
       <div class="history-card">
-        <div class="history-card-name" data-i18n="bioBonattiName">Guido Bonatti</div>
-        <div class="history-card-text" data-i18n="bioBonattiText"></div>
+        <div class="history-card-name" data-i18n="eraHellenisticName">Helenistik Dönem</div>
+        <div class="history-card-text" data-i18n="eraHellenisticText"></div>
       </div>
       <div class="history-card">
-        <div class="history-card-name" data-i18n="bioLillyName">William Lilly</div>
-        <div class="history-card-text" data-i18n="bioLillyText"></div>
+        <div class="history-card-name" data-i18n="eraIslamicName">İslam Altın Çağı</div>
+        <div class="history-card-text" data-i18n="eraIslamicText"></div>
       </div>
       <div class="history-card">
-        <div class="history-card-name" data-i18n="bioDoserName">Öner Döşer</div>
-        <div class="history-card-text" data-i18n="bioDoserText"></div>
+        <div class="history-card-name" data-i18n="eraRenaissanceName">Rönesans ve 17. Yüzyıl</div>
+        <div class="history-card-text" data-i18n="eraRenaissanceText"></div>
+      </div>
+      <div class="history-card">
+        <div class="history-card-name" data-i18n="eraModernName">Modern Dönem</div>
+        <div class="history-card-text" data-i18n="eraModernText"></div>
       </div>
     </div>
   </div>
@@ -504,12 +509,12 @@ const I18N = {
     labelBirthDate: "Doğum Tarihi",
     labelBirthTime: "Doğum Saati (yerel)",
     labelHouseSystem: "Ev Sistemi",
-    optionPlacidus: "Placidus (Solar Fire uyumlu)",
+    optionPlacidus: "Placidus",
     labelBirthPlace: "Doğum Yeri",
     placeholderCity: "Şehir adı yazın...",
     btnCalculate: "⚷ Natal Harita Hesapla",
     btnCalculating: "⏳ Hesaplanıyor...",
-    noteMethod: "Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi · Essential dignity Ptolemy term'leri · Veri yoksa analiz yapılmaz",
+    noteMethod: "Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi · Veri yoksa analiz yapılmaz",
     panelDignityTitle: "Essential Dignity Referansı",
     thScore: "Puan",
     thDescription: "Açıklama",
@@ -517,16 +522,17 @@ const I18N = {
     descTerm: "Sınır lordu", descFace: "Decan / Yüz", descPeregrine: "Yabancı",
     descDetriment: "Sürgün", descFall: "Düşüş",
     noteTechLabel: "YÖNTEM",
-    noteTechInfo: "133 şehir veritabanı · Klasik Batı Astrolojisi · Placidus ev sistemi · Hesaplamalar Swiss Ephemeris ile yapılıyor.",
+    noteTechInfo: "133 şehir veritabanı · Klasik Batı Astrolojisi · Hassas astronomik hesaplama.",
     wheelPanelTitle: "Natal Harita",
     resultsPanelTitle: "Gezegen Pozisyonları · Essential Dignity",
     thPlanet: "Gezegen", thDegree: "Derece", thSign: "Burç", thHouse: "Ev", thScoreCol: "Puan",
     analysisTitle: "Klasik Analiz Notu",
+    analysisFooterNote: "✓ Hassas astronomik hesaplama",
     houseSectionTitle: "Ev Başlangıçları",
     errNoDateTime: "Doğum tarihi ve saati gereklidir.",
     errNoCity: "Lütfen doğum yerini seçin. Şehir adı yazıp listeden tıklayın.",
-    errFileProtocol: "⚠️ API bağlantısı için dosyayı bir web sunucusundan aç veya aşağıdaki GitHub Pages linkini kullan.",
-    errApiPrefix: "API Hatası: ",
+    errFileProtocol: "⚠️ Bu özelliği kullanmak için sayfayı bir web sunucusundan aç.",
+    errPrefix: "Hata: ",
     errCalcFailed: "Şu an haritanı hesaplayamadık - bağlantı sorunu olabilir. Birkaç saniye sonra tekrar dene.",
     errRenderFailed: "Harita hesaplandı ama gösterilirken beklenmedik bir sorun oluştu. Tekrar dene.",
     sunLabel: "Güneş", moonLabel: "Ay",
@@ -623,15 +629,17 @@ const I18N = {
     signDate_11: "19 Şubat - 20 Mart",
     eduZodiacTitle: "Burçlar ve Tarihleri",
     eduZodiacDisclaimer: "Tarihler yaklaşıktır, yıldan yıla birkaç saat kayabilir.",
-    eduHistoryTitle: "Klasik Astroloji Geleneği",
-    bioAbuMasharName: "Ebû Ma'şer el-Belhî",
-    bioAbuMasharText: "Ebû Ma'şer el-Belhî (787-886), Abbasi sarayında yaşamış, Horasan kökenli önemli bir astrologdu. Kırklı yaşlarında astrolojiye yönelmiş, yazdığı kapsamlı el kitapları Orta Çağ boyunca Latinceye çevrilerek Avrupa astrolojisini derinden etkilemiştir. Gök cisimlerinin presesyonuna dayanan \"astrolojik çağlar\" fikrini ilk tanımlayanlardan biri olarak bilinir.",
-    bioBonattiName: "Guido Bonatti",
-    bioBonattiText: "Guido Bonatti (yaklaşık 1207-1296), İtalya'nın Forlì kentinden, 13. yüzyılın en tanınmış astroloğu kabul edilen bir matematikçi ve astrologdu. İmparator II. Friedrich ve çeşitli İtalyan şehir devletlerine danışmanlık yapmıştır. Başyapıtı \"Liber Astronomiae\", döneminin Arapça kaynaklı astrolojik bilgisini bir araya getiren kapsamlı bir eser olarak yüzyıllarca başvuru kaynağı olmuştur.",
-    bioLillyName: "William Lilly",
-    bioLillyText: "William Lilly (1602-1681), 17. yüzyıl İngiltere'sinin en tanınmış astroloğuydu ve Londra'da mesleki bir danışmanlık pratiği yürütmüştür. 1647'de yayımladığı \"Christian Astrology\" adlı eseri, İngilizce yazılmış ilk kapsamlı astroloji kitabı olup horary (soru) astrolojisinin klasik referans metni haline gelmiştir. 1666 Londra Yangını'nı önceden işaret ettiği söylenen yorumlarıyla da tanınır.",
-    bioDoserName: "Öner Döşer",
-    bioDoserText: "Öner Döşer (1966, İstanbul), Türkiye'de klasik ve Ortaçağ astrolojisinin tanınmış isimlerinden biridir. 1996'da astrolojiyle ilgilenmeye başlamış, Ortaçağ astrolojisi alanında Robert Zoller'den eğitim almıştır. AstroArt Astroloji Okulu'nun kurucusu olup çok sayıda astroloji kitabı yazmış, düzenli olarak astroloji eğitimleri ve Uluslararası Astroloji Günleri etkinliğini yürütmektedir.",
+    eduHistoryTitle: "Astrolojinin Kısa Tarihi",
+    eraMesopotamiaName: "Mezopotamya ve Babil",
+    eraMesopotamiaText: "Astrolojinin izleri Mezopotamya'ya, gökyüzü hareketlerinin sistematik olarak kaydedildiği binlerce yıl öncesine uzanır. Gezegen konumları ve tutulmalar, kraliyet kehanetleri için gözlemlenip kayıt altına alınıyordu. Zodyak burçlarının ilk hâli de bu döneme, Babil gök gözlemlerine dayanır.",
+    eraHellenisticName: "Helenistik Dönem",
+    eraHellenisticText: "Babil'in gözlem birikimi, Helenistik dönemde Yunan geometrisi ve felsefesiyle birleşti. Burç, ev ve açı (aspect) kavramlarını içeren sistematik bir çerçeve bu dönemde kuruldu; doğum anına dayalı kişisel harita fikri de böylece ortaya çıktı.",
+    eraIslamicName: "İslam Altın Çağı",
+    eraIslamicText: "8. ile 13. yüzyıllar arasında, Bağdat ve Endülüs gibi merkezlerde astronomik gözlemler ve matematiksel yöntemler önemli ölçüde gelişti. Yunanca metinlerin Arapçaya, ardından Latinceye çevrilmesiyle bu birikim Avrupa'ya taşındı.",
+    eraRenaissanceName: "Rönesans ve 17. Yüzyıl",
+    eraRenaissanceText: "Rönesans Avrupası'nda astroloji, üniversitelerde astronomiyle iç içe okutuluyordu. Matbaanın yaygınlaşmasıyla astroloji almanakları ve el kitapları geniş bir okur kitlesine ulaştı.",
+    eraModernName: "Modern Dönem",
+    eraModernText: "17. yüzyıldan itibaren bilimsel devrimle birlikte astronomi ve astroloji akademik olarak birbirinden ayrıldı. 20. yüzyılın sonlarından bu yana ise eski el yazmalarının yeniden incelenmesiyle klasik ve Ortaçağ dönemi tekniklerine yönelik bir ilgi canlanması yaşanıyor.",
   },
   en: {
     pageTitle: "Stellafix · Classical Astrology",
@@ -641,12 +649,12 @@ const I18N = {
     labelBirthDate: "Birth Date",
     labelBirthTime: "Birth Time (local)",
     labelHouseSystem: "House System",
-    optionPlacidus: "Placidus (Solar Fire compatible)",
+    optionPlacidus: "Placidus",
     labelBirthPlace: "Birth Place",
     placeholderCity: "Type a city name...",
     btnCalculate: "⚷ Calculate Natal Chart",
     btnCalculating: "⏳ Calculating...",
-    noteMethod: "Timezone automatic · Historical DST included · Classical Western Astrology · Essential dignity Ptolemy terms · No analysis without data",
+    noteMethod: "Timezone automatic · Historical DST included · Classical Western Astrology · No analysis without data",
     panelDignityTitle: "Essential Dignity Reference",
     thScore: "Score",
     thDescription: "Description",
@@ -654,16 +662,17 @@ const I18N = {
     descTerm: "Term lord", descFace: "Decan / Face", descPeregrine: "Unaffiliated",
     descDetriment: "Exile", descFall: "Fall",
     noteTechLabel: "METHOD",
-    noteTechInfo: "133-city database · Classical Western Astrology · Placidus house system · Calculations powered by Swiss Ephemeris.",
+    noteTechInfo: "133-city database · Classical Western Astrology · Precise astronomical calculation.",
     wheelPanelTitle: "Natal Chart",
     resultsPanelTitle: "Planet Positions · Essential Dignity",
     thPlanet: "Planet", thDegree: "Degree", thSign: "Sign", thHouse: "House", thScoreCol: "Score",
     analysisTitle: "Classical Analysis Note",
+    analysisFooterNote: "✓ Precise astronomical calculation",
     houseSectionTitle: "House Cusps",
     errNoDateTime: "Birth date and time are required.",
     errNoCity: "Please select a birth place. Type a city name and click one from the list.",
-    errFileProtocol: "⚠️ Open this file from a web server to use the API connection.",
-    errApiPrefix: "API Error: ",
+    errFileProtocol: "⚠️ Open this page from a web server to use this feature.",
+    errPrefix: "Error: ",
     errCalcFailed: "We couldn't calculate your chart right now - there may be a connection issue. Please try again in a few seconds.",
     errRenderFailed: "Your chart was calculated but something unexpected happened while displaying it. Please try again.",
     sunLabel: "Sun", moonLabel: "Moon",
@@ -760,15 +769,17 @@ const I18N = {
     signDate_11: "February 19 - March 20",
     eduZodiacTitle: "Zodiac Signs and Dates",
     eduZodiacDisclaimer: "Dates are approximate and can shift by a few hours from year to year.",
-    eduHistoryTitle: "The Classical Astrology Tradition",
-    bioAbuMasharName: "Abu Ma'shar al-Balkhi",
-    bioAbuMasharText: "Abu Ma'shar al-Balkhi (787-886) was a Persian scholar at the Abbasid court in Baghdad, regarded as one of the most influential astrologers of his era. He turned to astrology relatively late in life, and his comprehensive manuals were translated into Latin and profoundly shaped astrology in medieval Europe. He is credited as one of the first to define the astrological ages, such as the Age of Pisces and the Age of Aquarius, based on the precession of the equinoxes.",
-    bioBonattiName: "Guido Bonatti",
-    bioBonattiText: "Guido Bonatti (c. 1207-1296) was an Italian mathematician and astrologer from Forlì, considered the most celebrated astrologer of the 13th century. He served as an advisor to Emperor Frederick II and to several Italian city-states. His major work, the Liber Astronomiae, compiled the astrological knowledge of his time drawn from Arabic sources and remained a standard reference for centuries.",
-    bioLillyName: "William Lilly",
-    bioLillyText: "William Lilly (1602-1681) was the most prominent English astrologer of the 17th century, practicing as a professional consulting astrologer in London. His 1647 book Christian Astrology was the first major astrology textbook written in English and remains the classic reference work on horary astrology. He is also known for commentary widely said to have anticipated the Great Fire of London in 1666.",
-    bioDoserName: "Öner Döşer",
-    bioDoserText: "Öner Döşer (b. 1966, Istanbul) is a well-known figure in classical and medieval astrology in Turkey. He began studying astrology in 1996 and trained in medieval astrology under Robert Zoller. He founded the AstroArt Astrology School, has authored numerous books on astrology, and regularly organizes astrology education programs and the International Astrology Days event.",
+    eduHistoryTitle: "A Brief History of Astrology",
+    eraMesopotamiaName: "Mesopotamia and Babylon",
+    eraMesopotamiaText: "Astrology's roots trace back to Mesopotamia, where celestial movements were systematically recorded thousands of years ago. Planetary positions and eclipses were observed and logged for royal omens. The earliest form of the zodiac signs also emerges from this period of Babylonian sky-watching.",
+    eraHellenisticName: "The Hellenistic Period",
+    eraHellenisticText: "Babylonian observational traditions merged with Greek geometry and philosophy during the Hellenistic period. A systematic framework of signs, houses, and aspects took shape in this era, giving rise to the idea of a personal chart based on the moment of birth.",
+    eraIslamicName: "The Islamic Golden Age",
+    eraIslamicText: "Between the 8th and 13th centuries, observational astronomy and mathematical methods advanced significantly in centers such as Baghdad and Al-Andalus. The translation of Greek texts into Arabic, and later into Latin, carried this knowledge into Europe.",
+    eraRenaissanceName: "The Renaissance and the 17th Century",
+    eraRenaissanceText: "In Renaissance Europe, astrology was taught alongside astronomy at universities. The spread of printing brought astrological almanacs and handbooks to a wide readership.",
+    eraModernName: "The Modern Era",
+    eraModernText: "From the 17th century onward, the scientific revolution led astronomy and astrology to diverge as academic disciplines. Since the late 20th century, renewed study of historical manuscripts has sparked a revival of interest in classical and medieval techniques.",
   },
 };
 function t(key){
@@ -1702,6 +1713,19 @@ function dignityInfo(dignityArr,score){
   return{badges,label:names.join(', '),scoreText:(score>0?'+':'')+score,neg:score<0,pct:Math.max(0,(score/5)*100)};
 }
 
+// Backend'in hata gövdesindeki `detail` metni bazen kullanıcıya gösterilebilir
+// bir açıklama (ör. "Geçersiz doğum tarihi"), bazen teknik bir sızıntı (endpoint
+// yolu, stack trace parçası, çıplak HTTP kodu) olabiliyor. İkincisini
+// kullanıcıya göstermek yerine sadece console'a yazıyoruz.
+function looksTechnicalDetail(text){
+  if(typeof text!=='string')return true; // string değilse (ör. sadece resp.status sayısı) teknik say
+  if(text.length>140)return true; // olası stack trace / uzun teknik dump
+  if(/\/api\/|\/v\d+\//i.test(text))return true; // endpoint yolu
+  if(/traceback|file "|exception|nonetype|internal server error|at \w+[.:]\w+\(/i.test(text))return true;
+  if(/^\d{3}$/.test(text.trim()))return true; // sadece çıplak HTTP kodu
+  return false;
+}
+
 // ============================================================
 // ANA HESAPLAMA
 // ============================================================
@@ -1759,7 +1783,13 @@ async function calculateChart(){
         return;
       }
       let err={}; try{ err=await resp.json(); }catch(e){}
-      showErr(`${t('errApiPrefix')}${err.detail||resp.status}`);
+      const detail=err.detail;
+      if(detail&&!looksTechnicalDetail(detail)){
+        showErr(`${t('errPrefix')}${detail}`);
+      }else{
+        console.error('Natal chart API error:',resp.status,detail||'(detay yok)');
+        showErr(t('errCalcFailed'));
+      }
       return;
     }
 
@@ -1797,7 +1827,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
   document.getElementById('chartMeta').innerHTML=
     `${name}<br>${selectedCity.name}, ${selectedCity.country}<br>`+
     `${dateStr} · ${timeStr}<br>`+
-    `Swiss Ephemeris`;
+    `${t('analysisFooterNote')}`;
 
   // Planet tablosu
   const tb=document.getElementById('planetBody');tb.innerHTML='';
@@ -1867,7 +1897,7 @@ function renderFromAPI(data,name,dateStr,timeStr){
     `${sentChartLord(signName(ascSI),lordName(ascSI))}<br><br>`+
     `${sentPlanetDignity('sun',t('sunLabel'),signName(sunSI),degreeOnly(sun.degree_fmt),sunDg.label,sunDg.scoreText,sun.dignity_score)}<br><br>`+
     `${sentPlanetDignity('moon',t('moonLabel'),signName(moonSI),degreeOnly(moon.degree_fmt),moonDg.label,moonDg.scoreText,moon.dignity_score)}<br><br>`+
-    `<em style="font-size:12px;color:#888">✓ Swiss Ephemeris · Placidus · Ptolemy terms</em>`;
+    `<em style="font-size:12px;color:#888">${t('analysisFooterNote')}</em>`;
 
   // Evler — görünürlüğü artık #houseSection'ın .tech-details-field sınıfı
   // (Teknik Detaylar toggle'ı) belirliyor, burada zorla açılmıyor
