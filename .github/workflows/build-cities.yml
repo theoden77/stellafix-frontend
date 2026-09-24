@@ -1,0 +1,55 @@
+name: Şehir veritabanını GeoNames'ten güncelle
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Ülke dosyalarını GeoNames dökümünden üret
+        run: python3 scripts/build_cities.py
+
+      - name: Değişiklik var mı kontrol et
+        id: changes
+        run: |
+          if git status --porcelain cities/ | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull request oluştur
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="geonames-data-update-$(date -u +%Y%m%d-%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add cities/
+          git commit -m "Şehir verisini GeoNames dökümünden güncelle (cities1000)"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "Şehir veritabanı: ülke bazlı GeoNames verisi (cities1000)" \
+            --body-file /tmp/cities_build_report.md \
+            --base main \
+            --head "$BRANCH"
+
+      - name: Değişiklik yoksa bildir
+        if: steps.changes.outputs.changed == 'false'
+        run: echo "Üretilen veri mevcut cities/ dizininden farksız, PR açılmadı."
