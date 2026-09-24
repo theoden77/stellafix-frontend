@@ -375,9 +375,21 @@
     </div>
 
     <div class="form-group" style="position:relative">
+      <label data-i18n="labelBirthCountry">Doğum ülkesi</label>
+      <div class="city-confirmed" id="countryConfirmed" style="display:none">
+        📍 <strong id="countryConfirmedText"></strong>
+        &nbsp;|&nbsp;
+        <span class="manual-location-link" onclick="changeCountry()" data-i18n="countryChangeLink">Değiştir</span>
+      </div>
+      <input type="text" id="countryInput" placeholder="Ülke adı yazın..." autocomplete="off"
+        oninput="onCountryInput()" onkeydown="onCountryKey(event)" onfocus="onCountryFocus()" data-i18n-placeholder="placeholderCountry">
+      <div class="city-dropdown" id="countryDropdown"></div>
+    </div>
+
+    <div class="form-group" id="cityStepGroup" style="position:relative;display:none">
       <label data-i18n="labelBirthPlace">Doğum Yeri</label>
       <input type="text" id="cityInput" placeholder="Şehir adı yazın..." autocomplete="off"
-        oninput="onCityInput()" onkeydown="onCityKey(event)" onfocus="loadCities()" data-i18n-placeholder="placeholderCity">
+        oninput="onCityInput()" onkeydown="onCityKey(event)" onfocus="loadCountryCities()" data-i18n-placeholder="placeholderCity">
       <div class="city-dropdown" id="cityDropdown"></div>
       <div class="city-confirmed" id="cityConfirmed"></div>
       <div class="tz-badge" id="tzBadge"></div>
@@ -551,6 +563,9 @@ const I18N = {
     labelBirthTime: "Doğum Saati (yerel)",
     labelHouseSystem: "Ev Sistemi",
     optionPlacidus: "Placidus",
+    labelBirthCountry: "Doğum ülkesi",
+    placeholderCountry: "Ülke adı yazın...",
+    countryChangeLink: "Değiştir",
     labelBirthPlace: "Doğum Yeri",
     placeholderCity: "Şehir adı yazın...",
     manualLocationLink: "Şehrimi listede bulamıyorum",
@@ -564,9 +579,11 @@ const I18N = {
     manualCancelBtn: "Şehir aramaya dön",
     manualConfirmBtn: "Bu konumu kullan",
     cityLoadingText: "Şehir listesi yükleniyor...",
-    cityFallbackText: "Tam şehir listesi yüklenemedi - şu an sadece en büyük 200 şehir gösteriliyor.",
+    cityFallbackText: "Bu ülke için tam liste yüklenemedi - sadece en büyük birkaç şehir gösteriliyor.",
+    cityFallbackEmptyText: "Bu ülke için şehir listesi şu anda yüklenemiyor.",
     cityRetryBtn: "Tekrar dene",
     cityLoadErrorLink: "Enlem/boylam ile devam et",
+    cityNoMatchHint: "Başka bir ülkede mi doğdun? Ülkeyi değiştir",
     btnCalculate: "⚷ Natal Harita Hesapla",
     btnCalculating: "⏳ Hesaplanıyor...",
     noteMethod: "Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi · Veri yoksa analiz yapılmaz",
@@ -577,7 +594,7 @@ const I18N = {
     descTerm: "Sınır lordu", descFace: "Decan / Yüz", descPeregrine: "Yabancı",
     descDetriment: "Sürgün", descFall: "Düşüş",
     noteTechLabel: "YÖNTEM",
-    noteTechInfo: "34.006 şehir veritabanı · Klasik Batı Astrolojisi · Hassas astronomik hesaplama.",
+    noteTechInfo: "246 ülke · 171.075 şehir veritabanı · Klasik Batı Astrolojisi · Hassas astronomik hesaplama.",
     wheelPanelTitle: "Natal Harita",
     resultsPanelTitle: "Gezegen Pozisyonları · Essential Dignity",
     thPlanet: "Gezegen", thDegree: "Derece", thSign: "Burç", thHouse: "Ev", thScoreCol: "Puan",
@@ -706,6 +723,9 @@ const I18N = {
     labelBirthTime: "Birth Time (local)",
     labelHouseSystem: "House System",
     optionPlacidus: "Placidus",
+    labelBirthCountry: "Country of birth",
+    placeholderCountry: "Type a country name...",
+    countryChangeLink: "Change",
     labelBirthPlace: "Birth Place",
     placeholderCity: "Type a city name...",
     manualLocationLink: "I can't find my city in the list",
@@ -719,9 +739,11 @@ const I18N = {
     manualCancelBtn: "Back to city search",
     manualConfirmBtn: "Use this location",
     cityLoadingText: "Loading city list...",
-    cityFallbackText: "Couldn't load the full city list - showing only the 200 largest cities for now.",
+    cityFallbackText: "Couldn't load the full list for this country - showing only a few of the largest cities for now.",
+    cityFallbackEmptyText: "The city list for this country can't be loaded right now.",
     cityRetryBtn: "Try again",
     cityLoadErrorLink: "Continue with coordinates",
+    cityNoMatchHint: "Born in a different country? Change country",
     btnCalculate: "⚷ Calculate Natal Chart",
     btnCalculating: "⏳ Calculating...",
     noteMethod: "Timezone automatic · Historical DST included · Classical Western Astrology · No analysis without data",
@@ -732,7 +754,7 @@ const I18N = {
     descTerm: "Term lord", descFace: "Decan / Face", descPeregrine: "Unaffiliated",
     descDetriment: "Exile", descFall: "Fall",
     noteTechLabel: "METHOD",
-    noteTechInfo: "34,006-city database · Classical Western Astrology · Precise astronomical calculation.",
+    noteTechInfo: "246 countries · 171,075-city database · Classical Western Astrology · Precise astronomical calculation.",
     wheelPanelTitle: "Natal Chart",
     resultsPanelTitle: "Planet Positions · Essential Dignity",
     thPlanet: "Planet", thDegree: "Degree", thSign: "Sign", thHouse: "House", thScoreCol: "Score",
@@ -920,7 +942,9 @@ function setLocale(loc){
   }
   // selectedCity yukarıdaki blokta değişmiş olabilir - cityInput/cityConfirmed/
   // tzBadge'i (ülke adı ve rozet locale'e göre değişiyor) en son, kesinleşmiş
-  // selectedCity'ye göre yenile.
+  // selectedCity'ye göre yenile. Ülke onay kutusu da aynı gerekçeyle (Intl.
+  // DisplayNames -> countryName()) yeniden çizilmeli.
+  refreshCountryConfirmedDisplay();
   refreshCityDisplay();
   updateTzBadge();
 }
@@ -1293,34 +1317,53 @@ async function handleInterpretErrorResponse(resp){
 }
 
 // ============================================================
-// ŞEHİR VERİTABANI — ayrı bir cities.json dosyasından TEMBEL YÜKLENİYOR
-// (fetch), sayfa yüklenirken DEĞİL. Kaynak: GeoNames.org (CC BY 4.0 - bkz.
-// sayfa altındaki atıf), cities15000 katmanı (nüfus >15.000 veya başkent/
-// idari merkez), 34.006 kayıt.
-// format: [ad, ülke ISO 3166-1 alpha-2 kodu, enlem, boylam, IANA timezone id, nüfus (BİNDE)]
-// Nüfus binde - ör. 20430 kişi -> 20. Tam sayı yerine sadece arama sıralaması
-// (doCityFilter) için kullanıldığından bu hassasiyet fazlasıyla yeterli.
-// Ülke kodu, gösterim sırasında Intl.DisplayNames ile (countryName()) locale'e
-// göre yerelleştirilmiş isme çevriliyor - "ABD" TR'de, "United States" EN'de.
-// Timezone alanı hesaplamada KULLANILMIYOR (backend resolve_timezone() ile
-// koordinattan kendi çözüyor, bkz. app/astrology/core.py) - sadece formdaki
-// "UTC+3:00 — ..." önizleme rozetini beslemek için (bkz. tzOffsetForZone()).
-//
-// TEMBEL YÜKLEME: cities.json ~544KB gzip - sayfa açılışını yavaşlatmasın
-// diye ayrı bir dosyada tutuluyor ve kullanıcı "Doğum Yeri" alanına
-// dokunana kadar (onfocus) hiç indirilmiyor. Aynı domainden, aynı deploy'la
-// giden statik bir veri dosyası - dış bir bağımlılık YARATMIYOR, sadece
-// indirme zamanlamasını erteliyor. Ana sayfa artık ~90KB gzip.
-//
-// YEDEK LİSTE: cities.json 3 denemede de (1 ilk + 2 sessiz retry)
-// yüklenemezse, aşağıdaki gömülü CITIES_FALLBACK devreye giriyor - arama
-// tamamen kesintiye uğramak yerine en azından dünyanın en büyük 200
-// şehrinde çalışmaya devam ediyor. Aynı GeoNames kaynağından (CC BY 4.0),
-// aynı format, nüfusa göre azalan sırayla. ~4.7KB gzip - göz ardı
-// edilebilir boyut. Not: eski (bu proje ilk sürümündeki) 133 şehirlik
-// elle-derlenmiş liste artık kodda YOK (GeoNames genişlemesiyle
-// kaldırıldı) - bu, onun yerine yeni oluşturulmuş bir yedek.
 // ============================================================
+// DOĞUM YERİ — İKİ ADIMLI: önce ÜLKE, sonra o ülkenin ŞEHİR dosyası.
+// Kaynak: GeoNames.org (CC BY 4.0 - bkz. sayfa altındaki atıf), resmi
+// cities1000.zip + admin1CodesASCII.txt dökümlerinden scripts/build_cities.py
+// ile üretildi (bkz. o script - geonamescache/pycountry/unidecode gibi
+// yaklaşıklık kütüphaneleri NİHAİ veriye karışmadı, asciiname/bölge adı/
+// alternatenames doğrudan resmi dökümden). 246 ülke, 171.075 kayıt.
+//
+// NEDEN İKİ ADIM: tek dosyada tüm dünya (34.006 kayıt, cities15000) 545KB
+// gzip'ti - kullanılabilir ama sınırlı kapsamlıydı (Taos, Kinsale, Hallstatt
+// gibi küçük ama doğum yeri olarak aranabilecek yerler yoktu). cities1000'e
+// geçmek kapsamı ~5 katına çıkarıyor (171K kayıt) - tek dosyada bu kabul
+// edilemez boyutta olurdu. Çözüm: veri ülke başına ayrı dosyalara bölündü
+// (cities/<CC>.json), kullanıcı önce ülkesini seçiyor, sadece O ülkenin
+// dosyası (en büyüğü ABD, ~289KB gzip - build script her build'de bunu
+// doğruluyor, 300KB'ı aşan olursa build başarısız oluyor) indiriliyor.
+//
+// KAYIT FORMATI (her ülke dosyasında "cities" dizisinin her elemanı):
+//   [ad, asciiname (ad ile aynıysa ""), enlem(4 ondalık), boylam(4 ondalık),
+//    IANA tz, nüfus(binde), admin1 kodu, [Latin-alfabeli alternatif adlar]]
+// "admin1" alanı aynı dosyada {kod: bölgeAdı} sözlüğü - "Springfield,
+// Illinois" gibi ayırt edici gösterim için (aynı ülkede aynı isimli birden
+// fazla yer olabiliyor). Alternatif adlar sadece nüfusu >100.000 olan
+// şehirler için dolduruluyor (Nürnberg/Nuremberg, Köln/Cologne, Göteborg/
+// Gothenburg, Den Haag/The Hague, Antwerpen/Antwerp gibi aramaları çözmek
+// için - bkz. runCityFilter).
+//
+// COUNTRY_INDEX (aşağıda gömülü, ~1-2KB) cities/index.json'un birebir
+// içeriği - 246 ülke için [kod, kayıt sayısı], ayrı bir fetch gerektirmiyor,
+// ülke seçim adımı sayfa açılır açılmaz kullanılabilir.
+// ============================================================
+const COUNTRY_INDEX=[["AD",15],["AE",105],["AF",319],["AG",20],["AI",14],["AL",380],["AM",455],["AO",565],["AR",1179],["AS",17],["AT",2266],["AU",3834],["AW",14],["AX",21],["AZ",219],["BA",292],["BB",14],["BD",161],["BE",1735],["BF",113],["BG",304],["BH",12],["BI",32],["BJ",87],["BL",1],["BM",11],["BN",47],["BO",148],["BQ",8],["BR",5882],["BS",28],["BT",30],["BW",120],["BY",261],["BZ",81],["CA",2862],["CC",1],["CD",118],["CF",51],["CG",59],["CH",1425],["CI",3775],["CK",2],["CL",305],["CM",142],["CN",4970],["CO",1173],["CR",130],["CU",207],["CV",141],["CW",12],["CX",1],["CY",102],["CZ",1490],["DE",7650],["DJ",26],["DK",435],["DM",18],["DO",210],["DZ",350],["EC",541],["EE",130],["EG",259],["EH",22],["ER",18],["ES",7178],["ET",255],["FI",885],["FJ",16],["FK",1],["FM",52],["FO",26],["FR",8941],["GA",50],["GB",4644],["GD",9],["GE",175],["GF",19],["GG",11],["GH",119],["GI",6],["GL",13],["GM",126],["GN",83],["GP",25],["GQ",25],["GR",1132],["GS",1],["GT",340],["GU",26],["GW",50],["GY",22],["HK",325],["HN",468],["HR",764],["HT",109],["HU",1101],["ID",2014],["IE",370],["IL",433],["IM",21],["IN",7073],["IO",1],["IQ",170],["IR",2038],["IS",35],["IT",10053],["JE",6],["JM",101],["JO",146],["JP",2160],["KE",334],["KG",108],["KH",301],["KI",19],["KM",93],["KN",16],["KP",127],["KR",306],["KW",28],["KY",67],["KZ",345],["LA",94],["LB",50],["LC",37],["LI",14],["LK",89],["LR",27],["LS",47],["LT",133],["LU",172],["LV",131],["LY",119],["MA",479],["MC",12],["MD",98],["ME",41],["MF",9],["MG",152],["MH",26],["MK",202],["ML",94],["MM",528],["MN",331],["MO",7],["MP",6],["MQ",21],["MR",85],["MS",3],["MT",69],["MU",113],["MV",30],["MW",39],["MX",8947],["MY",731],["MZ",94],["NA",80],["NC",60],["NE",74],["NF",1],["NG",927],["NI",166],["NL",1572],["NO",533],["NP",74],["NR",10],["NU",1],["NZ",647],["OM",41],["PA",643],["PE",1773],["PF",38],["PG",52],["PH",4523],["PK",570],["PL",3022],["PM",2],["PN",1],["PR",220],["PS",378],["PT",962],["PW",22],["PY",151],["QA",42],["RE",28],["RO",4571],["RS",437],["RU",4932],["RW",51],["SA",159],["SB",23],["SC",26],["SD",112],["SE",832],["SG",116],["SH",4],["SI",301],["SJ",2],["SK",603],["SL",87],["SM",13],["SN",153],["SO",75],["SR",31],["SS",23],["ST",26],["SV",101],["SX",6],["SY",309],["SZ",24],["TC",7],["TD",72],["TF",1],["TG",35],["TH",1070],["TJ",102],["TK",3],["TL",32],["TM",123],["TN",285],["TO",24],["TR",2688],["TT",27],["TV",9],["TW",89],["TZ",324],["UA",3878],["UG",208],["US",17343],["UY",135],["UZ",219],["VA",1],["VC",20],["VE",414],["VG",2],["VI",6],["VN",905],["VU",9],["WF",3],["WS",32],["XK",65],["YE",309],["YT",57],["ZA",975],["ZM",98],["ZW",68]];
+
+// TZ_COUNTRY_MAP: cities/*.json'daki GERÇEK veriden türetildi (her IANA
+// bölgesi için o bölgeyi en çok kullanan - nüfus toplamına göre - ülke) -
+// tarayıcının kendi saat diliminden doğum ülkesi ön-seçimi için. Üçüncü
+// parti bir yaklaşıklık kütüphanesi değil, zaten indirdiğimiz resmi
+// GeoNames verisinin kendi özeti (bkz. guessBirthCountry).
+const TZ_COUNTRY_MAP={"Europe/Andorra":"AD","Asia/Dubai":"AE","Asia/Kabul":"AF","America/Antigua":"AG","America/Anguilla":"AI","Europe/Tirane":"AL","Asia/Yerevan":"AM","Africa/Luanda":"AO","America/Argentina/Buenos_Aires":"AR","America/Argentina/Cordoba":"AR","America/Argentina/San_Juan":"AR","America/Argentina/Salta":"AR","America/Argentina/Jujuy":"AR","America/Argentina/Tucuman":"AR","America/Argentina/Rio_Gallegos":"AR","America/Argentina/La_Rioja":"AR","America/Argentina/Mendoza":"AR","America/Argentina/San_Luis":"AR","America/Argentina/Ushuaia":"AR","America/Argentina/Catamarca":"AR","Pacific/Pago_Pago":"AS","Europe/Vienna":"AT","Australia/Perth":"AU","Australia/Adelaide":"AU","Australia/Darwin":"AU","Australia/Brisbane":"AU","Australia/Sydney":"AU","Australia/Melbourne":"AU","Australia/Hobart":"AU","Australia/Broken_Hill":"AU","America/Aruba":"AW","Europe/Mariehamn":"AX","Asia/Baku":"AZ","Europe/Sarajevo":"BA","America/Barbados":"BB","Asia/Dhaka":"BD","Europe/Brussels":"BE","Africa/Ouagadougou":"BF","Europe/Sofia":"BG","Asia/Bahrain":"BH","Africa/Bujumbura":"BI","Africa/Porto-Novo":"BJ","America/St_Barthelemy":"BL","Atlantic/Bermuda":"BM","Asia/Brunei":"BN","Asia/Pontianak":"ID","America/La_Paz":"BO","America/Kralendijk":"BQ","America/Fortaleza":"BR","America/Recife":"BR","America/Araguaina":"BR","America/Belem":"BR","America/Noronha":"BR","America/Maceio":"BR","America/Manaus":"BR","America/Bahia":"BR","America/Santarem":"BR","America/Boa_Vista":"BR","America/Sao_Paulo":"BR","America/Campo_Grande":"BR","America/Cuiaba":"BR","America/Porto_Velho":"BR","America/Rio_Branco":"BR","America/Eirunepe":"BR","America/Nassau":"BS","Asia/Thimphu":"BT","Africa/Gaborone":"BW","Europe/Minsk":"BY","America/Belize":"BZ","America/Vancouver":"CA","America/Edmonton":"CA","America/Toronto":"CA","America/Glace_Bay":"CA","America/Halifax":"CA","America/Regina":"CA","America/Winnipeg":"CA","America/Rankin_Inlet":"CA","America/Atikokan":"CA","America/St_Johns":"CA","America/Moncton":"CA","America/Cambridge_Bay":"CA","America/Iqaluit":"CA","America/Dawson_Creek":"CA","America/Creston":"CA","America/Fort_Nelson":"CA","America/Goose_Bay":"CA","America/Inuvik":"CA","America/Blanc-Sablon":"CA","America/Swift_Current":"CA","America/Detroit":"US","America/Whitehorse":"CA","America/Dawson":"CA","Indian/Cocos":"CC","Africa/Lubumbashi":"CD","Africa/Kinshasa":"CD","Africa/Bangui":"CF","Africa/Brazzaville":"CG","Europe/Zurich":"CH","Africa/Abidjan":"CI","Africa/Accra":"GH","Pacific/Rarotonga":"CK","America/Santiago":"CL","America/Punta_Arenas":"CL","America/Coyhaique":"CL","Pacific/Easter":"CL","Africa/Douala":"CM","Asia/Shanghai":"CN","Asia/Urumqi":"CN","Asia/Macau":"MO","America/Bogota":"CO","America/Costa_Rica":"CR","America/Havana":"CU","America/New_York":"US","Atlantic/Cape_Verde":"CV","America/Curacao":"CW","Indian/Christmas":"CX","Asia/Famagusta":"CY","Asia/Nicosia":"CY","Europe/Athens":"GR","Europe/Prague":"CZ","Europe/Berlin":"DE","Europe/Busingen":"DE","Africa/Djibouti":"DJ","Europe/Copenhagen":"DK","America/Dominica":"DM","America/Santo_Domingo":"DO","Africa/Algiers":"DZ","America/Guayaquil":"EC","Pacific/Galapagos":"EC","Europe/Tallinn":"EE","Africa/Cairo":"EG","Africa/El_Aaiun":"EH","Africa/Casablanca":"MA","Africa/Asmara":"ER","Europe/Madrid":"ES","Atlantic/Canary":"ES","Africa/Ceuta":"ES","Africa/Addis_Ababa":"ET","Europe/Helsinki":"FI","Pacific/Fiji":"FJ","Atlantic/Stanley":"FK","Pacific/Chuuk":"FM","Pacific/Kosrae":"FM","Pacific/Pohnpei":"FM","Atlantic/Faroe":"FO","Europe/Paris":"FR","Africa/Libreville":"GA","Europe/London":"GB","America/Grenada":"GD","Asia/Tbilisi":"GE","Europe/Moscow":"RU","America/Cayenne":"GF","Europe/Guernsey":"GG","Europe/Gibraltar":"GI","America/Nuuk":"GL","Africa/Banjul":"GM","Africa/Conakry":"GN","America/Guadeloupe":"GP","Africa/Malabo":"GQ","Atlantic/South_Georgia":"GS","America/Guatemala":"GT","Pacific/Guam":"GU","Africa/Bissau":"GW","America/Guyana":"GY","Asia/Hong_Kong":"HK","America/Tegucigalpa":"HN","Europe/Zagreb":"HR","America/Port-au-Prince":"HT","Europe/Budapest":"HU","Asia/Jakarta":"ID","Asia/Makassar":"ID","Asia/Jayapura":"ID","Asia/Ho_Chi_Minh":"VN","Europe/Dublin":"IE","Asia/Jerusalem":"IL","Europe/Isle_of_Man":"IM","Asia/Kolkata":"IN","Asia/Karachi":"PK","Indian/Chagos":"IO","Asia/Baghdad":"IQ","Asia/Tehran":"IR","Atlantic/Reykjavik":"IS","Europe/Rome":"IT","Europe/Jersey":"JE","America/Jamaica":"JM","Asia/Amman":"JO","Asia/Tokyo":"JP","Africa/Nairobi":"KE","Asia/Bishkek":"KG","Asia/Phnom_Penh":"KH","Pacific/Tarawa":"KI","Pacific/Kiritimati":"KI","Indian/Comoro":"KM","America/St_Kitts":"KN","Asia/Pyongyang":"KP","Asia/Seoul":"KR","Asia/Kuwait":"KW","America/Cayman":"KY","Asia/Oral":"KZ","Asia/Aqtau":"KZ","Asia/Aqtobe":"KZ","Asia/Atyrau":"KZ","Asia/Almaty":"KZ","Asia/Qyzylorda":"KZ","Asia/Qostanay":"KZ","Asia/Vientiane":"LA","Asia/Beirut":"LB","America/St_Lucia":"LC","Europe/Vaduz":"LI","Asia/Colombo":"LK","Africa/Monrovia":"LR","Africa/Maseru":"LS","Europe/Vilnius":"LT","Europe/Luxembourg":"LU","Europe/Riga":"LV","Africa/Tripoli":"LY","Europe/Monaco":"MC","Europe/Chisinau":"MD","Europe/Podgorica":"ME","America/Marigot":"MF","Indian/Antananarivo":"MG","Pacific/Majuro":"MH","Pacific/Kwajalein":"MH","Europe/Skopje":"MK","Africa/Bamako":"ML","Africa/Nouakchott":"MR","Asia/Yangon":"MM","Asia/Hovd":"MN","Asia/Ulaanbaatar":"MN","Pacific/Saipan":"MP","America/Martinique":"MQ","America/Montserrat":"MS","Europe/Malta":"MT","Indian/Mauritius":"MU","Indian/Maldives":"MV","Africa/Blantyre":"MW","America/Monterrey":"MX","America/Mexico_City":"MX","America/Matamoros":"MX","America/Merida":"MX","America/Cancun":"MX","America/Hermosillo":"MX","America/Chihuahua":"MX","America/Ciudad_Juarez":"MX","America/Mazatlan":"MX","America/Tijuana":"MX","America/Bahia_Banderas":"MX","America/Ojinaga":"MX","Asia/Kuala_Lumpur":"MY","Asia/Kuching":"MY","Africa/Maputo":"MZ","Africa/Windhoek":"NA","Pacific/Noumea":"NC","Africa/Niamey":"NE","Pacific/Norfolk":"NF","Africa/Lagos":"NG","America/Managua":"NI","Europe/Amsterdam":"NL","Europe/Oslo":"NO","Asia/Kathmandu":"NP","Pacific/Nauru":"NR","Pacific/Niue":"NU","Pacific/Auckland":"NZ","Pacific/Chatham":"NZ","Asia/Muscat":"OM","America/Panama":"PA","America/Lima":"PE","Pacific/Marquesas":"PF","Pacific/Gambier":"PF","Pacific/Tahiti":"PF","Pacific/Port_Moresby":"PG","Pacific/Bougainville":"PG","Asia/Manila":"PH","Europe/Warsaw":"PL","America/Miquelon":"PM","Pacific/Pitcairn":"PN","America/Puerto_Rico":"PR","Asia/Gaza":"PS","Asia/Hebron":"PS","Europe/Lisbon":"PT","Atlantic/Madeira":"PT","Atlantic/Azores":"PT","Pacific/Palau":"PW","America/Asuncion":"PY","Asia/Qatar":"QA","Indian/Reunion":"RE","Europe/Bucharest":"RO","Europe/Belgrade":"RS","Asia/Yekaterinburg":"RU","Europe/Kirov":"RU","Europe/Samara":"RU","Europe/Kaliningrad":"RU","Europe/Volgograd":"RU","Europe/Ulyanovsk":"RU","Europe/Astrakhan":"RU","Europe/Saratov":"RU","Asia/Novokuznetsk":"RU","Asia/Tomsk":"RU","Asia/Krasnoyarsk":"RU","Asia/Barnaul":"RU","Asia/Omsk":"RU","Asia/Novosibirsk":"RU","Asia/Irkutsk":"RU","Asia/Chita":"RU","Asia/Yakutsk":"RU","Asia/Vladivostok":"RU","Asia/Kamchatka":"RU","Asia/Magadan":"RU","Asia/Sakhalin":"RU","Asia/Anadyr":"RU","Africa/Kigali":"RW","Asia/Riyadh":"SA","Pacific/Guadalcanal":"SB","Indian/Mahe":"SC","Africa/Khartoum":"SD","Europe/Stockholm":"SE","Asia/Singapore":"SG","Atlantic/St_Helena":"SH","Europe/Ljubljana":"SI","Arctic/Longyearbyen":"SJ","Europe/Bratislava":"SK","Africa/Freetown":"SL","Europe/San_Marino":"SM","Africa/Dakar":"SN","Africa/Mogadishu":"SO","America/Paramaribo":"SR","Africa/Juba":"SS","Africa/Sao_Tome":"ST","America/El_Salvador":"SV","America/Lower_Princes":"SX","Asia/Damascus":"SY","Africa/Mbabane":"SZ","America/Grand_Turk":"TC","Africa/Ndjamena":"TD","Indian/Kerguelen":"TF","Africa/Lome":"TG","Asia/Bangkok":"VN","Asia/Dushanbe":"TJ","Pacific/Fakaofo":"TK","Asia/Dili":"TL","Asia/Ashgabat":"TM","Africa/Tunis":"TN","Pacific/Tongatapu":"TO","Europe/Istanbul":"TR","America/Port_of_Spain":"TT","Pacific/Funafuti":"TV","Asia/Taipei":"TW","Africa/Dar_es_Salaam":"TZ","Europe/Simferopol":"UA","Europe/Kyiv":"UA","Africa/Kampala":"UG","America/Chicago":"US","America/Indiana/Indianapolis":"US","America/Kentucky/Louisville":"US","America/Indiana/Vincennes":"US","America/Indiana/Tell_City":"US","America/Indiana/Marengo":"US","America/Indiana/Petersburg":"US","America/Indiana/Vevay":"US","America/Kentucky/Monticello":"US","America/Indiana/Knox":"US","America/Indiana/Winamac":"US","America/Menominee":"US","America/Phoenix":"US","America/Los_Angeles":"US","America/Denver":"US","America/Juneau":"US","America/Sitka":"US","America/Metlakatla":"US","America/Boise":"US","America/North_Dakota/Beulah":"US","America/North_Dakota/Center":"US","America/North_Dakota/New_Salem":"US","Pacific/Honolulu":"US","America/Anchorage":"US","America/Nome":"US","America/Montevideo":"UY","Asia/Samarkand":"UZ","Asia/Tashkent":"UZ","Europe/Vatican":"VA","America/St_Vincent":"VC","America/Caracas":"VE","America/Tortola":"VG","America/St_Thomas":"VI","Pacific/Efate":"VU","Pacific/Wallis":"WF","Pacific/Apia":"WS","Asia/Aden":"YE","Indian/Mayotte":"YT","Africa/Johannesburg":"ZA","Africa/Lusaka":"ZM","Africa/Harare":"ZW"};
+
+// Tüm ülke dosyaları da (retry dahil) yüklenemezse devreye giren gömülü
+// yedek - dünyanın en büyük ~200 şehri, aynı GeoNames kaynağından, nüfusa
+// göre azalan sırayla. Format: [ad, ülke ISO2, enlem, boylam, IANA tz,
+// nüfus(binde)] - ülke dosyalarınınkinden farklı (daha eski, 6 alanlı) bir
+// format çünkü bu liste ülke-bağımsız tek bir dizi; fallbackCitiesForCountry()
+// seçili ülkeye göre süzüp 8 alanlı forma çeviriyor (admin1/altNames yok,
+// boş bırakılıyor) ki arama/render kodu iki kaynağı da aynı şekilde işleyebilsin.
 const CITIES_FALLBACK=[
 ["Shanghai","CN",31.2222,121.4581,"Asia/Shanghai",24874],
 ["Beijing","CN",39.9075,116.3972,"Asia/Shanghai",18961],
@@ -1524,69 +1567,227 @@ const CITIES_FALLBACK=[
 ["Kunshan","CN",31.3776,120.9543,"Asia/Shanghai",2092]
 ];
 
-let CITIES = null; // yüklenene kadar null - loadCities()/doCityFilter() bakın
-let citiesLoadPromise = null;
-let citiesIsFallback = false; // true ise CITIES şu an CITIES_FALLBACK'e işaret ediyor
-const CITIES_FETCH_MAX_ATTEMPTS = 3; // 1 ilk deneme + 2 sessiz retry
-const CITIES_FETCH_RETRY_DELAY_MS = 700;
+// ============================================================
+// ÜLKE SEÇİMİ (Adım 1)
+// ============================================================
+let selectedCountry = null;
+const LAST_COUNTRY_KEY = 'stellafix_last_birth_country';
+const VALID_COUNTRY_CODES = new Set(COUNTRY_INDEX.map(c => c[0]));
 
-async function fetchCitiesJson(){
-  const resp = await fetch('cities.json');
-  if(!resp.ok) throw new Error('HTTP '+resp.status);
+// Doğum ülkesi ön-seçimi, öncelik sırası:
+// 1) Bu tarayıcıda daha önce SEÇİLMİŞ ülke (localStorage). Not: backend'in
+//    User modelinde (app/models.py) kayıtlı bir "doğum ülkesi" alanı YOK -
+//    bu, "giriş yapmış kullanıcıda kayıtlı tercih önce gelsin" isteğinin şu an
+//    elde edilebilir en yakın karşılığı: hesap değil, CİHAZ/tarayıcı bazlı
+//    hatırlama. Gerçek hesap-seviyesi kalıcılık için backend'e alan eklenmesi
+//    gerekir - bu frontend-only PR'ın kapsamı dışında, açıkça not düşülüyor.
+// 2) Tarayıcının saat diliminden ülke tahmini (Intl...resolvedOptions().timeZone
+//    + yukarıdaki TZ_COUNTRY_MAP).
+// 3) navigator.language'ın bölge alt-etiketi (ör. "tr-TR" -> "TR").
+// Hiçbiri sonuç vermezse null - kullanıcı elle seçer.
+function guessBirthCountry() {
+  try {
+    const saved = localStorage.getItem(LAST_COUNTRY_KEY);
+    if (saved && VALID_COUNTRY_CODES.has(saved)) return saved;
+  } catch(e) {}
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const cc = TZ_COUNTRY_MAP[tz];
+    if (cc && VALID_COUNTRY_CODES.has(cc)) return cc;
+  } catch(e) {}
+  try {
+    const lang = navigator.language || '';
+    const m = lang.match(/-([A-Za-z]{2})$/);
+    if (m) {
+      const cc = m[1].toUpperCase();
+      if (VALID_COUNTRY_CODES.has(cc)) return cc;
+    }
+  } catch(e) {}
+  return null;
+}
+
+function initBirthCountry() {
+  const guessed = guessBirthCountry();
+  if (guessed) pickCountry(guessed, { persist: false });
+}
+
+let COUNTRY_NAME_NORM = null; // {_locale, cc: normalizedAd} - locale değişince kendini geçersiz kılar
+function ensureCountryNameNormIndex() {
+  if (COUNTRY_NAME_NORM && COUNTRY_NAME_NORM._locale === currentLocale) return;
+  COUNTRY_NAME_NORM = { _locale: currentLocale };
+  for (const [cc] of COUNTRY_INDEX) COUNTRY_NAME_NORM[cc] = normalizeStr(countryName(cc));
+}
+
+let filteredCountries = []; // COUNTRY_INDEX içindeki indeksler
+let countryActiveIdx = -1;
+let _countryInputDebounce = null;
+function onCountryInput() {
+  clearTimeout(_countryInputDebounce);
+  _countryInputDebounce = setTimeout(runCountryFilter, 120);
+}
+// Odaklanınca, alan boşsa keşfedilebilirlik için en çok kayıtlı 10 ülkeyi
+// göster (ekstra veri gerekmiyor, COUNTRY_INDEX zaten gömülü).
+function onCountryFocus() {
+  const val = document.getElementById('countryInput').value.trim();
+  if (val) { runCountryFilter(); return; }
+  ensureCountryNameNormIndex();
+  const order = COUNTRY_INDEX.map((_, i) => i).sort((a, b) => COUNTRY_INDEX[b][1] - COUNTRY_INDEX[a][1]);
+  filteredCountries = order.slice(0, 10);
+  countryActiveIdx = -1;
+  renderCountryDropdown();
+}
+function runCountryFilter() {
+  const q = normalizeStr(document.getElementById('countryInput').value.trim());
+  if (!q) { closeCountryDropdown(); return; }
+  ensureCountryNameNormIndex();
+  const matches = [];
+  for (let i = 0; i < COUNTRY_INDEX.length; i++) {
+    if (COUNTRY_NAME_NORM[COUNTRY_INDEX[i][0]].includes(q)) matches.push(i);
+  }
+  matches.sort((a, b) => COUNTRY_INDEX[b][1] - COUNTRY_INDEX[a][1]);
+  filteredCountries = matches.slice(0, 10);
+  countryActiveIdx = -1;
+  renderCountryDropdown();
+}
+function renderCountryDropdown() {
+  const dd = document.getElementById('countryDropdown');
+  if (!filteredCountries.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = filteredCountries.map((idx, i) => {
+    const cc = COUNTRY_INDEX[idx][0];
+    return `<div class="city-option${i===countryActiveIdx?' active':''}" onclick="pickCountry('${cc}')">
+      <div class="city-name">${countryName(cc)}</div>
+    </div>`;
+  }).join('');
+}
+function onCountryKey(e) {
+  const dd = document.getElementById('countryDropdown');
+  if (dd.style.display === 'none') return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); countryActiveIdx = Math.min(countryActiveIdx+1, filteredCountries.length-1); renderCountryDropdown(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); countryActiveIdx = Math.max(countryActiveIdx-1, 0); renderCountryDropdown(); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (countryActiveIdx >= 0) pickCountry(COUNTRY_INDEX[filteredCountries[countryActiveIdx]][0]); }
+  else if (e.key === 'Escape') closeCountryDropdown();
+}
+function closeCountryDropdown() { document.getElementById('countryDropdown').style.display = 'none'; }
+
+function pickCountry(cc, opts) {
+  opts = opts || {};
+  selectedCountry = cc;
+  if (opts.persist !== false) {
+    try { localStorage.setItem(LAST_COUNTRY_KEY, cc); } catch(e) {}
+  }
+  closeCountryDropdown();
+  document.getElementById('countryInput').style.display = 'none';
+  const box = document.getElementById('countryConfirmed');
+  box.style.display = 'block';
+  document.getElementById('countryConfirmedText').textContent = countryName(cc);
+  document.getElementById('cityStepGroup').style.display = 'block';
+  resetCityStepForNewCountry();
+}
+
+function changeCountry() {
+  document.getElementById('countryConfirmed').style.display = 'none';
+  const input = document.getElementById('countryInput');
+  input.style.display = '';
+  input.value = selectedCountry ? countryName(selectedCountry) : '';
+  input.focus();
+  document.getElementById('cityStepGroup').style.display = 'none';
+  selectedCountry = null;
+  resetCityStepForNewCountry();
+}
+
+function resetCityStepForNewCountry() {
+  selectedCity = null;
+  countryCities = null;
+  countryCitiesLoadPromise = null;
+  countryCitiesIsFallback = false;
+  CITY_NAME_NORM = null;
+  document.getElementById('cityInput').value = '';
+  document.getElementById('cityConfirmed').style.display = 'none';
+  document.getElementById('tzBadge').style.display = 'none';
+  closeDropdown();
+  closeManualLocation();
+}
+
+// setLocale() ülke adını da (Intl.DisplayNames -> countryName()) yeniden
+// çizmesi gereken tek yer - refreshCityDisplay ile aynı gerekçe.
+function refreshCountryConfirmedDisplay() {
+  if (!selectedCountry) return;
+  document.getElementById('countryConfirmedText').textContent = countryName(selectedCountry);
+}
+
+// ============================================================
+// ŞEHİR ARAMA (Adım 2) — seçili ülkenin cities/<CC>.json'u
+// ============================================================
+let selectedCity = null;
+let activeIdx = -1;
+let filteredCities = []; // {idx, tier, viaAlt, altText} - countryCities.cities İÇİNDEKİ indeksler
+
+let countryCities = null; // {admin1:{kod:ad}, cities:[...]} - yüklenene kadar null
+let countryCitiesLoadPromise = null;
+let countryCitiesIsFallback = false; // true ise countryCities.cities CITIES_FALLBACK'ten süzülmüş
+const COUNTRY_CITIES_FETCH_MAX_ATTEMPTS = 3; // 1 ilk deneme + 2 sessiz retry
+const COUNTRY_CITIES_FETCH_RETRY_DELAY_MS = 700;
+
+async function fetchCountryCitiesJson(cc) {
+  const resp = await fetch(`cities/${cc}.json`);
+  if (!resp.ok) throw new Error('HTTP '+resp.status);
   return resp.json();
 }
 
-function loadCities(){
-  if(citiesLoadPromise)return citiesLoadPromise;
-  citiesLoadPromise=(async()=>{
-    for(let attempt=1; attempt<=CITIES_FETCH_MAX_ATTEMPTS; attempt++){
-      try{
-        const data=await fetchCitiesJson();
-        CITIES=data;
-        citiesIsFallback=false;
-        CITY_NAME_NORM=null; // önceki (varsa yedek) diziye ait önbellek artık geçersiz
-        return CITIES;
-      }catch(err){
-        console.error(`cities.json yükleme denemesi ${attempt}/${CITIES_FETCH_MAX_ATTEMPTS} başarısız:`,err);
-        if(attempt<CITIES_FETCH_MAX_ATTEMPTS){
-          await new Promise(r=>setTimeout(r,CITIES_FETCH_RETRY_DELAY_MS));
+// CITIES_FALLBACK'i (dünya geneli, 200 şehir) seçili ülkeye göre süzüp
+// gerçek ülke dosyasıyla aynı 8 alanlı kayıt formuna çeviriyor.
+function fallbackCitiesForCountry(cc) {
+  return CITIES_FALLBACK.filter(c => c[1] === cc)
+    .map(c => [c[0], '', c[2], c[3], c[4], c[5], '', []]);
+}
+
+function loadCountryCities() {
+  if (!selectedCountry) return Promise.resolve(null);
+  if (countryCitiesLoadPromise) return countryCitiesLoadPromise;
+  const cc = selectedCountry;
+  countryCitiesLoadPromise = (async () => {
+    for (let attempt = 1; attempt <= COUNTRY_CITIES_FETCH_MAX_ATTEMPTS; attempt++) {
+      try {
+        const data = await fetchCountryCitiesJson(cc);
+        countryCities = data;
+        countryCitiesIsFallback = false;
+        CITY_NAME_NORM = null;
+        return countryCities;
+      } catch (err) {
+        console.error(`${cc}.json yükleme denemesi ${attempt}/${COUNTRY_CITIES_FETCH_MAX_ATTEMPTS} başarısız:`, err);
+        if (attempt < COUNTRY_CITIES_FETCH_MAX_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, COUNTRY_CITIES_FETCH_RETRY_DELAY_MS));
         }
       }
     }
-    // 3 denemede de olmadı - arama tamamen kesilmesin diye gömülü yedeğe düş.
-    // Bu artık HİÇ reddetmiyor (throw) - her zaman kullanılabilir bir CITIES
-    // ile dönüyor, tam liste olmasa bile.
-    console.error(`cities.json ${CITIES_FETCH_MAX_ATTEMPTS} denemede de yüklenemedi, gömülü yedek listeye geçiliyor (${CITIES_FALLBACK.length} şehir).`);
-    CITIES=CITIES_FALLBACK;
-    citiesIsFallback=true;
-    CITY_NAME_NORM=null;
-    return CITIES;
+    // 3 denemede de olmadı - arama tamamen kesilmesin diye gömülü (ülkeye
+    // süzülmüş) yedeğe düş. Küçük bir ülke için bu boş dizi de olabilir -
+    // cityFallbackNoticeHTML() bu iki durumu ayrı metinle bildiriyor.
+    console.error(`${cc}.json ${COUNTRY_CITIES_FETCH_MAX_ATTEMPTS} denemede de yüklenemedi, yedek listeye geçiliyor.`);
+    countryCities = { admin1: {}, cities: fallbackCitiesForCountry(cc) };
+    countryCitiesIsFallback = true;
+    CITY_NAME_NORM = null;
+    return countryCities;
   })();
-  return citiesLoadPromise;
+  return countryCitiesLoadPromise;
 }
 
-// Kullanıcı yedek listedeyken "Tekrar dene"ye basınca çağrılır - önceki
-// (başarısız) promise'i unutup tam listeyi yeniden fetch etmeyi dener.
-function retryLoadCities(){
-  citiesLoadPromise=null;
+// Kullanıcı yedek listedeyken "Tekrar dene"ye basınca çağrılır.
+function retryLoadCountryCities() {
+  countryCitiesLoadPromise = null;
   showCityDropdownStatus(t('cityLoadingText'));
-  loadCities().then(()=>{
-    const q=normalizeStr(document.getElementById('cityInput').value.trim());
-    if(q.length>=2) runCityFilter(q); else closeDropdown();
+  loadCountryCities().then(() => {
+    const q = normalizeStr(document.getElementById('cityInput').value.trim());
+    if (q.length >= 2) runCityFilter(q); else closeDropdown();
   });
 }
 
 // ============================================================
 // TZ OFFSET HESABI — tarayıcının kendi IANA tzdb'sinden (Intl.DateTimeFormat),
-// elle yazılmış bir DST tablosu değil. 133 şehirlik eski listede ~90 bölge
-// için elle kodlanmış bir getOffset() tablosu vardı; 34.006 şehir/356 bölgeye
-// ölçeklenemezdi. Bu rozet zaten sadece bir ÖNİZLEME - gerçek hesaplama
-// backend'in resolve_timezone()'ı ile koordinattan bağımsız çözülüyor (bkz.
-// CITIES yorumu) - ama yine de doğru olması güven verici. Intl API'si
-// modern tarayıcılarda (Chrome 99+, Firefox 102+, Safari 15.4+) tam IANA
-// tzdb'yi içeriyor; eski elle-yazılmış tablodan daha DOĞRU çıktı bile verdi
-// (ör. İstanbul, Mart 1977: eski tablo yanlışlıkla UTC+3 diyordu, doğrusu
-// UTC+2 - backend'in zoneinfo'suyla çapraz kontrol edildi).
+// elle yazılmış bir DST tablosu değil. Bu rozet zaten sadece bir ÖNİZLEME -
+// gerçek hesaplama backend'in resolve_timezone()'ı ile koordinattan
+// bağımsız çözülüyor - ama yine de doğru olması güven verici.
 // ============================================================
 function tzOffsetForZone(tzId, year, month, day) {
   try {
@@ -1605,12 +1806,7 @@ function tzOffsetForZone(tzId, year, month, day) {
 }
 
 // ============================================================
-// ÜLKE ADI — CITIES artık tam ülke adı değil ISO 3166-1 alpha-2 kodu
-// taşıyor (boyut/tekrar tasarrufu). Gösterimde Intl.DisplayNames ile
-// currentLocale'e göre yerelleştiriliyor - tarayıcı yerleşik API'si, ek
-// bir ülke-adı tablosu gerekmiyor. Yan fayda: eski listede ülke adı sabit
-// Türkçe string olarak gömülüydü, EN modda bile "ABD" gibi görünürdü -
-// bu artık locale'e göre doğru çıkıyor.
+// ÜLKE ADI — Intl.DisplayNames ile currentLocale'e göre yerelleştiriliyor.
 // ============================================================
 const _countryDisplayNames = {};
 function countryName(code) {
@@ -1631,63 +1827,62 @@ function normalizedCountryName(code) {
   if (_countryNormCache[key] === undefined) _countryNormCache[key] = normalizeStr(countryName(code));
   return _countryNormCache[key];
 }
-// Manuel konum girişinde countryCode null olabilir (hangi ülkede olduğumuzu
-// bilmiyoruz) - o durumda sadece isim gösteriliyor, boş ", " eklenmiyor.
+// Ülke zaten Adım 1'de seçildiği için buradaki isim artık şehir + varsa
+// bölge + ülke şeklinde ("Nuremberg, Bavaria, Germany"). Manuel girişte
+// (region tanımsız) veya ülke seçilmemişse (countryCode null) sadece
+// tanımlı parçalar birleştirilir.
 function placeLabel(city) {
+  const parts = [city.name];
+  if (city.region) parts.push(city.region);
   const cn = countryName(city.countryCode);
-  return cn ? `${city.name}, ${cn}` : city.name;
+  if (cn) parts.push(cn);
+  return parts.join(', ');
 }
-
-// ============================================================
-// ŞEHİR ARAMA
-// ============================================================
-let selectedCity = null;
-let activeIdx = -1;
-let filteredCities = []; // CITIES içindeki İNDEKSLER - şehir nesnelerinin kendisi değil
 
 function normalizeStr(s) {
   // Türkçe İ/ı harflerinin genel Unicode ayrıştırmayla 'i' ile kanonik bir
   // ilişkisi yok (İ çoğu ortamda doğru çözülüyor ama garanti için elle
   // yazılıyor; ı'nın YOK - mutlaka elle). Geri kalan TÜM dillerin aksanlı
-  // harfleri (é, ü, ñ, ç, ş, ğ, ö, â, ø değil ama à/è/ê/ü/ö/ñ/ç gibi çoğu -
-  // artık 34K uluslararası şehir adında bol miktarda var) NFD ayrıştırma +
-  // birleşen işaretleri temizlemeyle genel olarak çözülüyor.
+  // harfleri NFD ayrıştırma + birleşen işaretleri temizlemeyle çözülüyor.
   return s
     .replace(/İ/g,'i').replace(/ı/g,'i')
     .normalize('NFD').replace(/[̀-ͯ]/g,'')
     .toLowerCase();
 }
 
-// Şehir adlarının normalize edilmiş hâli - her tuş vuruşunda 34K string'i
-// yeniden normalize etmemek için bir kere hesaplanıp önbelleğe alınıyor.
+// Seçili ülkenin şehir adlarının (ad+asciiname+alternatif adlar) normalize
+// edilmiş hâli - her tuş vuruşunda yeniden normalize etmemek için bir kere
+// hesaplanıp önbelleğe alınıyor. Ülke değişince/yeniden yüklenince null'a
+// dönüp yeniden kuruluyor (bkz. resetCityStepForNewCountry, loadCountryCities).
 let CITY_NAME_NORM = null;
 function ensureCityNameNormIndex() {
   if (CITY_NAME_NORM) return;
-  CITY_NAME_NORM = new Array(CITIES.length);
-  for (let i = 0; i < CITIES.length; i++) CITY_NAME_NORM[i] = normalizeStr(CITIES[i][0]);
+  const cities = countryCities.cities;
+  CITY_NAME_NORM = new Array(cities.length);
+  for (let i = 0; i < cities.length; i++) {
+    const c = cities[i];
+    CITY_NAME_NORM[i] = {
+      name: normalizeStr(c[0]),
+      ascii: c[1] ? normalizeStr(c[1]) : '',
+      alts: c[7] && c[7].length ? c[7].map(normalizeStr) : null,
+    };
+  }
 }
 
-// Arama artık debounce'lı - 34K kayıtta her tuş vuruşunda anlık taramak
-// yerine yazma durakladığında (120ms) bir kere taranıyor.
+// Arama artık debounce'lı - her tuş vuruşunda anlık taramak yerine yazma
+// durakladığında (120ms) bir kere taranıyor.
 let _cityInputDebounce = null;
 function onCityInput() {
   clearTimeout(_cityInputDebounce);
   _cityInputDebounce = setTimeout(doCityFilter, 120);
 }
 
-// CITIES henüz yüklenmediyse (ör. odaklanma anındaki fetch hâlâ sürüyor,
-// ya da kullanıcı onfocus'u atlayıp doğrudan yapıştırma yaptıysa) önce
-// sakin bir "yükleniyor" göstergesi gösterip yüklemeyi bekliyor - panik
-// yaratmadan kullanıcı beklediğini anlasın. loadCities() artık HİÇ
-// reddetmiyor (3 denemeden sonra gömülü yedek listeye düşüyor, bkz.
-// yukarısı) - bu yüzden burada ayrı bir "başarısız" dalına gerek yok;
-// yedek liste aktifse renderDropdown() bunu kendi bildiriyor.
 async function doCityFilter() {
   const q = normalizeStr(document.getElementById('cityInput').value.trim());
   if (q.length < 2) { closeDropdown(); return; }
-  if (!CITIES) {
+  if (!countryCities) {
     showCityDropdownStatus(t('cityLoadingText'));
-    await loadCities();
+    await loadCountryCities();
     // Yükleme sırasında kullanıcı yazmaya devam etmiş olabilir - input'un
     // GÜNCEL değerini tekrar oku, yükleme başlarkenki eski sorguyu değil.
     const q2 = normalizeStr(document.getElementById('cityInput').value.trim());
@@ -1698,19 +1893,79 @@ async function doCityFilter() {
   runCityFilter(q);
 }
 
+// Alternatif adlarda (GeoNames alternatenames) havalimanı kodları ve
+// transliterasyon parçaları gibi gürültü var - ör. Almanya'da "mu" (2 harf)
+// sorgusu SADECE alternatif ad eşleşmesi olarak "Bochum<-bofumu" (Japonca
+// romanizasyon), "Mannheim<-man hai mu" (Çince) gibi 14 alakasız sonuç
+// veriyor. Ölçüldü (bkz. PR açıklaması): 4 harften itibaren bu gürültü
+// pratikte kayboluyor, gerçek hedef sorgular (Nürnberg, Köln, München,
+// Göteborg, Den Haag, Antwerpen) hepsi zaten >=4 harf. Ana ad/asciiname
+// eşleşmesi bu eşikten etkilenmiyor, 2 harften itibaren çalışmaya devam ediyor.
+//
+// Test sırasında BULUNAN ek bir gürültü türü: 4+ harfli sorgular bile uzun
+// transliterasyon dizelerinin ORTASINDA rastgele denk gelebiliyor - ör.
+// Almanya'da "Adana" sorgusu Dresden'in bir alt-adı "dresadana" içinde
+// tesadüfen geçiyor (kelime sınırında değil). Bu yüzden alt-isim eşleşmesi
+// ayrıca kelime-başı/baştan/tam eşleşme (tier>=1) ile SINIRLANDI - düz
+// "herhangi bir yerde geçme" (tier=0) alt-isimler için kabul edilmiyor. Ana
+// ad/asciiname araması bundan etkilenmiyor (ör. "san" -> "San Francisco"
+// gibi düz alt-string eşleşmeleri orada hâlâ çalışıyor) - gürültü sadece
+// alternatenames tarafında, çünkü o veri dil etiketsiz ve çok sayıda kısa
+// transliterasyon parçası içeriyor.
+const ALT_NAME_MIN_QUERY_LEN = 4;
+const ALT_NAME_MIN_TIER = 1;
+
+// Bölge adı GeoNames'te sık sık şehrin kendi adıyla aynı çıkıyor (ör.
+// İstanbul ili "İstanbul", Adana ili "Adana") - bu durumda "İstanbul,
+// İstanbul, Türkiye" gibi anlamsız bir tekrar göstermemek için bölge adı
+// şehir adıyla (normalize edilmiş, karşılaştırma amaçlı) aynıysa bastırılıyor.
+function regionForCity(c) {
+  if (!c[6] || !countryCities.admin1[c[6]]) return '';
+  const region = countryCities.admin1[c[6]];
+  return normalizeStr(region) === normalizeStr(c[0]) ? '' : region;
+}
+
+// Eşleşme seviyesi: 3=tam eşleşme, 2=baştan eşleşme, 1=kelime başı eşleşme,
+// 0=herhangi bir yerde geçme, -1=eşleşme yok.
+function matchTier(norm, q) {
+  if (norm === q) return 3;
+  if (norm.startsWith(q)) return 2;
+  const idx = norm.indexOf(q);
+  if (idx === -1) return -1;
+  const before = norm[idx - 1];
+  if (idx === 0 || before === ' ' || before === '-') return 1;
+  return 0;
+}
+
 function runCityFilter(q) {
   ensureCityNameNormIndex();
-  const matches = [];
-  for (let i = 0; i < CITIES.length; i++) {
-    if (CITY_NAME_NORM[i].includes(q) || normalizedCountryName(CITIES[i][1]).includes(q)) {
-      matches.push(i);
+  const cities = countryCities.cities;
+  const scored = [];
+  for (let i = 0; i < cities.length; i++) {
+    const norm = CITY_NAME_NORM[i];
+    let nameTier = matchTier(norm.name, q);
+    if (norm.ascii) nameTier = Math.max(nameTier, matchTier(norm.ascii, q));
+    let altTier = -1, altText = null;
+    if (q.length >= ALT_NAME_MIN_QUERY_LEN && norm.alts) {
+      const rawAlts = cities[i][7];
+      for (let j = 0; j < norm.alts.length; j++) {
+        const t = matchTier(norm.alts[j], q);
+        if (t >= ALT_NAME_MIN_TIER && t > altTier) { altTier = t; altText = rawAlts[j]; }
+      }
     }
+    if (nameTier === -1 && altTier === -1) continue;
+    // Aynı seviyede ana ad eşleşmesi alternatif ad eşleşmesinin ÖNÜNE geçer
+    // (bkz. kullanıcı isteği) - bu yüzden alt-isim sadece kesin olarak DAHA
+    // YÜKSEK bir tier'da olduğunda tercih ediliyor, eşitlikte değil.
+    const viaAlt = altTier > nameTier;
+    scored.push({ idx: i, tier: viaAlt ? altTier : nameTier, viaAlt, altText: viaAlt ? altText : null });
   }
-  // Nüfusa göre büyükten küçüğe sırala - belirsiz/kısa sorgularda en
-  // tanınır şehirler üstte çıksın (ör. "san" -> San Francisco/San Diego
-  // önce, adı "San..." ile başlayan küçük bir kasaba sonra)
-  matches.sort((a, b) => CITIES[b][5] - CITIES[a][5]);
-  filteredCities = matches.slice(0, 10);
+  scored.sort((a, b) => {
+    if (b.tier !== a.tier) return b.tier - a.tier;
+    if (a.viaAlt !== b.viaAlt) return a.viaAlt ? 1 : -1; // ana ad eşleşmesi önce
+    return cities[b.idx][5] - cities[a.idx][5]; // nüfus
+  });
+  filteredCities = scored.slice(0, 10);
   activeIdx = -1;
   renderDropdown();
 }
@@ -1721,17 +1976,29 @@ function showCityDropdownStatus(text) {
   dd.innerHTML = `<div class="city-dropdown-status">${text}</div>`;
 }
 // Yedek liste aktifken dropdown'ın en üstünde sürekli görünen bildirim -
-// arama SONUÇLARINI engellemiyor (yedek listede de arama çalışıyor),
-// sadece durumu bildirip iki eylem sunuyor: birincil "Tekrar dene" (tam
-// listeyi yeniden fetch etmeyi dener), ikincil/küçük "Enlem/boylam ile
-// devam et" (doğrudan manuel girişe gider).
+// arama SONUÇLARINI engellemiyor (yedek listede de arama çalışıyor, boş
+// değilse), sadece durumu bildirip iki eylem sunuyor: birincil "Tekrar dene"
+// (bu ülkenin dosyasını yeniden fetch etmeyi dener), ikincil/küçük
+// "Enlem/boylam ile devam et". Yedek havuzu bu ülke için BOŞSA (küçük bir
+// ülke dünya-geneli 200 şehir listesinde hiç yoksa) farklı bir metin
+// gösteriliyor - "sadece en büyük birkaç şehir" demek yanıltıcı olurdu.
 function cityFallbackNoticeHTML() {
+  const poolSize = countryCities.cities.length;
+  const text = poolSize > 0 ? t('cityFallbackText') : t('cityFallbackEmptyText');
   return `<div class="city-dropdown-notice">`
-    + `<div>${t('cityFallbackText')}</div>`
+    + `<div>${text}</div>`
     + `<div class="city-dropdown-notice-actions">`
-    + `<button type="button" class="city-retry-btn" onclick="retryLoadCities()">${t('cityRetryBtn')}</button>`
+    + `<button type="button" class="city-retry-btn" onclick="retryLoadCountryCities()">${t('cityRetryBtn')}</button>`
     + `<a href="javascript:void(0)" class="city-fallback-manual-link" onclick="closeDropdown();openManualLocation();">${t('cityLoadErrorLink')}</a>`
     + `</div></div>`;
+}
+// Yedek modda DEĞİLKEN (tam ülke dosyası yüklü) sorgu hiç eşleşme
+// bulamazsa - sessizce boş bırakmak yerine kullanıcıya iki olasılığı
+// hatırlatan bir ipucu: belki de başka bir ülkede doğmuştur.
+function cityNoMatchHTML() {
+  return `<div class="city-dropdown-notice">`
+    + `<a href="javascript:void(0)" class="city-fallback-manual-link" onclick="closeDropdown();changeCountry();">${t('cityNoMatchHint')}</a>`
+    + `</div>`;
 }
 
 function onCityKey(e) {
@@ -1739,48 +2006,47 @@ function onCityKey(e) {
   if (dd.style.display === 'none') return;
   if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx+1, filteredCities.length-1); renderDropdown(); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx-1, 0); renderDropdown(); }
-  else if (e.key === 'Enter') { e.preventDefault(); if (activeIdx >= 0) pickCity(filteredCities[activeIdx]); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (activeIdx >= 0) pickCity(filteredCities[activeIdx].idx); }
   else if (e.key === 'Escape') closeDropdown();
 }
 
 function renderDropdown() {
   const dd = document.getElementById('cityDropdown');
-  // Yedek liste aktifken bildirim HER render'da üstte kalıyor - arama
-  // sonucu olsun olmasın, kullanıcı azaltılmış kapsamda olduğunu bilsin.
-  const notice = citiesIsFallback ? cityFallbackNoticeHTML() : '';
+  const notice = countryCitiesIsFallback ? cityFallbackNoticeHTML() : '';
   if (!filteredCities.length) {
-    if (!notice) { dd.style.display='none'; return; }
     dd.style.display = 'block';
-    dd.innerHTML = notice;
+    dd.innerHTML = notice || cityNoMatchHTML();
     return;
   }
   dd.style.display = 'block';
-  dd.innerHTML = notice + filteredCities.map((idx, i) => {
-    const c = CITIES[idx];
-    return `<div class="city-option${i===activeIdx?' active':''}" onclick="pickCity(${idx})">
-      <div class="city-name">${c[0]}</div>
-      <div class="city-detail">${countryName(c[1])} &nbsp;·&nbsp; ${c[2].toFixed(2)}°N ${c[3].toFixed(2)}°E</div>
+  dd.innerHTML = notice + filteredCities.map((m, i) => {
+    const c = countryCities.cities[m.idx];
+    const region = regionForCity(c);
+    const nameLine = m.viaAlt ? `${c[0]} (${m.altText})` : c[0];
+    return `<div class="city-option${i===activeIdx?' active':''}" onclick="pickCity(${m.idx})">
+      <div class="city-name">${nameLine}</div>
+      ${region ? `<div class="city-detail">${region}</div>` : ''}
     </div>`;
   }).join('');
 }
 
-// cityInput/cityConfirmed'ın gösterdiği ülke adı locale'e göre değişiyor
-// (countryName() -> Intl.DisplayNames) - bu yüzden dil değişince de
-// (setLocale) selectedCity aynı kalsa bile bu ikisi YENİDEN çizilmeli,
-// yoksa eski locale'deki ülke adında donup kalır. pickCity, confirmManualLocation
-// ve setLocale hepsi bu tek fonksiyonu kullanıyor - tekrar/uyumsuzluk riski yok.
+// cityInput/cityConfirmed'ın gösterdiği ülke/bölge adı locale'e göre
+// değişiyor (countryName() -> Intl.DisplayNames) - bu yüzden dil değişince
+// de (setLocale) selectedCity aynı kalsa bile bu ikisi YENİDEN çizilmeli,
+// yoksa eski locale'de donup kalır.
 function refreshCityDisplay() {
   if (!selectedCity) return;
   document.getElementById('cityInput').value = placeLabel(selectedCity);
   const box = document.getElementById('cityConfirmed');
   box.style.display = 'block';
+  const regionSuffix = selectedCity.region ? `, ${selectedCity.region}` : '';
   const countrySuffix = selectedCity.countryCode ? `, ${countryName(selectedCity.countryCode)}` : '';
-  box.innerHTML = `📍 <strong>${selectedCity.name}</strong>${countrySuffix} &nbsp;|&nbsp; ${selectedCity.lat.toFixed(4)}°N &nbsp; ${selectedCity.lon.toFixed(4)}°E`;
+  box.innerHTML = `📍 <strong>${selectedCity.name}</strong>${regionSuffix}${countrySuffix} &nbsp;|&nbsp; ${selectedCity.lat.toFixed(4)}°N &nbsp; ${selectedCity.lon.toFixed(4)}°E`;
 }
 
 function pickCity(idx) {
-  const c = CITIES[idx];
-  selectedCity = { name:c[0], countryCode:c[1], lat:c[2], lon:c[3], tz:c[4] };
+  const c = countryCities.cities[idx];
+  selectedCity = { name: c[0], countryCode: selectedCountry, region: regionForCity(c), lat: c[2], lon: c[3], tz: c[4] };
   closeDropdown();
   refreshCityDisplay();
   updateTzBadge();
@@ -1805,12 +2071,13 @@ function updateTzBadge() {
 function onDateChange() { updateTzBadge(); }
 
 // ============================================================
-// MANUEL KONUM — "Şehrimi listede bulamıyorum" kaçış yolu. cities15000
-// katmanı (nüfus >15.000 veya idari merkez) her kasabayı/köyü kapsamıyor;
-// statik listeyi büyütmek asıl sorunu çözmüyor (bkz. şehir veritabanı
-// ölçüm raporu) - gerçek çözüm bu kaçış yolu. Backend zaten sadece
-// enlem/boylam istiyor (birth_place opsiyonel, tz hiç gerekmiyor - koordinattan
-// kendi çözüyor), o yüzden burada sadece iki sayı yeterli.
+// MANUEL KONUM — "Şehrimi listede bulamıyorum" kaçış yolu. cities1000
+// katmanı (nüfus >1.000 veya idari merkez) bile her kasabayı/köyü
+// kapsamıyor (ör. Hallstatt, nüfus ~780 - bkz. şehir veritabanı ölçüm
+// raporu); statik listeyi büyütmek asıl sorunu çözmüyor - gerçek çözüm bu
+// kaçış yolu. Backend zaten sadece enlem/boylam istiyor (birth_place
+// opsiyonel, tz hiç gerekmiyor - koordinattan kendi çözüyor), o yüzden
+// burada sadece iki sayı yeterli.
 // ============================================================
 function openManualLocation() {
   document.getElementById('manualLocationPanel').style.display = 'block';
@@ -1833,11 +2100,12 @@ function confirmManualLocation() {
   errBox.style.display = 'none';
   const placeNameRaw = document.getElementById('manualPlaceName').value.trim();
   const placeName = placeNameRaw || `${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`;
-  // countryCode/tz bilerek null - hangi ülkede olduğunu bilmiyoruz, ve tz
-  // rozeti IANA zone id gerektiriyor (bkz. tzOffsetForZone); bu yüzden
-  // updateTzBadge burada rozeti gizleyecek - yanlış/tahmini bir şey
-  // göstermektense göstermemek, "veri yoksa analiz yapılmaz" ilkesiyle tutarlı.
-  selectedCity = { name: placeName, countryCode: null, lat, lon, tz: null };
+  // countryCode Adım 1'de seçilen ülke (manuel giriş sadece şehir adımından
+  // erişilebiliyor, o yüzden selectedCountry burada zaten dolu). tz bilerek
+  // null - rozet IANA zone id gerektiriyor (bkz. tzOffsetForZone); bu yüzden
+  // updateTzBadge rozeti gizleyecek - yanlış/tahmini bir şey göstermektense
+  // göstermemek, "veri yoksa analiz yapılmaz" ilkesiyle tutarlı.
+  selectedCity = { name: placeName, countryCode: selectedCountry, lat, lon, tz: null };
   refreshCityDisplay();
   closeManualLocation();
   updateTzBadge();
@@ -3265,12 +3533,13 @@ async function sendFollowUp(){
   }
 }
 
-document.addEventListener('click',e=>{if(!e.target.closest('.form-group'))closeDropdown();});
+document.addEventListener('click',e=>{if(!e.target.closest('.form-group')){closeDropdown();closeCountryDropdown();}});
 document.getElementById('birthDate').addEventListener('change',onDateChange);
 applyStaticText();
 updateAuthUI();
 fetchCreditBalance();
 checkMagicLinkToken();
+initBirthCountry();
 loadSkyToday();
 </script>
 </body>
