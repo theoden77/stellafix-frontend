@@ -421,8 +421,8 @@
     <div class="error-box" id="errorBox"></div>
 
     <div class="method-note" data-i18n="noteMethod">
-      Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi ·
-      Veri yoksa analiz yapılmaz
+      Doğum saatini kayıttaki yerel saatle gir. Saat dilimi ve yaz saati
+      otomatik hesaplanır.
     </div>
   </div>
 
@@ -586,7 +586,7 @@ const I18N = {
     cityNoMatchHint: "Başka bir ülkede mi doğdun? Ülkeyi değiştir",
     btnCalculate: "⚷ Natal Harita Hesapla",
     btnCalculating: "⏳ Hesaplanıyor...",
-    noteMethod: "Saat dilimi otomatik · Tarihsel DST dahil · Klasik Batı Astrolojisi · Veri yoksa analiz yapılmaz",
+    noteMethod: "Doğum saatini kayıttaki yerel saatle gir. Saat dilimi ve yaz saati otomatik hesaplanır.",
     panelDignityTitle: "Essential Dignity Referansı",
     thScore: "Puan",
     thDescription: "Açıklama",
@@ -746,7 +746,7 @@ const I18N = {
     cityNoMatchHint: "Born in a different country? Change country",
     btnCalculate: "⚷ Calculate Natal Chart",
     btnCalculating: "⏳ Calculating...",
-    noteMethod: "Timezone automatic · Historical DST included · Classical Western Astrology · No analysis without data",
+    noteMethod: "Enter your birth time as recorded locally. Time zone and daylight saving are handled automatically.",
     panelDignityTitle: "Essential Dignity Reference",
     thScore: "Score",
     thDescription: "Description",
@@ -1919,10 +1919,17 @@ const ALT_NAME_MIN_TIER = 1;
 // İstanbul ili "İstanbul", Adana ili "Adana") - bu durumda "İstanbul,
 // İstanbul, Türkiye" gibi anlamsız bir tekrar göstermemek için bölge adı
 // şehir adıyla (normalize edilmiş, karşılaştırma amaçlı) aynıysa bastırılıyor.
+// GeoNames ayrıca birçok ülkede bölge adına "Province"/"Region"/"State"/
+// "District" gibi idari birim sözcükleri ekliyor (ör. "İzmir Province") -
+// bu ek sözcük KARŞILAŞTIRMA öncesi yok sayılıyor (gösterimde tam ad
+// kalıyor, sadece eşitse tamamen bastırılıyor), yoksa "İzmir, İzmir
+// Province, Türkiye" gibi aynı tekrar farklı görünüp kaçırılırdı.
+const ADMIN_SUFFIX_RE = /\s+(Province|Region|State|Department|Prefecture|District|County|Governorate|Oblast|Krai|Municipality|Territory|Canton|Emirate|Voivodeship|Departamento|Provincia|Regione|Département)$/i;
 function regionForCity(c) {
   if (!c[6] || !countryCities.admin1[c[6]]) return '';
   const region = countryCities.admin1[c[6]];
-  return normalizeStr(region) === normalizeStr(c[0]) ? '' : region;
+  const regionCore = normalizeStr(region.replace(ADMIN_SUFFIX_RE, ''));
+  return regionCore === normalizeStr(c[0]) ? '' : region;
 }
 
 // Eşleşme seviyesi: 3=tam eşleşme, 2=baştan eşleşme, 1=kelime başı eşleşme,
@@ -1940,6 +1947,14 @@ function matchTier(norm, q) {
 function runCityFilter(q) {
   ensureCityNameNormIndex();
   const cities = countryCities.cities;
+  // Sonuçta gösterilecek alt-isim, kullanıcının YAZDIĞI orijinal yazıma en
+  // yakın olsun diye - ör. "Nürnberg" yazan biri "Nuremberg (Nürnberg)"
+  // görmeli, "Nuremberg (Nurnberg)" değil (alternatenames'te ikisi de var,
+  // ikisi de aynı tier'da eşleşiyor - normalize edilmiş karşılaştırmada
+  // ayırt edilemezler). Karşılaştırma aksan/case'e duyarlı (normalize
+  // edilmemiş) yapılıyor, tam tersi durumda (kullanıcı aksansız yazarsa)
+  // aksansız alt-isim tercih edilsin diye.
+  const rawQueryLower = document.getElementById('cityInput').value.trim().toLowerCase();
   const scored = [];
   for (let i = 0; i < cities.length; i++) {
     const norm = CITY_NAME_NORM[i];
@@ -1950,7 +1965,12 @@ function runCityFilter(q) {
       const rawAlts = cities[i][7];
       for (let j = 0; j < norm.alts.length; j++) {
         const t = matchTier(norm.alts[j], q);
-        if (t >= ALT_NAME_MIN_TIER && t > altTier) { altTier = t; altText = rawAlts[j]; }
+        if (t < ALT_NAME_MIN_TIER) continue;
+        const candidate = rawAlts[j];
+        const isNewBest = t > altTier;
+        const isBetterTie = t === altTier && altText !== null &&
+          candidate.toLowerCase() === rawQueryLower && altText.toLowerCase() !== rawQueryLower;
+        if (isNewBest || isBetterTie) { altTier = t; altText = candidate; }
       }
     }
     if (nameTier === -1 && altTier === -1) continue;
