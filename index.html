@@ -107,8 +107,9 @@
 
   /* CHART */
   .chart-area{grid-column:1/-1;display:grid;grid-template-columns:460px 1fr;gap:24px;align-items:start;}
-  .wheel-panel{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:20px;text-align:center;box-shadow:0 1px 3px rgba(30,27,46,.05);}
-  .results-panel{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;box-shadow:0 1px 3px rgba(30,27,46,.05);}
+  .wheel-panel{min-width:0;background:#fff;border:1px solid var(--rule);border-radius:14px;padding:20px;text-align:center;box-shadow:0 1px 3px rgba(30,27,46,.05);}
+  .results-panel{min-width:0;background:#fff;border:1px solid var(--rule);border-radius:14px;padding:24px;box-shadow:0 1px 3px rgba(30,27,46,.05);}
+  .planet-table-scroll{overflow-x:auto;}
   .planet-table{width:100%;border-collapse:collapse;font-size:13px;}
   .planet-table th{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--ink);opacity:.55;text-transform:uppercase;padding:8px;border-bottom:2px solid var(--rule);text-align:left;}
   .planet-table td{padding:9px 8px;border-bottom:1px solid var(--parchment-dark);vertical-align:middle;}
@@ -454,10 +455,10 @@
     </div>
     <div class="results-panel">
       <div class="panel-title" data-i18n="resultsPanelTitle">Gezegen Pozisyonları · Essential Dignity</div>
-      <table class="planet-table">
+      <div class="planet-table-scroll"><table class="planet-table">
         <thead><tr><th></th><th data-i18n="thPlanet">Gezegen</th><th data-i18n="thDegree">Derece</th><th data-i18n="thSign">Burç</th><th data-i18n="thHouse">Ev</th><th class="tech-col">Dignity</th><th class="tech-col" data-i18n="thScoreCol">Puan</th></tr></thead>
         <tbody id="planetBody"></tbody>
-      </table>
+      </table></div>
       <div class="analysis-box" id="analysisBox" style="display:none">
         <div class="analysis-title" data-i18n="analysisTitle">Klasik Analiz Notu</div>
         <div id="analysisText"></div>
