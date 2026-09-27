@@ -41,10 +41,28 @@
   .lang-btn.active{background:var(--lapis);color:#fff;}
   .auth-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;letter-spacing:.01em;color:var(--lapis);background:transparent;border:1px solid var(--lapis);border-radius:8px;padding:7px 15px;cursor:pointer;text-transform:none;transition:all .15s;}
   .auth-btn:hover{background:var(--lapis);color:#fff;}
-  .auth-btn-logout{border-color:var(--rule);color:var(--ink);opacity:.7;font-size:11px;padding:6px 13px;}
-  .auth-btn-logout:hover{background:var(--parchment-dark);color:var(--ink);opacity:1;}
   .auth-account{display:flex;align-items:center;gap:10px;}
   .auth-user-email{font-family:'Inter',sans-serif;font-style:normal;font-size:13px;color:var(--ink);opacity:.65;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* Hesap çipi + açılır menü (abonelik yönetimi, çıkış, mobilde dil seçimi).
+     Çip DAR EKRANDA (bkz. @media aşağıda) e-posta/rozet metnini gizleyip
+     sabit boyutlu bir ikona düşer - böylece "Premium · 27 Ekim'e kadar" gibi
+     uzun bir rozet metni mobil başlığı ASLA taşırmaz (bkz. mobil başlık
+     taşması düzeltmesi, PR açıklaması). */
+  .account-chip-wrap{position:relative;}
+  .account-chip{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--rule);border-radius:8px;padding:5px 9px;cursor:pointer;font-family:'Inter',sans-serif;transition:border-color .15s;}
+  .account-chip:hover{border-color:var(--lapis);}
+  .chip-icon{display:none;font-size:15px;line-height:1;}
+  .chip-detail{display:flex;align-items:center;gap:8px;}
+  .chip-caret{font-size:10px;color:var(--ink);opacity:.55;}
+  .account-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--rule);border-radius:12px;box-shadow:0 12px 28px rgba(30,27,46,.18);padding:8px;min-width:230px;z-index:450;}
+  .account-menu-email{font-family:'Inter',sans-serif;font-size:12px;color:var(--ink);opacity:.6;padding:7px 10px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .account-menu-status{font-family:'Inter',sans-serif;font-size:12px;color:var(--gold-dark);padding:0 10px 7px;line-height:1.4;}
+  .account-menu-item{display:block;width:100%;text-align:left;background:transparent;border:none;border-radius:7px;padding:9px 10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer;transition:background .12s;}
+  .account-menu-item:hover{background:var(--parchment-dark);}
+  .account-menu-item:disabled{opacity:.6;cursor:not-allowed;}
+  .account-menu-logout{color:var(--crimson);}
+  .account-menu-upgrade{display:none;color:var(--lapis);}
+  .account-menu-upgrade.is-visible{display:none;}
   .auth-confirm-banner{background:var(--gold-pale);border-bottom:1px solid var(--gold);color:var(--ink);padding:12px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
   .auth-confirm-btn{width:auto;padding:8px 20px;margin-top:0;font-size:11px;}
   /* "Giriş Yap"a basıldığında, bekleyen bir magic-link token'ı varsa (e-posta
@@ -54,10 +72,25 @@
   .auth-confirm-banner.pulse-attn{animation:authConfirmPulse .6s ease-in-out 2;}
   .auth-welcome-banner{background:#EAF7EE;border-bottom:1px solid #16A34A;color:#15803D;padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
   .auth-welcome-dismiss{background:none;border:none;font-size:16px;line-height:1;color:inherit;cursor:pointer;padding:0;}
-  .auth-btn-upgrade{background:var(--lapis);color:#fff;border-color:var(--lapis);}
+  .auth-btn-upgrade{display:none;background:var(--lapis);color:#fff;border-color:var(--lapis);}
+  .auth-btn-upgrade.is-visible{display:inline-block;}
   .auth-btn-upgrade:hover{background:var(--lapis-light);}
   .auth-btn-upgrade:disabled{opacity:.6;cursor:not-allowed;}
-  .premium-badge{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--gold-dark);background:var(--gold-pale);border:1px solid var(--gold);border-radius:8px;padding:6px 13px;white-space:nowrap;}
+  .premium-badge{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--gold-dark);background:transparent;white-space:nowrap;}
+  /* Dar ekranda (bkz. mobil başlık taşması düzeltmesi, PR açıklaması): hesap
+     çipi ikona düşer, masaüstündeki ayrı "Premium'a Geç" butonu gizlenip
+     yerine açılır menüdeki kopyası (.account-menu-upgrade) gösterilir. Bu
+     blok BİLEREK .auth-btn-upgrade/.account-menu-upgrade taban kurallarından
+     SONRA geliyor - aynı özgüllükteki (.X.is-visible) kurallarda CSS
+     kaskadında SONRAKİ kazanır; media query taban kuraldan ÖNCE gelirse
+     medya sorgusu her zaman ezilir (bu, bir turda gerçekten yaşanan ve
+     360/390px taşma testleriyle yakalanan bir hataydı). */
+  @media(max-width:480px){
+    .chip-detail{display:none;}
+    .chip-icon{display:inline;}
+    .auth-btn-upgrade.is-visible{display:none;}
+    .account-menu-upgrade.is-visible{display:block;}
+  }
   .subscribe-error-banner{background:#FEF2F2;border-bottom:1px solid var(--crimson);color:var(--crimson);padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
   .subscribe-error-banner .auth-welcome-dismiss{color:var(--crimson);}
   .checkout-status-banner{background:var(--lapis-pale);border-bottom:1px solid var(--lapis);color:var(--lapis);padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
@@ -142,12 +175,26 @@
   .error-box{background:#FEF2F2;border-left:3px solid var(--crimson);border-radius:0 8px 8px 0;padding:10px 14px;margin-top:10px;font-size:13px;color:var(--crimson);display:none;}
 
   /* TECHNICAL DETAILS TOGGLE */
-  .tech-toggle-bar{grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:-4px;}
-  .tech-toggle-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:var(--lapis-pale);border:1px solid var(--rule);border-radius:20px;padding:7px 16px;cursor:pointer;transition:all .15s;}
+  /* min-width:0 (bar + buton): .tech-toggle-bar, .container grid'inin
+     (mobilde tek sütuna düşen, bkz. @media max-width:700px) DOĞRUDAN
+     çocuğu - grid item'ların min-width:auto varsayılanı, içindeki
+     sarmayan buton metninin min-content genişliğinin altına küçülmeyi
+     engelleyip sayfayı 360-390px'te zorla genişletiyordu (PR #31'deki
+     çark-kartı taşmasıyla AYNI kök neden, farklı bir öğede - bkz. o
+     PR'ın açıklaması). Buton da kendi flex-item min-width:auto'suna
+     karşı ayrıca min-width:0 alıyor ki gerekirse iki satıra sarabilsin. */
+  .tech-toggle-bar{grid-column:1/-1;min-width:0;display:flex;justify-content:flex-end;margin-bottom:-4px;}
+  .tech-toggle-btn{min-width:0;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:var(--lapis-pale);border:1px solid var(--rule);border-radius:20px;padding:7px 16px;cursor:pointer;transition:all .15s;}
   .tech-toggle-btn:hover{border-color:var(--lapis);}
-  .dignity-panel{display:none;}
+  .dignity-panel{display:none;min-width:0;}
   body.show-tech-details .dignity-panel{display:block;}
-  .natal-panel{grid-column:1/-1;}
+  /* min-width:0: .container bir CSS Grid, mobilde (bkz. @media max-width:700px)
+     tek sütuna düşüyor - grid item'ların min-width:auto varsayılanı, içindeki
+     sarmayan/dar-olmayan bir öğe (ör. .tech-toggle-btn'in uzun yerelleştirilmiş
+     metni) varsa track'i o öğenin min-content genişliğinin altına
+     küçültemez, sayfayı 360-390px'te zorla genişletir (bkz. PR #31'deki
+     çark-kartı taşması ile AYNI kök neden, burada farklı bir öğede). */
+  .natal-panel{grid-column:1/-1;min-width:0;}
   body.show-tech-details .natal-panel{grid-column:auto;}
   .tech-details-field{display:none;}
   body.show-tech-details .tech-details-field{display:block;}
@@ -276,10 +323,38 @@
   <div style="display:flex;align-items:center;gap:14px">
     <button type="button" class="auth-btn" id="authLoginBtn" onclick="onLoginButtonClick()" data-i18n="btnLogin">Giriş Yap</button>
     <div class="auth-account" id="authAccount" style="display:none">
-      <span class="auth-user-email" id="authUserEmail"></span>
-      <span class="premium-badge" id="premiumBadge" style="display:none" data-i18n="premiumBadge">✨ Premium Üye</span>
       <button type="button" class="auth-btn auth-btn-upgrade" id="authUpgradeBtn" onclick="startSubscribeCheckout()" data-i18n="btnUpgrade">Premium'a Geç</button>
-      <button type="button" class="auth-btn auth-btn-logout" id="authLogoutBtn" onclick="logout()" data-i18n="btnLogout">Çıkış Yap</button>
+      <!-- Hesap çipi: masaüstünde e-posta+rozet metniyle, DAR EKRANDA (bkz.
+           .chip-detail/.chip-icon CSS'i) sabit genişlikli tek bir ikonla -
+           böylece e-posta/rozet metninin uzunluğu (ör. "Premium · 27 Ekim'e
+           kadar") mobil genişlikte satırı asla taşırmaz. Tıklanınca açılan
+           menüde (aşağıda) e-posta, abonelik durumu, "Aboneliği Yönet" ve
+           Çıkış Yap var - dar ekranda "Premium'a Geç" de (masaüstündeki ayrı
+           buton yerine) buraya taşınıyor (bkz. .account-menu-upgrade CSS'i).
+           TR/EN dil seçimi kasıtlı olarak burada TEKRARLANMIYOR - mevcut
+           tek #langToggle örneği hem küçük (taşmaya katkısı yok) hem de
+           birden fazla DOM eşleşmesi yaratıp seçicilerle çalışan testleri
+           kırma riski taşıyor. -->
+      <div class="account-chip-wrap" id="accountChipWrap">
+        <button type="button" class="account-chip" id="accountChipBtn" onclick="toggleAccountMenu(event)" aria-haspopup="true" aria-expanded="false" aria-label="Hesap menüsü">
+          <span class="chip-icon" id="accountChipIcon" aria-hidden="true">👤</span>
+          <span class="chip-detail">
+            <span class="premium-badge" id="premiumBadge" style="display:none"></span>
+            <span class="auth-user-email" id="authUserEmail"></span>
+          </span>
+          <span class="chip-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="account-menu" id="accountMenu" style="display:none" role="menu">
+          <div class="account-menu-email" id="accountMenuEmail"></div>
+          <div class="account-menu-status" id="accountMenuStatus" style="display:none"></div>
+          <button type="button" class="account-menu-item" id="manageSubscriptionBtn" style="display:none" onclick="openSubscriptionPortal()" data-i18n="btnManageSubscription">Aboneliği Yönet</button>
+          <!-- Dar ekranda (bkz. CSS) masaüstündeki ayrı "Premium'a Geç" butonu
+               yerine bu görünür - aynı fonksiyonu (startSubscribeCheckout)
+               çağırıyor, sadece konumu menüye taşınmış. -->
+          <button type="button" class="account-menu-item account-menu-upgrade" id="menuUpgradeBtn" onclick="startSubscribeCheckout()" data-i18n="btnUpgrade">Premium'a Geç</button>
+          <button type="button" class="account-menu-item account-menu-logout" onclick="logout()" data-i18n="btnLogout">Çıkış Yap</button>
+        </div>
+      </div>
     </div>
     <div class="lang-toggle" id="langToggle">
       <button type="button" class="lang-btn active" data-locale="tr" onclick="setLocale('tr')">TR</button>
@@ -688,6 +763,12 @@ const I18N = {
     subscribeErrGeneric: "Abonelik işlemi başlatılamadı, tekrar dene.",
     subscribeActivating: "Aboneliğin etkinleştiriliyor...",
     subscribeActivationTimeout: "Ödemen alındı, aboneliğin birazdan aktif olacak. Hâlâ görünmüyorsa sayfayı yenilemeyi dene.",
+    btnManageSubscription: "Aboneliği Yönet",
+    btnManageSubscriptionOpening: "Açılıyor...",
+    subscriptionEndsNote: "Aboneliğin {date} tarihinde sona erecek.",
+    portalErr404: "Abonelik kaydın bulunamadı. Bir hata olduğunu düşünüyorsan bizimle iletişime geç.",
+    portalErr502: "Abonelik yönetim sayfasına şu an ulaşılamıyor, birazdan tekrar dene.",
+    portalErrGeneric: "Abonelik yönetim sayfası açılamadı, tekrar dene.",
     btnShowTechnical: "Teknik Detayları Göster",
     btnHideTechnical: "Teknik Detayları Gizle",
     heroTitle: "Klasik Astrolojiyle Kendini Keşfet",
@@ -850,6 +931,12 @@ const I18N = {
     subscribeErrGeneric: "Couldn't start checkout, please try again.",
     subscribeActivating: "Activating your subscription...",
     subscribeActivationTimeout: "Your payment went through — your subscription will be active shortly. If it doesn't show up, try refreshing the page.",
+    btnManageSubscription: "Manage Subscription",
+    btnManageSubscriptionOpening: "Opening...",
+    subscriptionEndsNote: "Your subscription will end on {date}.",
+    portalErr404: "We couldn't find a subscription for your account. If you think this is a mistake, please contact us.",
+    portalErr502: "The subscription management page isn't reachable right now, please try again shortly.",
+    portalErrGeneric: "Couldn't open the subscription management page, please try again.",
     btnShowTechnical: "Show Technical Details",
     btnHideTechnical: "Hide Technical Details",
     heroTitle: "Discover Yourself Through Classical Astrology",
@@ -1032,13 +1119,21 @@ function updateAuthUI(){
   const email=loggedIn?extractEmailFromToken(authToken):null;
   emailEl.textContent=email||'';
   emailEl.style.display=email?'inline':'none';
+  document.getElementById('accountMenuEmail').textContent=email||'';
+  renderAccountChipIcon();
+  if(!loggedIn){
+    closeAccountMenu();
+  }
   // Bakiye henüz çekilmediyse (sayfa yeni yüklendi) geçici olarak ikisini de
   // gizle - renderCreditStatus() bakiye gelince doğru duruma geçirecek, bu
   // sayede "yükseltmeli" gösterip hemen "aslında abonesin"e dönen bir
   // titreşim olmaz.
   if(!loggedIn){
     document.getElementById('premiumBadge').style.display='none';
-    document.getElementById('authUpgradeBtn').style.display='none';
+    document.getElementById('authUpgradeBtn').classList.remove('is-visible');
+    document.getElementById('menuUpgradeBtn').classList.remove('is-visible');
+    document.getElementById('manageSubscriptionBtn').style.display='none';
+    document.getElementById('accountMenuStatus').style.display='none';
   }
 }
 
@@ -1074,8 +1169,14 @@ function creditStatusReportsText(n){
 function renderCreditStatus(){
   const loggedIn=!!authToken;
   const isSubscribed=loggedIn&&!!(creditBalance&&creditBalance.has_active_subscription);
-  document.getElementById('premiumBadge').style.display=isSubscribed?'inline-block':'none';
-  document.getElementById('authUpgradeBtn').style.display=(loggedIn&&!isSubscribed)?'inline-block':'none';
+  const badgeEl=document.getElementById('premiumBadge');
+  badgeEl.style.display=isSubscribed?'inline':'none';
+  badgeEl.textContent=isSubscribed?premiumBadgeLabel():'';
+  const showUpgrade=loggedIn&&!isSubscribed;
+  document.getElementById('authUpgradeBtn').classList.toggle('is-visible',showUpgrade);
+  document.getElementById('menuUpgradeBtn').classList.toggle('is-visible',showUpgrade);
+  renderAccountChipIcon();
+  renderAccountMenuStatus();
   // Kategori kartlarının kilitli/açık görünümü de aynı veriye (has_active_
   // subscription) bağlı - bakiye her değiştiğinde (giriş/çıkış, locale,
   // ilk yükleme) ızgarayı da tazele (kategori paneli henüz render
@@ -1092,6 +1193,134 @@ function renderCreditStatus(){
     const n=creditBalance.report_credits||0;
     el.textContent=n>0?creditStatusReportsText(n):t('creditStatusReportsExhausted');
     el.classList.toggle('exhausted',n<=0);
+  }
+}
+
+// ============================================================
+// ABONELİK YÖNETİMİ (backend PR #40: POST /api/v1/subscription/portal,
+// GET /api/v1/credits/balance.scheduled_cancellation_at)
+// ============================================================
+const TR_MONTH_NAMES=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+// Türkçe -e hâli (dative) ünlü uyumu: her ayın SON ÜNLÜSÜNE göre 'a' (kalın)
+// ya da 'e' (ince) - sadece Eylül (ü) ve Ekim (i) ince ünlüyle biter.
+const TR_MONTH_DATIVE_SUFFIX=['a','a','a','a','a','a','a','a','e','e','a','a'];
+const EN_MONTH_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// scheduled_cancellation_at (ISO tarih) -> { plain, phrase } - plain sadece
+// tarih ("27 Ekim"/"Oct 27", menüdeki tam cümlede kullanılır), phrase rozette
+// kullanılan kısa ifade ("27 Ekim'e kadar"/"until Oct 27"). Kullanıcının
+// tarayıcı yerel saatiyle gösteriliyor (bkz. Date - timeZone zorlanmıyor).
+function formatScheduledCancellation(iso){
+  const d=new Date(iso);
+  if(isNaN(d.getTime()))return null;
+  const day=d.getDate(), month=d.getMonth();
+  if(currentLocale==='en'){
+    const plain=`${EN_MONTH_SHORT[month]} ${day}`;
+    return { plain, phrase:`until ${plain}` };
+  }
+  const plain=`${day} ${TR_MONTH_NAMES[month]}`;
+  return { plain, phrase:`${plain}'${TR_MONTH_DATIVE_SUFFIX[month]} kadar` };
+}
+
+function premiumBadgeLabel(){
+  const iso=creditBalance&&creditBalance.scheduled_cancellation_at;
+  const info=iso?formatScheduledCancellation(iso):null;
+  return info?`✨ Premium · ${info.phrase}`:t('premiumBadge');
+}
+
+// Hesap çipinin DAR EKRANDA (bkz. CSS) gösterdiği sabit-genişlikli ikon -
+// e-posta/rozet metninin genişliğinden bağımsız, taşmayı garanti önler.
+function renderAccountChipIcon(){
+  const el=document.getElementById('accountChipIcon');
+  if(!el)return;
+  const isSubscribed=!!authToken&&!!(creditBalance&&creditBalance.has_active_subscription);
+  el.textContent=isSubscribed?'✨':'👤';
+}
+
+// Açılır menüdeki "Aboneliği Yönet" görünürlüğü + "Aboneliğin X tarihinde
+// sona erecek" notu - ikisi de aynı gerçek kaynaktan (creditBalance).
+function renderAccountMenuStatus(){
+  const statusEl=document.getElementById('accountMenuStatus');
+  const manageBtn=document.getElementById('manageSubscriptionBtn');
+  const loggedIn=!!authToken;
+  const isSubscribed=loggedIn&&!!(creditBalance&&creditBalance.has_active_subscription);
+  manageBtn.style.display=isSubscribed?'block':'none';
+  const iso=creditBalance&&creditBalance.scheduled_cancellation_at;
+  const info=(isSubscribed&&iso)?formatScheduledCancellation(iso):null;
+  if(info){
+    statusEl.textContent=t('subscriptionEndsNote').replace('{date}',info.plain);
+    statusEl.style.display='block';
+  }else{
+    statusEl.style.display='none';
+  }
+}
+
+let accountMenuOpen=false;
+function toggleAccountMenu(e){
+  if(e)e.stopPropagation();
+  if(!authToken)return;
+  accountMenuOpen=!accountMenuOpen;
+  renderAccountMenuOpenState();
+}
+function closeAccountMenu(){
+  if(!accountMenuOpen)return;
+  accountMenuOpen=false;
+  renderAccountMenuOpenState();
+}
+function renderAccountMenuOpenState(){
+  document.getElementById('accountMenu').style.display=accountMenuOpen?'block':'none';
+  document.getElementById('accountChipBtn').setAttribute('aria-expanded',accountMenuOpen?'true':'false');
+}
+document.addEventListener('click',(e)=>{
+  if(!accountMenuOpen)return;
+  const wrap=document.getElementById('accountChipWrap');
+  if(wrap&&!wrap.contains(e.target))closeAccountMenu();
+});
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape'&&accountMenuOpen)closeAccountMenu();
+});
+
+// POST /api/v1/subscription/portal (JWT) -> {portal_url, cancel_url|null}.
+// Bağlantı HER TIKLAMADA taze isteniyor, hiçbir yerde saklanmıyor (bkz. görev
+// notu). Yeni sekmede açılıyor (iframe DEĞİL) - popup engelleyicilerin async
+// fetch SONRASI window.open çağrılarını engellemesi yaygın bir sorun olduğu
+// için, sekme TIKLAMA ANINDA (senkron, henüz fetch başlamadan) boş olarak
+// açılıp fetch bitince URL'si set ediliyor - bu, tarayıcının "kullanıcı
+// eylemiyle açıldı" sayması için standart bir teknik.
+// cancel_url şu an backend'den geliyor ama kullanılmıyor (bu görevde ayrı bir
+// "iptal et" akışı istenmedi) - Paddle'ın kendi portalı zaten iptal seçeneği
+// sunuyor.
+async function openSubscriptionPortal(){
+  if(!authToken){ openAuthModal(); return; }
+  const btn=document.getElementById('manageSubscriptionBtn');
+  const newTab=window.open('','_blank');
+  btn.disabled=true;
+  btn.textContent=t('btnManageSubscriptionOpening');
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/subscription/portal`,{method:'POST',headers:authHeaders()});
+    if(!resp.ok){
+      if(newTab)newTab.close();
+      if(resp.status===401){ handleUnauthorized(); return; }
+      if(resp.status===404){ showSubscribeError(t('portalErr404')); return; }
+      if(resp.status===502){ showSubscribeError(t('portalErr502')); return; }
+      showSubscribeError(t('portalErrGeneric'));
+      return;
+    }
+    const data=await resp.json();
+    if(!data||typeof data.portal_url!=='string'){
+      if(newTab)newTab.close();
+      showSubscribeError(t('portalErrGeneric'));
+      return;
+    }
+    if(newTab){ newTab.location.href=data.portal_url; }
+    else{ window.open(data.portal_url,'_blank','noopener'); }
+    closeAccountMenu();
+  }catch(e){
+    if(newTab)newTab.close();
+    showSubscribeError(t('portalErrGeneric'));
+  }finally{
+    btn.disabled=false;
+    btn.textContent=t('btnManageSubscription');
   }
 }
 
