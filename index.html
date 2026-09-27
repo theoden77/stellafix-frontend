@@ -60,6 +60,8 @@
   .premium-badge{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--gold-dark);background:var(--gold-pale);border:1px solid var(--gold);border-radius:8px;padding:6px 13px;white-space:nowrap;}
   .subscribe-error-banner{background:#FEF2F2;border-bottom:1px solid var(--crimson);color:var(--crimson);padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
   .subscribe-error-banner .auth-welcome-dismiss{color:var(--crimson);}
+  .checkout-status-banner{background:var(--lapis-pale);border-bottom:1px solid var(--lapis);color:var(--lapis);padding:10px 24px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:14px;}
+  .checkout-status-banner .auth-welcome-dismiss{color:var(--lapis);}
   .auth-modal-backdrop{position:fixed;inset:0;background:rgba(30,27,46,.5);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;}
   .auth-modal{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:26px;width:100%;max-width:360px;position:relative;box-shadow:0 12px 32px rgba(30,27,46,.16);}
   .auth-modal-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:20px;color:var(--ink);cursor:pointer;line-height:1;padding:4px;}
@@ -301,6 +303,11 @@
   <button type="button" class="auth-welcome-dismiss" onclick="dismissSubscribeErrorBanner()">×</button>
 </div>
 
+<div class="checkout-status-banner" id="checkoutStatusBanner" style="display:none">
+  <span id="checkoutStatusText"></span>
+  <button type="button" class="auth-welcome-dismiss" onclick="dismissCheckoutStatusBanner()">×</button>
+</div>
+
 <div class="auth-modal-backdrop" id="authModalBackdrop" style="display:none" onclick="if(event.target===this)closeAuthModal()">
   <div class="auth-modal">
     <button type="button" class="auth-modal-close" onclick="closeAuthModal()">×</button>
@@ -531,11 +538,30 @@
 
 <footer class="site-footer" id="siteFooter"></footer>
 
+<!-- Paddle.js v2 (overlay checkout) - resmi CDN. Ortam/token TEK config
+     noktasında (bkz. PADDLE_CONFIG aşağıda) - canlıya geçişte sadece o
+     blok değişecek, bu script tag'i aynı kalır. -->
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script>
 // ============================================================
 // BACKEND API
 // ============================================================
 const API_URL = "https://api.stellafix.io";
+// Paddle checkout config - TEK gerçek kaynak. Canlıya geçişte SADECE bu blok
+// değişecek: environment satırı kaldırılır (varsayılan production) ve
+// clientToken canlı client-side token'ıyla değiştirilir. Bu token public/
+// client-side bir token'dır (Stripe publishable key gibi) - tarayıcıda açık
+// kalması Paddle'ın kendi tasarımı, gizli bir API anahtarı DEĞİLDİR.
+const PADDLE_CONFIG = {
+  environment: 'sandbox', // canlıda: bu satırı silin (Paddle varsayılanı production'dır)
+  clientToken: 'test_b6eb258ba7a1f008223a1f49bf8',
+};
+function initPaddle(){
+  if(typeof Paddle==='undefined')return;
+  if(PADDLE_CONFIG.environment)Paddle.Environment.set(PADDLE_CONFIG.environment);
+  Paddle.Initialize({ token: PADDLE_CONFIG.clientToken, eventCallback: handlePaddleEvent });
+}
+initPaddle();
 // 13. tur: JS yaklaşık hesap fallback'i tamamen kaldırıldı - Merkür/Venüs/
 // Mars/Jüpiter/Satürn için heliosentrik boylamı geosentrik (zodyaktaki
 // gerçek) konummuş gibi gösteriyordu (Venüs örneğinde 145° hata ölçüldü -
@@ -660,6 +686,8 @@ const I18N = {
     premiumBadge: "✨ Premium Üye",
     subscribeErrAuth: "Bu işlem için giriş yapmış olman gerekiyor.",
     subscribeErrGeneric: "Abonelik işlemi başlatılamadı, tekrar dene.",
+    subscribeActivating: "Aboneliğin etkinleştiriliyor...",
+    subscribeActivationTimeout: "Ödemen alındı, aboneliğin birazdan aktif olacak. Hâlâ görünmüyorsa sayfayı yenilemeyi dene.",
     btnShowTechnical: "Teknik Detayları Göster",
     btnHideTechnical: "Teknik Detayları Gizle",
     heroTitle: "Klasik Astrolojiyle Kendini Keşfet",
@@ -820,6 +848,8 @@ const I18N = {
     premiumBadge: "✨ Premium Member",
     subscribeErrAuth: "You need to be logged in for this.",
     subscribeErrGeneric: "Couldn't start checkout, please try again.",
+    subscribeActivating: "Activating your subscription...",
+    subscribeActivationTimeout: "Your payment went through — your subscription will be active shortly. If it doesn't show up, try refreshing the page.",
     btnShowTechnical: "Show Technical Details",
     btnHideTechnical: "Hide Technical Details",
     heroTitle: "Discover Yourself Through Classical Astrology",
@@ -1174,12 +1204,69 @@ function dismissSubscribeErrorBanner(){
   document.getElementById('subscribeErrorBanner').style.display='none';
 }
 
-// GET /api/v1/subscribe (JWT ile korumalı) bir Lemon Squeezy "buy link" döndürür;
-// aynı sekmede yönlendiriyoruz ki Lemon Squeezy'nin kendi success redirect'i
-// geri buraya dönebilsin (yeni sekmede açılsaydı o geri dönüş kaybolurdu).
+function showCheckoutStatusBanner(msg){
+  document.getElementById('checkoutStatusText').textContent=msg;
+  document.getElementById('checkoutStatusBanner').style.display='flex';
+}
+function dismissCheckoutStatusBanner(){
+  document.getElementById('checkoutStatusBanner').style.display='none';
+}
+
+// Paddle.Checkout.open()'ı backend'in verdiği price_id/customer_email/
+// custom_data ile açar. Checkout dili site diline göre ayarlanır (Paddle
+// 'tr' ve 'en' ikisini de destekliyor).
+function openPaddleCheckout(data){
+  if(typeof Paddle==='undefined'){
+    showSubscribeError(t('subscribeErrGeneric'));
+    return;
+  }
+  Paddle.Checkout.open({
+    items:[{ priceId: data.price_id, quantity: 1 }],
+    customer:{ email: data.customer_email },
+    customData: data.custom_data||{},
+    settings:{ displayMode:'overlay', locale: currentLocale==='en'?'en':'tr' },
+  });
+}
+
+// Paddle.Initialize'a verilen tek eventCallback - şimdilik sadece
+// checkout.completed'i dinliyoruz (bkz. onSubscriptionCheckoutCompleted).
+function handlePaddleEvent(event){
+  if(!event||event.name!=='checkout.completed')return;
+  onSubscriptionCheckoutCompleted();
+}
+
+// checkout.completed anında abonelik henüz backend'de aktif OLMAYABİLİR -
+// Paddle webhook'u (subscription.created/activated) asenkron gelir. Bu yüzden
+// mevcut "gerçek zamanlı abonelik durumu" kaynağını (GET /api/v1/credits/
+// balance → has_active_subscription, bkz. renderCreditStatus üstündeki not)
+// birkaç kez, aralıklarla yeniden sorguluyoruz; aktif olunca banner kapanır
+// ve arayüz (premium rozeti, kilitli kategoriler) kendiliğinden güncellenir
+// (fetchCreditBalance zaten renderCreditStatus'u çağırıyor). Zaman aşımında
+// hatasız, nazik bir mesaja dönüyoruz - kullanıcının ödemesi başarılı oldu,
+// sadece arayüzün yetişmesi gecikti.
+async function onSubscriptionCheckoutCompleted(){
+  showCheckoutStatusBanner(t('subscribeActivating'));
+  const maxAttempts=6, delayMs=2500;
+  for(let i=0;i<maxAttempts;i++){
+    await new Promise(r=>setTimeout(r,delayMs));
+    await fetchCreditBalance();
+    if(creditBalance&&creditBalance.has_active_subscription){
+      dismissCheckoutStatusBanner();
+      return;
+    }
+  }
+  showCheckoutStatusBanner(t('subscribeActivationTimeout'));
+}
+
+// GET /api/v1/subscribe (JWT ile korumalı). GERİYE UYUM: backend #38 merge
+// edilmeden önce hâlâ eski Lemon Squeezy biçimini ({checkout_url}) döndürüyor
+// olabilir - o durumda aynı sekmede yönlendiriyoruz (LS'nin kendi success
+// redirect'i geri buraya dönebilsin diye). Yeni biçim ({price_id,
+// customer_email, custom_data}) geldiğinde Paddle.js overlay'i açıyoruz.
+// Böylece bu PR, backend #38'den ÖNCE güvenle merge edilebilir.
 async function startSubscribeCheckout(){
   if(!authToken){
-    showSubscribeError(t('subscribeErrAuth'));
+    openAuthModal();
     return;
   }
   const btn=document.getElementById('authUpgradeBtn');
@@ -1188,15 +1275,20 @@ async function startSubscribeCheckout(){
   try{
     const resp=await fetch(`${API_URL}/api/v1/subscribe`,{headers:authHeaders()});
     if(!resp.ok){
+      if(resp.status===401){ handleUnauthorized(); return; }
       showSubscribeError(t('subscribeErrGeneric'));
       return;
     }
     const data=await resp.json();
-    if(!data||typeof data.checkout_url!=='string'){
-      showSubscribeError(t('subscribeErrGeneric'));
+    if(data&&typeof data.checkout_url==='string'){
+      window.location.href=data.checkout_url;
       return;
     }
-    window.location.href=data.checkout_url;
+    if(data&&typeof data.price_id==='string'){
+      openPaddleCheckout(data);
+      return;
+    }
+    showSubscribeError(t('subscribeErrGeneric'));
   }catch(e){
     showSubscribeError(t('subscribeErrGeneric'));
   }finally{
