@@ -766,6 +766,9 @@ const I18N = {
     btnManageSubscription: "Aboneliği Yönet",
     btnManageSubscriptionOpening: "Açılıyor...",
     subscriptionEndsNote: "Aboneliğin {date} tarihinde sona erecek.",
+    subscriptionPausedNote: "Aboneliğin duraklatıldı.",
+    subscriptionPastDueNote: "Ödemen alınamadı, lütfen ödeme yöntemini güncelle.",
+    subscribeErrAlreadyExists: "Zaten bir aboneliğin var.",
     portalErr404: "Abonelik kaydın bulunamadı. Bir hata olduğunu düşünüyorsan bizimle iletişime geç.",
     portalErr502: "Abonelik yönetim sayfasına şu an ulaşılamıyor, birazdan tekrar dene.",
     portalErrGeneric: "Abonelik yönetim sayfası açılamadı, tekrar dene.",
@@ -934,6 +937,9 @@ const I18N = {
     btnManageSubscription: "Manage Subscription",
     btnManageSubscriptionOpening: "Opening...",
     subscriptionEndsNote: "Your subscription will end on {date}.",
+    subscriptionPausedNote: "Your subscription is paused.",
+    subscriptionPastDueNote: "We couldn't process your payment, please update your payment method.",
+    subscribeErrAlreadyExists: "You already have a subscription.",
     portalErr404: "We couldn't find a subscription for your account. If you think this is a mistake, please contact us.",
     portalErr502: "The subscription management page isn't reachable right now, please try again shortly.",
     portalErrGeneric: "Couldn't open the subscription management page, please try again.",
@@ -1167,12 +1173,11 @@ function creditStatusReportsText(n){
 // rapor-hakkı göstergesi - ikisi de burada, TEK gerçek kaynaktan
 // (creditBalance.has_active_subscription) güncellenir.
 function renderCreditStatus(){
-  const loggedIn=!!authToken;
-  const isSubscribed=loggedIn&&!!(creditBalance&&creditBalance.has_active_subscription);
+  const {loggedIn,isSubscribed,hasManageableSubscription}=computeSubscriptionFlags();
   const badgeEl=document.getElementById('premiumBadge');
   badgeEl.style.display=isSubscribed?'inline':'none';
   badgeEl.textContent=isSubscribed?premiumBadgeLabel():'';
-  const showUpgrade=loggedIn&&!isSubscribed;
+  const showUpgrade=loggedIn&&!hasManageableSubscription;
   document.getElementById('authUpgradeBtn').classList.toggle('is-visible',showUpgrade);
   document.getElementById('menuUpgradeBtn').classList.toggle('is-visible',showUpgrade);
   renderAccountChipIcon();
@@ -1198,8 +1203,28 @@ function renderCreditStatus(){
 
 // ============================================================
 // ABONELİK YÖNETİMİ (backend PR #40: POST /api/v1/subscription/portal,
-// GET /api/v1/credits/balance.scheduled_cancellation_at)
+// GET /api/v1/credits/balance.scheduled_cancellation_at; backend PR #41:
+// credits/balance.subscription_status (active/trialing/past_due/paused/
+// canceled/null), POST /api/v1/subscribe 409 subscription_exists)
 // ============================================================
+// TEK gerçek kaynak: creditBalance. subscription_status GERİYE UYUMLU -
+// backend #41 öncesi bu alan yok (undefined), bu durumda isPaused/isPastDue
+// hep false kalır ve hasManageableSubscription tamamen isSubscribed'e
+// (has_active_subscription) eşit olur - yani ESKİ davranış birebir korunur,
+// ayrıca bir "eski backend" dalı YAZMAYA gerek kalmadan.
+function computeSubscriptionFlags(){
+  const loggedIn=!!authToken;
+  const isSubscribed=loggedIn&&!!(creditBalance&&creditBalance.has_active_subscription);
+  const status=creditBalance?creditBalance.subscription_status:undefined;
+  const isPaused=status==='paused';
+  const isPastDue=status==='past_due';
+  // paused/past_due: kullanıcının YÖNETİLECEK bir aboneliği var (ödeme
+  // güncellemesi/yeniden başlatma gerekebilir) - "Premium'a Geç" (yeni
+  // checkout) burada YANLIŞ eylem, "Aboneliği Yönet" doğru olan.
+  const hasManageableSubscription=loggedIn&&(isSubscribed||isPaused||isPastDue);
+  return {loggedIn,isSubscribed,status,isPaused,isPastDue,hasManageableSubscription};
+}
+
 const TR_MONTH_NAMES=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 // Türkçe -e hâli (dative) ünlü uyumu: her ayın SON ÜNLÜSÜNE göre 'a' (kalın)
 // ya da 'e' (ince) - sadece Eylül (ü) ve Ekim (i) ince ünlüyle biter.
@@ -1233,18 +1258,33 @@ function premiumBadgeLabel(){
 function renderAccountChipIcon(){
   const el=document.getElementById('accountChipIcon');
   if(!el)return;
-  const isSubscribed=!!authToken&&!!(creditBalance&&creditBalance.has_active_subscription);
+  const {isSubscribed}=computeSubscriptionFlags();
   el.textContent=isSubscribed?'✨':'👤';
 }
 
-// Açılır menüdeki "Aboneliği Yönet" görünürlüğü + "Aboneliğin X tarihinde
-// sona erecek" notu - ikisi de aynı gerçek kaynaktan (creditBalance).
+// Açılır menüdeki "Aboneliği Yönet" görünürlüğü + durum notu - ikisi de
+// aynı gerçek kaynaktan (creditBalance). Öncelik sırası: paused/past_due
+// notu (aksiyon gerektiren, en acil) > scheduled_cancellation_at notu >
+// not yok. paused/past_due'de "Aboneliği Yönet" GÖRÜNÜR olmalı (yönetecek
+// bir aboneliği var) ama "Premium'a Geç" GİZLİ olmalı (bkz. renderCreditStatus
+// - yeni checkout başlatmak yanlış eylem, hasManageableSubscription bunu
+// zaten kapsıyor).
 function renderAccountMenuStatus(){
   const statusEl=document.getElementById('accountMenuStatus');
   const manageBtn=document.getElementById('manageSubscriptionBtn');
-  const loggedIn=!!authToken;
-  const isSubscribed=loggedIn&&!!(creditBalance&&creditBalance.has_active_subscription);
-  manageBtn.style.display=isSubscribed?'block':'none';
+  const {isSubscribed,isPaused,isPastDue,hasManageableSubscription}=computeSubscriptionFlags();
+  manageBtn.style.display=hasManageableSubscription?'block':'none';
+
+  if(isPaused){
+    statusEl.textContent=t('subscriptionPausedNote');
+    statusEl.style.display='block';
+    return;
+  }
+  if(isPastDue){
+    statusEl.textContent=t('subscriptionPastDueNote');
+    statusEl.style.display='block';
+    return;
+  }
   const iso=creditBalance&&creditBalance.scheduled_cancellation_at;
   const info=(isSubscribed&&iso)?formatScheduledCancellation(iso):null;
   if(info){
@@ -1505,6 +1545,16 @@ async function startSubscribeCheckout(){
     const resp=await fetch(`${API_URL}/api/v1/subscribe`,{headers:authHeaders()});
     if(!resp.ok){
       if(resp.status===401){ handleUnauthorized(); return; }
+      // backend #41: mevcut abonelikte 409 {detail:"subscription_exists"}
+      // Paddle KESİNLİKLE açılmıyor (return ile aşağıdaki dallara hiç
+      // inilmiyor) - yerine kullanıcı doğrudan mevcut aboneliğini yönetmeye
+      // yönlendiriliyor (openSubscriptionPortal kendi taze-istek/yeni-sekme/
+      // popup-engelleyici-güvenli mantığını burada da aynen uyguluyor).
+      if(resp.status===409){
+        showSubscribeError(t('subscribeErrAlreadyExists'));
+        openSubscriptionPortal();
+        return;
+      }
       showSubscribeError(t('subscribeErrGeneric'));
       return;
     }
