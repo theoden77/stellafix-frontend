@@ -1255,11 +1255,14 @@ function premiumBadgeLabel(){
 
 // Hesap çipinin DAR EKRANDA (bkz. CSS) gösterdiği sabit-genişlikli ikon -
 // e-posta/rozet metninin genişliğinden bağımsız, taşmayı garanti önler.
+// past_due de ✨ gösteriyor - backend artık past_due'da erişimi koruyor
+// (Paddle önerisi), yani kullanıcı hâlâ fiilen premium; sadece paused'da
+// (erişim durduruluyor) nötr 👤 ikonu kalıyor.
 function renderAccountChipIcon(){
   const el=document.getElementById('accountChipIcon');
   if(!el)return;
-  const {isSubscribed}=computeSubscriptionFlags();
-  el.textContent=isSubscribed?'✨':'👤';
+  const {isSubscribed,isPastDue}=computeSubscriptionFlags();
+  el.textContent=(isSubscribed||isPastDue)?'✨':'👤';
 }
 
 // Açılır menüdeki "Aboneliği Yönet" görünürlüğü + durum notu - ikisi de
