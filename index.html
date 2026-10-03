@@ -4140,8 +4140,11 @@ async function selectCategory(catId,tzRetry){
       return;
     }
     const data=await resp.json();
-    // fetch'ten sonraki bu await'ten (json ayrıştırma) SONRA kontrolü tekrarla
-    if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
+    // BURADA tzRetry kontrolü YOK (kasıtlı): istek zaten gönderildi ve
+    // backend'de bir rapor kredisi zaten düştü - yanıtı şimdi atmak
+    // kullanıcının parasını ödediği raporu kaybetmesi demek olurdu. Başarılı
+    // bir /interpret/start yanıtı, nereden tetiklenirse tetiklensin, HER
+    // ZAMAN işlenir - doğrudan bir kategori tıklamasının davranışıyla aynı.
     handleStartResponse(data);
     fetchCreditBalance(); // bir rapor kredisi düştü - göstergeyi tazele
   }catch(e){

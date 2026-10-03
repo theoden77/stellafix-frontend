@@ -46,7 +46,9 @@ const json = (route, status, body) =>
 // Opens the page logged in with an active subscription (no category is
 // locked) and the interpret area shown for a chart. `startResponses` is
 // consumed in order by POST /interpret/start; the last one repeats.
-async function openPage({ timezoneId, breakDetection = false, startResponses, timezoneLookup }) {
+// `startDelayMs` (default 0) delays every /interpret/start response - used
+// by the "already sent, must not be discarded" test below.
+async function openPage({ timezoneId, breakDetection = false, startResponses, timezoneLookup, startDelayMs = 0 }) {
   const context = await browser.newContext(timezoneId ? { timezoneId } : {});
   const page = await context.newPage();
   const calls = { start: [], timezone: [] };
@@ -71,6 +73,7 @@ async function openPage({ timezoneId, breakDetection = false, startResponses, ti
     }
     if (url.pathname === '/api/v1/interpret/start') {
       calls.start.push(JSON.parse(route.request().postData()));
+      if (startDelayMs) await new Promise(r => setTimeout(r, startDelayMs));
       const [status, body] = startResponses[Math.min(calls.start.length, startResponses.length) - 1];
       return json(route, status, body);
     }
@@ -324,5 +327,43 @@ test('normal single city selection still starts exactly one report with the pick
     console.log(`[${t.name}] /interpret/start calls: ${calls.start.length}`);
     assert.equal(calls.start.length, 1);
     assert.equal(calls.start[0].timezone, 'Europe/Berlin');
+  } finally { await context.close(); }
+});
+
+async function waitForCount(getCount, expected, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (getCount() < expected) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for count >= ${expected}, got ${getCount()}`);
+    await delay(10);
+  }
+}
+
+// Once /interpret/start has actually been sent (network level), a credit is
+// already spent on the backend - leaving the picker screen before the
+// (delayed) response comes back must NOT discard it. Dropping it here would
+// mean the user paid for a report and never got it. This must hold even
+// though the request was fired from the tz-picker retry path (the same
+// tzRetry token used by the race guards above) - its success path has no
+// staleness check, unlike the pre-fetch check and the error path's check,
+// which are unaffected.
+test('leaving the picker screen AFTER /interpret/start was sent -> the response is still used, not discarded', async (t) => {
+  const { context, page, calls } = await openPage({
+    breakDetection: true, startResponses: [OK_START], timezoneLookup: [200, { timezone: 'Europe/Berlin' }],
+    startDelayMs: 300,
+  });
+  try {
+    await clickCategory(page, 'monthly_review');
+    await page.waitForSelector('#tzPickerPanel');
+    await pickGermanyThenCity(page, 'Berlin'); // fast /api/v1/timezone, then selectCategory retry fires /interpret/start (delayed 300ms)
+    await waitForCount(() => calls.start.length, 1); // wait until the request was actually dispatched
+    assert.equal(calls.start.length, 1, 'the request must have been sent before we leave');
+    await page.evaluate(() => backToCategories()); // leave BEFORE the delayed response arrives
+    await page.waitForSelector('#categoryPanel', { state: 'visible' });
+    await delay(300 + 200); // let the delayed response land
+    console.log(`[${t.name}] /interpret/start calls after leaving: ${calls.start.length}`);
+    assert.equal(calls.start.length, 1, 'no retry/duplicate - still exactly the one request that was already sent');
+    const sessionId = await page.evaluate(() => interpretSessionId);
+    console.log(`[${t.name}] interpretSessionId after the late response: ${sessionId}`);
+    assert.equal(sessionId, 's1', 'the already-sent response must still be processed (handleStartResponse ran), not dropped');
   } finally { await context.close(); }
 });
