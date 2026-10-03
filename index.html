@@ -223,6 +223,11 @@
   .chat-bubble.error{align-self:flex-start;background:#FEF2F2;border-left:3px solid var(--crimson);color:var(--crimson);border-radius:4px 12px 12px 12px;}
   .chat-bubble-action{display:block;margin-top:10px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:8px 14px;cursor:pointer;}
   .chat-bubble-action:hover{background:var(--lapis-light);}
+  /* Rapor saat dilimi seçici (tarayıcı saat dilimi bulunamadığında / reddedildiğinde) */
+  .tz-picker{white-space:normal;max-width:100%;width:100%;}
+  .tz-picker-field{margin-top:10px;}
+  .tz-picker .city-dropdown{position:static;margin-top:4px;box-shadow:none;}
+  .tz-picker-error{margin-top:8px;font-size:13px;color:var(--crimson);}
   .credit-status{font-size:12px;color:var(--ink);opacity:.65;margin-bottom:12px;padding:8px 12px;background:var(--parchment-dark);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .credit-status.exhausted{color:var(--crimson);opacity:1;background:#FEF2F2;}
   .credit-status-action{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap;}
@@ -736,6 +741,9 @@ const I18N = {
     errNotFoundSession: "Bu görüşme bulunamadı, lütfen yeniden başla.",
     errRateLimited: "Biraz hızlı gidiyorsun, bir dakika bekleyip tekrar dene.",
     errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
+    tzPickerMissing: "Bu raporun tarihlerini kendi saatine göre verebilmemiz için şu an bulunduğun yeri seç: önce ülke, sonra şehir.",
+    tzPickerInvalid: "Bulunduğun yerin saatini tanıyamadık. Lütfen şu an bulunduğun ülke ve şehri yeniden seç.",
+    tzLookupError: "Bu şehrin saati bulunamadı, lütfen yakındaki başka bir şehri seç.",
     errUpstream: "Şu an yanıt oluşturulamadı, tekrar dene.",
     ctaSubscribe: "Abone Ol",
     ctaBackToCategories: "← Kategorilere Dön",
@@ -907,6 +915,9 @@ const I18N = {
     errNotFoundSession: "This conversation couldn't be found, please start again.",
     errRateLimited: "You're going a bit fast — wait a minute and try again.",
     errInvalidInput: "Something in your request wasn't valid, please try again.",
+    tzPickerMissing: "To give this report's dates in your own time, choose where you are right now: first the country, then the city.",
+    tzPickerInvalid: "We couldn't recognize the time where you are. Please choose your current country and city again.",
+    tzLookupError: "We couldn't find the time zone for this city, please choose another nearby city.",
     errUpstream: "Couldn't generate a response right now, please try again.",
     ctaSubscribe: "Subscribe",
     ctaBackToCategories: "← Back to Categories",
@@ -1679,8 +1690,30 @@ function interpretErrorInfo(status,body){
   if(status===502)return{textKey:'errUpstream'};
   return{textKey:'chatErrorMessage'};
 }
-async function handleInterpretErrorResponse(resp){
+// Standart FastAPI 422 gövdesi: {"detail":[{type, loc, msg, ...}]}. Backend
+// (stellafix-api, Rapor Dönemleri) saat dilimi hatalarını loc
+// ["body","timezone"] ve iki ayrı type ile ayırıyor: "timezone_missing" /
+// "timezone_invalid". Ham hata metni kullanıcıya gösterilmez.
+function timezoneErrorType(body){
+  const items=body&&Array.isArray(body.detail)?body.detail:[];
+  for(const it of items){
+    const loc=it&&Array.isArray(it.loc)?it.loc:[];
+    if(loc[loc.length-1]==='timezone')return it.type==='timezone_invalid'?'invalid':'missing';
+  }
+  return null;
+}
+// tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
+// geçiliyor (bkz. selectCategory). parseInterpretErrorBody kendi başına bir
+// await - o yüzden döndükten SONRA tekrar geçerlilik kontrolü yapılıyor;
+// eskimiş bir yanıt (422 dahil) artık hiçbir mesaj/picker göstermemeli.
+async function handleInterpretErrorResponse(resp,tzRetry){
   const body=await parseInterpretErrorBody(resp);
+  if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
+  if(resp.status===422){
+    const tzError=timezoneErrorType(body);
+    if(tzError==='invalid'){ rejectSentTimezone(); showTimezonePicker('invalid'); return; }
+    if(tzError==='missing'){ showTimezonePicker('missing'); return; }
+  }
   const info=interpretErrorInfo(resp.status,body);
   if(info.onShow)info.onShow();
   const action=info.ctaKey?{label:t(info.ctaKey),onClick:info.onCta}:null;
@@ -3706,6 +3739,9 @@ function renderCategoryGrid(){
 function backToCategories(){
   document.getElementById('chatPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='block';
+  // Seçim ekranından çıkılıyor - bekleyen her tz-picker retry'sini geçersiz
+  // kıl (bkz. tzPickerFlowId notu, pickTzCity/selectCategory).
+  tzPickerFlowId++;
 }
 
 function showChatLoading(show){
@@ -3785,12 +3821,274 @@ function handleContinueResponse(data){
   updateRemainingUI();
 }
 
-async function selectCategory(catId){
+// ============================================================
+// RAPOR SAAT DİLİMİ — dönemli kategoriler (aylık/haftalık/yıllık/evlilik)
+// /interpret/start'a `timezone` (IANA) göndermek ZORUNDA (stellafix-api,
+// Rapor Dönemleri). Kaynak sırası: (1) tarayıcının saat dilimi, backend daha
+// önce reddetmediyse; (2) kullanıcının konum seçicisinde seçtiği şehrin saat
+// dilimi. Şehir -> saat dilimi elle bir tabloyla DEĞİL, seçilen yerin
+// koordinatıyla backend'in GET /api/v1/timezone ucundan alınıyor (backend'in
+// /natal için kullandığı aynı timezonefinder) - doğum yeri rozetindeki
+// GeoNames saat dilimi burada kullanılmıyor, o sadece önizleme.
+// Doğum yerinin saat dilimi de KULLANILMIYOR: rapor tarihleri kullanıcının
+// ŞU AN bulunduğu yerin saatine göre.
+// ============================================================
+const PERIOD_CATEGORIES=new Set(['monthly_review','weekly_review','yearly_review','marriage']);
+const REQUEST_TZ_KEY='stellafix_request_timezone';
+const REJECTED_TZ_KEY='stellafix_rejected_browser_timezone';
+let pickedRequestTimezone=null;   // localStorage kapalıysa da bu oturumda geçerli
+let rejectedBrowserTimezone=null;
+let lastSentTimezone=null;
+
+// RACE KORUMASI (pickTzCity → GET /api/v1/timezone → selectCategory retry
+// zinciri): /api/v1/timezone sorgusu sürerken kullanıcı başka bir şehir
+// seçerse, iki yanıt da ayrı ayrı /interpret/start çağırıp çift rapor/kredi
+// riski oluşturabiliyordu. İki bağımsız kontrol:
+//  - tzPickerRequestId: pickTzCity'nin HER çağrısında artar - yanıt
+//    geldiğinde bu kimlik güncel değilse (daha yeni bir şehir seçildi)
+//    yanıt sessizce yok sayılır.
+//  - tzPickerFlowId: selectCategory'nin HER doğrudan (retry OLMAYAN)
+//    çağrısında ve backToCategories()'te artar - pickTzCity'nin yanıtı
+//    geldiğinde bu kimlik güncel değilse (kategori değişti ya da seçim
+//    ekranından çıkıldı) rapor BAŞLATILMAZ, retry hiç tetiklenmez.
+// selectCategory'ye retry olarak geçirilen {requestId,flowId} nesnesi, bu
+// kontrolü /interpret/start çağrısından hemen önce VE fetch sonrası her
+// await'ten sonra tekrarlar (isTzRetryStillValid - bkz. aşağı).
+let tzPickerRequestId=0;
+let tzPickerFlowId=0;
+function isTzRetryStillValid(tzRetry){
+  return tzRetry.requestId===tzPickerRequestId&&tzRetry.flowId===tzPickerFlowId;
+}
+
+function isUsableTimezoneName(tz){
+  if(typeof tz!=='string'||!tz||tz==='Etc/Unknown')return false;
+  try{ new Intl.DateTimeFormat('en-US',{timeZone:tz}); return true; }catch(e){ return false; }
+}
+function detectBrowserTimezone(){
+  try{
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return isUsableTimezoneName(tz)?tz:null;
+  }catch(e){ return null; }
+}
+function storedRequestTimezone(){
+  if(pickedRequestTimezone)return pickedRequestTimezone;
+  try{ const tz=localStorage.getItem(REQUEST_TZ_KEY); return tz||null; }catch(e){ return null; }
+}
+function storedRejectedBrowserTimezone(){
+  if(rejectedBrowserTimezone)return rejectedBrowserTimezone;
+  try{ return localStorage.getItem(REJECTED_TZ_KEY); }catch(e){ return null; }
+}
+function requestTimezone(){
+  const detected=detectBrowserTimezone();
+  if(detected&&detected!==storedRejectedBrowserTimezone())return detected;
+  return storedRequestTimezone();
+}
+// Backend son gönderilen saat dilimini tanımadı (422 timezone_invalid): bir
+// daha gönderme, kullanıcıya konum seçtir.
+function rejectSentTimezone(){
+  const sent=lastSentTimezone;
+  if(!sent)return;
+  if(sent===detectBrowserTimezone()){
+    rejectedBrowserTimezone=sent;
+    try{ localStorage.setItem(REJECTED_TZ_KEY,sent); }catch(e){}
+  }
+  if(sent===storedRequestTimezone()){
+    pickedRequestTimezone=null;
+    try{ localStorage.removeItem(REQUEST_TZ_KEY); }catch(e){}
+  }
+}
+function savePickedTimezone(tz){
+  pickedRequestTimezone=tz;
+  try{ localStorage.setItem(REQUEST_TZ_KEY,tz); }catch(e){}
+}
+
+// Konum seçici: doğum yeri girişinin veri ve yardımcılarını (COUNTRY_INDEX,
+// countryName, normalizeStr, matchTier, cities/<CC>.json) kullanır, ama kendi
+// durumunu tutar - doğum yeri formundaki seçimi değiştirmez.
+let tzPicker=null; // {cc, data:{admin1,cities}, norm:[...]}
+const TZ_PICKER_MAX_OPTIONS=10;
+
+function showTimezonePicker(reason){
+  const wrap=document.getElementById('chatMessages');
+  const old=document.getElementById('tzPickerPanel');
+  if(old)old.remove();
+  tzPicker={cc:null,data:null,norm:null};
+  const panel=document.createElement('div');
+  panel.id='tzPickerPanel';
+  panel.className='chat-bubble assistant tz-picker';
+  const msg=document.createElement('div');
+  msg.className='chat-bubble-text';
+  msg.textContent=t(reason==='invalid'?'tzPickerInvalid':'tzPickerMissing');
+  panel.appendChild(msg);
+
+  const countryField=document.createElement('div');
+  countryField.className='tz-picker-field';
+  const countryInput=document.createElement('input');
+  countryInput.type='text';
+  countryInput.id='tzCountryInput';
+  countryInput.autocomplete='off';
+  countryInput.placeholder=t('placeholderCountry');
+  const countryList=document.createElement('div');
+  countryList.id='tzCountryDropdown';
+  countryList.className='city-dropdown';
+  countryList.style.display='none';
+  countryField.append(countryInput,countryList);
+
+  const cityField=document.createElement('div');
+  cityField.className='tz-picker-field';
+  cityField.style.display='none';
+  const cityInput=document.createElement('input');
+  cityInput.type='text';
+  cityInput.id='tzCityInput';
+  cityInput.autocomplete='off';
+  cityInput.placeholder=t('placeholderCity');
+  const cityList=document.createElement('div');
+  cityList.id='tzCityDropdown';
+  cityList.className='city-dropdown';
+  cityList.style.display='none';
+  cityField.append(cityInput,cityList);
+
+  const err=document.createElement('div');
+  err.id='tzPickerError';
+  err.className='tz-picker-error';
+  err.style.display='none';
+
+  panel.append(countryField,cityField,err);
+  wrap.appendChild(panel);
+  wrap.scrollTop=wrap.scrollHeight;
+  document.getElementById('chatInput').disabled=true;
+  document.getElementById('chatSendBtn').disabled=true;
+
+  countryInput.addEventListener('input',()=>renderTzCountryOptions(countryInput.value));
+  cityInput.addEventListener('input',()=>renderTzCityOptions(cityInput.value));
+}
+
+function tzOption(label,detail,onPick){
+  const opt=document.createElement('div');
+  opt.className='city-option';
+  const name=document.createElement('div');
+  name.className='city-name';
+  name.textContent=label;
+  opt.appendChild(name);
+  if(detail){
+    const d=document.createElement('div');
+    d.className='city-detail';
+    d.textContent=detail;
+    opt.appendChild(d);
+  }
+  opt.addEventListener('click',onPick);
+  return opt;
+}
+
+function renderTzCountryOptions(raw){
+  const list=document.getElementById('tzCountryDropdown');
+  list.replaceChildren();
+  const q=normalizeStr((raw||'').trim());
+  if(!q){ list.style.display='none'; return; }
+  ensureCountryNameNormIndex();
+  const matches=COUNTRY_INDEX.filter(([cc])=>COUNTRY_NAME_NORM[cc].includes(q))
+    .sort((a,b)=>b[1]-a[1]).slice(0,TZ_PICKER_MAX_OPTIONS);
+  for(const [cc] of matches)list.appendChild(tzOption(countryName(cc),'',()=>pickTzCountry(cc)));
+  list.style.display=matches.length?'block':'none';
+}
+
+async function pickTzCountry(cc){
+  tzPicker.cc=cc;
+  document.getElementById('tzCountryInput').value=countryName(cc);
+  document.getElementById('tzCountryDropdown').style.display='none';
+  hideTzPickerError();
+  let data;
+  try{ data=await fetchCountryCitiesJson(cc); }
+  catch(e){ data={admin1:{},cities:fallbackCitiesForCountry(cc)}; }
+  if(!tzPicker||tzPicker.cc!==cc)return; // bu arada başka ülke seçildi
+  tzPicker.data=data;
+  tzPicker.norm=data.cities.map(c=>({name:normalizeStr(c[0]),ascii:c[1]?normalizeStr(c[1]):''}));
+  const cityInput=document.getElementById('tzCityInput');
+  cityInput.value='';
+  cityInput.parentElement.style.display='block';
+  document.getElementById('tzCityDropdown').style.display='none';
+  cityInput.focus();
+}
+
+function renderTzCityOptions(raw){
+  const list=document.getElementById('tzCityDropdown');
+  list.replaceChildren();
+  const q=normalizeStr((raw||'').trim());
+  if(!q||!tzPicker||!tzPicker.data){ list.style.display='none'; return; }
+  const cities=tzPicker.data.cities;
+  const scored=[];
+  for(let i=0;i<cities.length;i++){
+    const n=tzPicker.norm[i];
+    let tier=matchTier(n.name,q);
+    if(n.ascii)tier=Math.max(tier,matchTier(n.ascii,q));
+    if(tier>=0)scored.push({i,tier});
+  }
+  scored.sort((a,b)=>b.tier-a.tier||cities[b.i][5]-cities[a.i][5]);
+  for(const {i} of scored.slice(0,TZ_PICKER_MAX_OPTIONS)){
+    const c=cities[i];
+    const region=(c[6]&&tzPicker.data.admin1&&tzPicker.data.admin1[c[6]])||'';
+    list.appendChild(tzOption(c[0],region,()=>pickTzCity(i)));
+  }
+  list.style.display=scored.length?'block':'none';
+}
+
+async function pickTzCity(i){
+  const c=tzPicker.data.cities[i];
+  document.getElementById('tzCityInput').value=c[0];
+  document.getElementById('tzCityDropdown').style.display='none';
+  hideTzPickerError();
+  // Bu seçimin kimliği - fetch'ten SONRAKİ her await'ten sonra tekrar
+  // kontrol ediliyor (bkz. tzPickerRequestId notu yukarıda).
+  const myRequestId=++tzPickerRequestId;
+  const myFlowId=tzPickerFlowId;
+  let tz=null;
+  try{
+    const resp=await fetch(`${API_URL}/api/v1/timezone?lat=${encodeURIComponent(c[2])}&lon=${encodeURIComponent(c[3])}`);
+    if(myRequestId!==tzPickerRequestId)return; // daha yeni bir şehir seçildi - bu yanıtı sessizce yok say
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    if(myRequestId!==tzPickerRequestId)return; // ikinci await (json ayrıştırma) sonrası tekrar kontrol
+    if(!data||typeof data.timezone!=='string'||!data.timezone)throw new Error('no timezone');
+    tz=data.timezone;
+  }catch(e){
+    if(myRequestId!==tzPickerRequestId)return; // eskimiş bir yanıt hata mesajı da göstermesin
+    showTzPickerError();
+    return;
+  }
+  savePickedTimezone(tz);
+  // Yanıt güncel (requestId eşleşti) ama akış artık geçerli değilse -
+  // kategori değişti ya da seçim ekranından çıkıldı - rapor BAŞLATMA. Seçilen
+  // saat dilimi yine de kaydedildi, sonraki bir seçimde tekrar kullanılabilir.
+  if(myFlowId!==tzPickerFlowId)return;
+  if(currentCategory)selectCategory(currentCategory,{requestId:myRequestId,flowId:myFlowId});
+}
+
+function showTzPickerError(){
+  const err=document.getElementById('tzPickerError');
+  if(!err)return;
+  err.textContent=t('tzLookupError');
+  err.style.display='block';
+}
+function hideTzPickerError(){
+  const err=document.getElementById('tzPickerError');
+  if(err)err.style.display='none';
+}
+
+// tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
+// geçiliyor - {requestId,flowId}, pickTzCity'nin şehir seçimi anında yakaladığı
+// kimlikler. Doğrudan bir kategori-kartı tıklamasında bu parametre YOK, o
+// yüzden mevcut davranış birebir korunuyor (bkz. isTzRetryStillValid).
+async function selectCategory(catId,tzRetry){
   // /interpret/* artık auth zorunlu (stellafix-api PR #25) - girişsiz kullanıcıyı
   // boşuna bir round-trip beklemeden doğrudan giriş ekranına yönlendir. Token
   // süresi mid-session dolarsa da handleInterpretErrorResponse'daki 401 dalı
   // (handleUnauthorized) ikinci bir savunma hattı olarak aynı işi yapar.
   if(!authToken){ openAuthModal(); return; }
+  if(tzRetry){
+    if(!isTzRetryStillValid(tzRetry))return; // bu retry artık geçerli değil - kategori değişti/ekrandan çıkıldı
+  }else{
+    tzPickerFlowId++; // yeni/doğrudan bir kategori seçimi - bekleyen her tz-picker retry'sini geçersiz kılar
+  }
   currentCategory=catId;
   const cfg=CATEGORIES.find(c=>c.id===catId);
   document.getElementById('categoryPanel').style.display='none';
@@ -3815,19 +4113,38 @@ async function selectCategory(catId){
     return;
   }
 
+  const startBody={chart_id:lastChartId,category:catId,language:currentLocale};
+  lastSentTimezone=null;
+  if(PERIOD_CATEGORIES.has(catId)){
+    const tz=requestTimezone();
+    if(!tz){ showTimezonePicker('missing'); return; }
+    startBody.timezone=tz;
+    lastSentTimezone=tz;
+  }
+
+  // /interpret/start çağrısından HEMEN ÖNCE: bir tz-picker retry'siyse hâlâ
+  // geçerli mi tekrar kontrol et (yukarıdaki kontrolden bu yana await yok,
+  // ama gelecekte eklenirse diye ve kontratın tam karşılığı olsun diye).
+  if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
+
   showChatLoading(true);
   try{
     const resp=await fetch(`${API_URL}/api/v1/interpret/start`,{
       method:'POST',
       headers:{'Content-Type':'application/json',...authHeaders()},
-      body:JSON.stringify({chart_id:lastChartId,category:catId,language:currentLocale})
+      body:JSON.stringify(startBody)
     });
     showChatLoading(false);
     if(!resp.ok){
-      await handleInterpretErrorResponse(resp);
+      await handleInterpretErrorResponse(resp,tzRetry);
       return;
     }
     const data=await resp.json();
+    // BURADA tzRetry kontrolü YOK (kasıtlı): istek zaten gönderildi ve
+    // backend'de bir rapor kredisi zaten düştü - yanıtı şimdi atmak
+    // kullanıcının parasını ödediği raporu kaybetmesi demek olurdu. Başarılı
+    // bir /interpret/start yanıtı, nereden tetiklenirse tetiklensin, HER
+    // ZAMAN işlenir - doğrudan bir kategori tıklamasının davranışıyla aynı.
     handleStartResponse(data);
     fetchCreditBalance(); // bir rapor kredisi düştü - göstergeyi tazele
   }catch(e){
