@@ -75,8 +75,16 @@ async function openPage({ timezoneId, breakDetection = false, startResponses, ti
       return json(route, status, body);
     }
     if (url.pathname === '/api/v1/timezone') {
-      calls.timezone.push({ lat: url.searchParams.get('lat'), lon: url.searchParams.get('lon') });
-      const [status, body] = timezoneLookup;
+      const lat = url.searchParams.get('lat'), lon = url.searchParams.get('lon');
+      calls.timezone.push({ lat, lon });
+      // timezoneLookup is either the fixed [status, body] tuple (existing
+      // tests) or a function(callIndex) -> [status, body] | Promise<...> for
+      // tests that need per-call delay/content (the race tests below), so a
+      // delayed response can be told apart from a fast one.
+      const resolved = typeof timezoneLookup === 'function'
+        ? await timezoneLookup(calls.timezone.length)
+        : timezoneLookup;
+      const [status, body] = resolved;
       return json(route, status, body);
     }
     return json(route, 404, { detail: 'not mocked' });
@@ -197,5 +205,124 @@ test('a 422 on another field keeps the generic invalid-input message', async () 
     await page.waitForSelector('.chat-bubble.error');
     assert.match(await page.textContent('.chat-bubble.error'), /eksik veya geçersiz/);
     assert.equal(await page.$('#tzPickerPanel'), null);
+  } finally { await context.close(); }
+});
+
+// ============================================================
+// Race protection: pickTzCity()'s GET /api/v1/timezone response can arrive
+// late, after the user has already picked a different city, changed
+// category, or left the picker screen. Without the request-id/flow-id
+// guards in index.html (pickTzCity, selectCategory, handleInterpretErrorResponse),
+// a stale response can still fire its own /interpret/start -> a double
+// report/credit charge, or one for the wrong category.
+//
+// City A = Berlin (lat 52.5244, lon 13.4105), City B = Munich (lat 48.1374,
+// lon 11.5755), both in cities/DE.json served by the local test server (no
+// hand-written timezone table involved). The /api/v1/timezone mock returns a
+// distinguishable (fictitious, not geographically accurate - that's not what
+// this is testing) zone per call index, with a controllable delay per call,
+// so arrival order can be forced independently of click order.
+// ============================================================
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function pickCity(page, name) {
+  await page.fill('#tzCityInput', name);
+  await page.click('#tzCityDropdown .city-option');
+}
+
+async function pickGermanyThenCity(page, name) {
+  await page.fill('#tzCountryInput', 'Almanya');
+  await page.click('#tzCountryDropdown .city-option');
+  await page.waitForSelector('#tzCityInput', { state: 'visible' });
+  await pickCity(page, name);
+}
+
+// callIndex 1 = Berlin (A, clicked first), callIndex 2 = Munich (B, clicked
+// second). aDelayMs/bDelayMs let a test force either arrival order.
+function raceLookup(aDelayMs, bDelayMs) {
+  return async (callIndex) => {
+    if (callIndex === 1) { await delay(aDelayMs); return [200, { timezone: 'Europe/Berlin' }]; }
+    await delay(bDelayMs);
+    return [200, { timezone: 'Europe/Vienna' }]; // stand-in for "Munich's zone" - just needs to differ from Berlin's for the assertion
+  };
+}
+
+async function fastDoubleSelection(t, aDelayMs, bDelayMs) {
+  const { context, page, calls } = await openPage({
+    breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(aDelayMs, bDelayMs),
+  });
+  try {
+    await clickCategory(page, 'monthly_review');
+    await page.waitForSelector('#tzPickerPanel');
+    await pickGermanyThenCity(page, 'Berlin'); // A - fetch fires, in flight
+    await pickCity(page, 'Munich');            // B - fired before A's response arrives, nothing disables the input meanwhile
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni');
+    await delay(Math.max(aDelayMs, bDelayMs) + 100); // let the slower (stale) response land too
+    console.log(`[${t.name}] /interpret/start calls: ${calls.start.length}`, calls.start.map(b => b.timezone));
+    assert.equal(calls.start.length, 1, 'exactly one /interpret/start, not one per city');
+    assert.equal(calls.start[0].timezone, 'Europe/Vienna', "the LAST picked city (B/Munich)'s zone, not A's");
+  } finally { await context.close(); }
+}
+
+// 300ms/600ms (not 30/150): both city clicks (country pick + two city picks,
+// each a real Playwright round-trip) must complete before EITHER response
+// resolves, or the "fast" response would win on its own before the second
+// click even happens and the test would not exercise the race at all.
+test('fast double city selection, A resolves before B -> only B starts a report', async (t) => {
+  await fastDoubleSelection(t, 300, 600);
+});
+
+test('fast double city selection, reversed arrival: B resolves before A -> still only B', async (t) => {
+  await fastDoubleSelection(t, 600, 300);
+});
+
+test('leaving the picker screen before the response arrives -> no /interpret/start', async (t) => {
+  const { context, page, calls } = await openPage({
+    breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(150, 0),
+  });
+  try {
+    await clickCategory(page, 'monthly_review');
+    await page.waitForSelector('#tzPickerPanel');
+    await pickGermanyThenCity(page, 'Berlin'); // A - fetch fires, in flight (150ms)
+    await page.evaluate(() => backToCategories()); // user leaves before the response arrives
+    await page.waitForSelector('#categoryPanel', { state: 'visible' });
+    await delay(250); // let A's delayed response land
+    console.log(`[${t.name}] /interpret/start calls: ${calls.start.length}`);
+    assert.equal(calls.start.length, 0, 'the stale response must not start a report after the user left');
+  } finally { await context.close(); }
+});
+
+test('switching category before the response arrives -> old category gets no /interpret/start', async (t) => {
+  const { context, page, calls } = await openPage({
+    breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(150, 0),
+  });
+  try {
+    await clickCategory(page, 'monthly_review');
+    await page.waitForSelector('#tzPickerPanel');
+    await pickGermanyThenCity(page, 'Berlin'); // A - fetch fires, in flight (150ms)
+    await page.evaluate(() => backToCategories()); // switching category goes through the category panel
+    await page.waitForSelector('#categoryPanel', { state: 'visible' });
+    await clickCategory(page, 'personality'); // a different, non-period category
+    await page.waitForSelector('.chat-bubble.assistant');
+    await delay(250); // let the stale Berlin/monthly_review response land
+    console.log(`[${t.name}] /interpret/start calls: ${JSON.stringify(calls.start.map(b => b.category))}`);
+    assert.equal(calls.start.length, 1, 'only the new category\'s own request, nothing from the abandoned one');
+    assert.equal(calls.start[0].category, 'personality');
+    assert.ok(!calls.start.some(b => b.category === 'monthly_review'), 'the old category must not have started a report');
+  } finally { await context.close(); }
+});
+
+test('normal single city selection still starts exactly one report with the picked time zone', async (t) => {
+  const { context, page, calls } = await openPage({
+    breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(20, 20),
+  });
+  try {
+    await clickCategory(page, 'monthly_review');
+    await page.waitForSelector('#tzPickerPanel');
+    await pickGermanyThenCity(page, 'Berlin');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni');
+    console.log(`[${t.name}] /interpret/start calls: ${calls.start.length}`);
+    assert.equal(calls.start.length, 1);
+    assert.equal(calls.start[0].timezone, 'Europe/Berlin');
   } finally { await context.close(); }
 });

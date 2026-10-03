@@ -1702,8 +1702,13 @@ function timezoneErrorType(body){
   }
   return null;
 }
-async function handleInterpretErrorResponse(resp){
+// tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
+// geçiliyor (bkz. selectCategory). parseInterpretErrorBody kendi başına bir
+// await - o yüzden döndükten SONRA tekrar geçerlilik kontrolü yapılıyor;
+// eskimiş bir yanıt (422 dahil) artık hiçbir mesaj/picker göstermemeli.
+async function handleInterpretErrorResponse(resp,tzRetry){
   const body=await parseInterpretErrorBody(resp);
+  if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
   if(resp.status===422){
     const tzError=timezoneErrorType(body);
     if(tzError==='invalid'){ rejectSentTimezone(); showTimezonePicker('invalid'); return; }
@@ -3734,6 +3739,9 @@ function renderCategoryGrid(){
 function backToCategories(){
   document.getElementById('chatPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='block';
+  // Seçim ekranından çıkılıyor - bekleyen her tz-picker retry'sini geçersiz
+  // kıl (bkz. tzPickerFlowId notu, pickTzCity/selectCategory).
+  tzPickerFlowId++;
 }
 
 function showChatLoading(show){
@@ -3831,6 +3839,26 @@ const REJECTED_TZ_KEY='stellafix_rejected_browser_timezone';
 let pickedRequestTimezone=null;   // localStorage kapalıysa da bu oturumda geçerli
 let rejectedBrowserTimezone=null;
 let lastSentTimezone=null;
+
+// RACE KORUMASI (pickTzCity → GET /api/v1/timezone → selectCategory retry
+// zinciri): /api/v1/timezone sorgusu sürerken kullanıcı başka bir şehir
+// seçerse, iki yanıt da ayrı ayrı /interpret/start çağırıp çift rapor/kredi
+// riski oluşturabiliyordu. İki bağımsız kontrol:
+//  - tzPickerRequestId: pickTzCity'nin HER çağrısında artar - yanıt
+//    geldiğinde bu kimlik güncel değilse (daha yeni bir şehir seçildi)
+//    yanıt sessizce yok sayılır.
+//  - tzPickerFlowId: selectCategory'nin HER doğrudan (retry OLMAYAN)
+//    çağrısında ve backToCategories()'te artar - pickTzCity'nin yanıtı
+//    geldiğinde bu kimlik güncel değilse (kategori değişti ya da seçim
+//    ekranından çıkıldı) rapor BAŞLATILMAZ, retry hiç tetiklenmez.
+// selectCategory'ye retry olarak geçirilen {requestId,flowId} nesnesi, bu
+// kontrolü /interpret/start çağrısından hemen önce VE fetch sonrası her
+// await'ten sonra tekrarlar (isTzRetryStillValid - bkz. aşağı).
+let tzPickerRequestId=0;
+let tzPickerFlowId=0;
+function isTzRetryStillValid(tzRetry){
+  return tzRetry.requestId===tzPickerRequestId&&tzRetry.flowId===tzPickerFlowId;
+}
 
 function isUsableTimezoneName(tz){
   if(typeof tz!=='string'||!tz||tz==='Etc/Unknown')return false;
@@ -4009,17 +4037,30 @@ async function pickTzCity(i){
   document.getElementById('tzCityInput').value=c[0];
   document.getElementById('tzCityDropdown').style.display='none';
   hideTzPickerError();
+  // Bu seçimin kimliği - fetch'ten SONRAKİ her await'ten sonra tekrar
+  // kontrol ediliyor (bkz. tzPickerRequestId notu yukarıda).
+  const myRequestId=++tzPickerRequestId;
+  const myFlowId=tzPickerFlowId;
+  let tz=null;
   try{
     const resp=await fetch(`${API_URL}/api/v1/timezone?lat=${encodeURIComponent(c[2])}&lon=${encodeURIComponent(c[3])}`);
+    if(myRequestId!==tzPickerRequestId)return; // daha yeni bir şehir seçildi - bu yanıtı sessizce yok say
     if(!resp.ok)throw new Error('HTTP '+resp.status);
     const data=await resp.json();
+    if(myRequestId!==tzPickerRequestId)return; // ikinci await (json ayrıştırma) sonrası tekrar kontrol
     if(!data||typeof data.timezone!=='string'||!data.timezone)throw new Error('no timezone');
-    savePickedTimezone(data.timezone);
+    tz=data.timezone;
   }catch(e){
+    if(myRequestId!==tzPickerRequestId)return; // eskimiş bir yanıt hata mesajı da göstermesin
     showTzPickerError();
     return;
   }
-  if(currentCategory)selectCategory(currentCategory);
+  savePickedTimezone(tz);
+  // Yanıt güncel (requestId eşleşti) ama akış artık geçerli değilse -
+  // kategori değişti ya da seçim ekranından çıkıldı - rapor BAŞLATMA. Seçilen
+  // saat dilimi yine de kaydedildi, sonraki bir seçimde tekrar kullanılabilir.
+  if(myFlowId!==tzPickerFlowId)return;
+  if(currentCategory)selectCategory(currentCategory,{requestId:myRequestId,flowId:myFlowId});
 }
 
 function showTzPickerError(){
@@ -4033,12 +4074,21 @@ function hideTzPickerError(){
   if(err)err.style.display='none';
 }
 
-async function selectCategory(catId){
+// tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
+// geçiliyor - {requestId,flowId}, pickTzCity'nin şehir seçimi anında yakaladığı
+// kimlikler. Doğrudan bir kategori-kartı tıklamasında bu parametre YOK, o
+// yüzden mevcut davranış birebir korunuyor (bkz. isTzRetryStillValid).
+async function selectCategory(catId,tzRetry){
   // /interpret/* artık auth zorunlu (stellafix-api PR #25) - girişsiz kullanıcıyı
   // boşuna bir round-trip beklemeden doğrudan giriş ekranına yönlendir. Token
   // süresi mid-session dolarsa da handleInterpretErrorResponse'daki 401 dalı
   // (handleUnauthorized) ikinci bir savunma hattı olarak aynı işi yapar.
   if(!authToken){ openAuthModal(); return; }
+  if(tzRetry){
+    if(!isTzRetryStillValid(tzRetry))return; // bu retry artık geçerli değil - kategori değişti/ekrandan çıkıldı
+  }else{
+    tzPickerFlowId++; // yeni/doğrudan bir kategori seçimi - bekleyen her tz-picker retry'sini geçersiz kılar
+  }
   currentCategory=catId;
   const cfg=CATEGORIES.find(c=>c.id===catId);
   document.getElementById('categoryPanel').style.display='none';
@@ -4072,6 +4122,11 @@ async function selectCategory(catId){
     lastSentTimezone=tz;
   }
 
+  // /interpret/start çağrısından HEMEN ÖNCE: bir tz-picker retry'siyse hâlâ
+  // geçerli mi tekrar kontrol et (yukarıdaki kontrolden bu yana await yok,
+  // ama gelecekte eklenirse diye ve kontratın tam karşılığı olsun diye).
+  if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
+
   showChatLoading(true);
   try{
     const resp=await fetch(`${API_URL}/api/v1/interpret/start`,{
@@ -4081,10 +4136,12 @@ async function selectCategory(catId){
     });
     showChatLoading(false);
     if(!resp.ok){
-      await handleInterpretErrorResponse(resp);
+      await handleInterpretErrorResponse(resp,tzRetry);
       return;
     }
     const data=await resp.json();
+    // fetch'ten sonraki bu await'ten (json ayrıştırma) SONRA kontrolü tekrarla
+    if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
     handleStartResponse(data);
     fetchCreditBalance(); // bir rapor kredisi düştü - göstergeyi tazele
   }catch(e){
