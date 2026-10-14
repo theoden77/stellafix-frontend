@@ -3,7 +3,7 @@
   "private": true,
   "description": "Static site; package.json exists only for the browser integration tests.",
   "scripts": {
-    "test": "node --test tests/timezone-flow.test.cjs"
+    "test": "node --test tests/*.test.cjs"
   },
   "devDependencies": {
     "playwright": "1.56.1"
