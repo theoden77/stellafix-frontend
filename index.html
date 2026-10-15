@@ -4442,6 +4442,7 @@ function isFinalOutcome(out){
 // Bir /start ya da /continue isteğini ağa verir: ilk gönderim ya da aynı
 // kaydın (aynı request_id, aynı gövde metni) tekrarı.
 //   opts.first: ilk gönderim; kayıt burada, fetch'ten hemen önce yazılır.
+//   opts.auto: yüklemede/girişte kendiliğinden sürdürme (aralar buna göre).
 //   opts.renew: bekleme penceresi dolmuşsa yenisi açılabilir (elle Tekrar
 //     dene / Sürdür ve yüklemede sürdürme). Pencere kendiliğinden yenilenmez.
 // Aynı istek zaten ağdaysa ya da kayıt artık yoksa null döner (gönderilmez).
@@ -4466,12 +4467,15 @@ async function sendRecord(rec,opts={}){
   let resp=null, body=null;
   if(opts.first)savePending(rec,account);
   try{
-    resp=await fetch(`${API_URL}/api/v1/interpret/${rec.kind}`,{
+    const sent=fetch(`${API_URL}/api/v1/interpret/${rec.kind}`,{
       method:'POST',
       headers:{'Content-Type':'application/json',...authHeaders()},
       body:rec.body,
       signal:flight.ctrl.signal,
     });
+    // Kendiliğinden gönderimler arasındaki ara, isteğin gerçekten çıktığı andan ölçülür.
+    if(opts.auto)lastAutoSendAt=Date.now();
+    resp=await sent;
     body=resp.ok?await resp.json():await parseInterpretErrorBody(resp);
   }catch(e){ resp=null; body=null; }
   finally{
@@ -4887,15 +4891,16 @@ async function scanPending(fromLoad){
     for(const rec of batch){
       if(currentAccountKey()!==account)break;
       await waitFlightsIdle();
-      if(lastAutoSendAt!==null){
+      // Zamanlayıcı birkaç ms erken uyanabilir: ara, saat yeniden okunarak doğrulanır.
+      while(lastAutoSendAt!==null){
         const wait=lastAutoSendAt+RESUME_GAP_MS-Date.now();
-        if(wait>0)await sleep(wait);
+        if(wait<=0)break;
+        await sleep(wait);
       }
       await waitFlightsIdle();
       if(currentAccountKey()!==account)break;
       if(!pendingExists(rec)||isInFlight(rec))continue;
-      lastAutoSendAt=Date.now();
-      const out=await sendRecord(rec,{renew:fromLoad});
+      const out=await sendRecord(rec,{renew:fromLoad,auto:true});
       if(!out)continue;
       applyGenResult(rec,out,{live:false,view});
       if(out.status===429||out.status===401)break;
