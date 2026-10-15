@@ -80,6 +80,23 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
     if (token) localStorage.setItem('stellafix_token', token);
     for (const [k, v] of seed) sessionStorage.setItem(k, v);
   }, { token, seed });
+  // Send times for /start and /continue, taken with the page clock at the
+  // moment fetch is called (synchronously, before the request leaves), so a
+  // test never reads a time that has not been written yet.
+  await page.addInitScript(() => {
+    window.__genSends = [];
+    const orig = window.fetch;
+    window.fetch = function (input, init) {
+      const url = String(input && input.url ? input.url : input);
+      const m = url.match(/\/api\/v1\/interpret\/(start|continue)$/);
+      if (m) {
+        let id = null;
+        try { id = JSON.parse(init && init.body).request_id; } catch (e) { /* not JSON */ }
+        window.__genSends.push({ kind: m[1], request_id: id, at: Date.now() });
+      }
+      return orig.apply(this, arguments);
+    };
+  });
   if (clock) await page.clock.install({ time: new Date('2026-10-15T10:00:00Z') });
   await page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.paddle\.com)\//, r => r.abort());
   await page.route(`${API}/**`, route => handleApi(route).catch(() => {}));
@@ -109,10 +126,9 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
     if (p === '/api/v1/interpret/start' || p === '/api/v1/interpret/continue') {
       const raw = req.postData();
       const kind = p.endsWith('start') ? 'start' : 'continue';
-      const entry = { raw, body: JSON.parse(raw), auth, at: null };
+      const entry = { raw, body: JSON.parse(raw), auth };
       calls[kind].push(entry);
       calls.log.push(kind);
-      entry.at = await page.evaluate(() => Date.now()).catch(() => null);
       return reply(route, (kind === 'start' ? start : cont)(entry.body, calls[kind].length, entry));
     }
     let m = p.match(/^\/api\/v1\/interpret\/([^/]+)\/balance$/);
@@ -131,6 +147,12 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
 }
 
 const clickCategory = (page, id) => page.click(`button.category-card[onclick="selectCategory('${id}')"]`);
+// Page-side send log of this page load: [{kind, request_id, at}], in send order.
+async function sendTimes(page) {
+  const log = await page.evaluate(() => window.__genSends.slice());
+  for (const e of log) assert.equal(typeof e.at, 'number', `send time recorded for ${e.kind} ${e.request_id}`);
+  return log;
+}
 const pendingKeys = page => page.evaluate(p => Object.keys(sessionStorage).filter(k => k.startsWith(p)).sort(), PREFIX);
 const pendingRecord = (page, key) => page.evaluate(k => JSON.parse(sessionStorage.getItem(k)), key);
 const keyFor = (sub, id) => `${PREFIX}${sub}:${id}`;
@@ -618,7 +640,10 @@ test('18: a /start and a /continue keep separate keys; after a reload they resum
     await page.clock.fastForward(10_000);
     await until(() => calls.continue.length === 2, 'resumed /continue');
     assert.equal(calls.continue[1].raw, calls.continue[0].raw);
-    assert.ok(calls.continue[1].at - calls.start[1].at >= 10_000, 'at least 10 s between automatic sends');
+    const sends = await sendTimes(page); // this page load: the resumed /start, then the resumed /continue
+    assert.deepEqual(sends.map(e => [e.kind, e.request_id]), [['start', sId], ['continue', cId]]);
+    const gap = sends[1].at - sends[0].at;
+    assert.ok(gap >= 10_000, `at least 10 s between automatic sends (measured ${gap} ms)`);
     await page.waitForFunction(() => Object.keys(sessionStorage).every(k => !k.startsWith('stellafix_pending_interpret:')));
   } finally { await context.close(); }
 });
@@ -640,7 +665,12 @@ test('extra: 4 records - 3 are resumed automatically (one at a time, >= 10 s apa
     assert.equal(calls.start.length, 3, 'the 4th is not sent automatically');
     assert.deepEqual(calls.start.map(c => c.body.request_id), ['rid-1', 'rid-2', 'rid-3'], 'created_at order');
     assert.equal(net.max, 1, 'one request on the network at a time');
-    for (let i = 1; i < 3; i++) assert.ok(calls.start[i].at - calls.start[i - 1].at >= 10_000);
+    const sends = await sendTimes(page);
+    assert.deepEqual(sends.map(e => e.request_id), ['rid-1', 'rid-2', 'rid-3']);
+    for (let i = 1; i < 3; i++) {
+      const gap = sends[i].at - sends[i - 1].at;
+      assert.ok(gap >= 10_000, `at least 10 s between automatic sends (measured ${gap} ms)`);
+    }
     assert.deepEqual(await pendingKeys(page), [keyFor('u1', 'rid-4')]);
     await openReports(page);
     await page.waitForSelector('#pendingList .pending-item[data-request-id="rid-4"] .pending-resume');
@@ -934,3 +964,4 @@ test('extra: flight lock - "Sürdür" during an auto-resume and a double "Tekrar
     assert.equal(r2.calls.start.length, 2);
   } finally { await r2.context.close(); }
 });
+
