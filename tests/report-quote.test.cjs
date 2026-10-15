@@ -965,3 +965,94 @@ test('extra: flight lock - "Sürdür" during an auto-resume and a double "Tekrar
   } finally { await r2.context.close(); }
 });
 
+// ---------------------------------------------------------------------------
+// No open report: the question box and Send stay disabled
+// ---------------------------------------------------------------------------
+// The screen has reached its final state: the loading row is hidden and no
+// request (balance reads included) is still on the network.
+async function screenSettled(page) {
+  await page.waitForFunction(() => document.getElementById('chatLoading').style.display === 'none');
+  await page.waitForLoadState('networkidle');
+}
+async function assertQuestionBoxDisabled(page, where) {
+  assert.equal(await page.evaluate(() => interpretSessionId), null, `${where}: no open report`);
+  assert.equal(await page.isDisabled('#chatInput'), true, `${where}: #chatInput disabled`);
+  assert.equal(await page.isDisabled('#chatSendBtn'), true, `${where}: #chatSendBtn disabled`);
+}
+
+test('no report open: question box disabled on the confirm screen, also after a language change and a balance re-read; enabled after /start succeeds', async () => {
+  const { context, page, calls } = await openPage({ quote: Q.credit, credits: () => ({ report_credits: 3 }), balance: () => bal(1, 2) });
+  try {
+    await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 3);
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.quote-confirm-btn');
+    await screenSettled(page);
+    await assertQuestionBoxDisabled(page, 'confirm screen');
+    const reads = calls.credits;
+    await page.evaluate(() => setLocale('en'));
+    await page.evaluate(() => fetchCreditBalance());
+    assert.ok(calls.credits > reads, 'balance read again');
+    await screenSettled(page);
+    await assertQuestionBoxDisabled(page, 'confirm screen after language change + balance re-read');
+    await page.evaluate(() => setLocale('tr'));
+    await page.click('.quote-confirm-btn');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+    await page.waitForFunction(() => document.getElementById('chatRemaining').textContent === 'Kalan soru hakkın: 3');
+    assert.equal(await page.isDisabled('#chatInput'), false, 'enabled after /start');
+    assert.equal(await page.isDisabled('#chatSendBtn'), false);
+  } finally { await context.close(); }
+});
+
+test('no report open: question box disabled on the "Üret" button after a check, the in-progress bubble, a quote network error and the no-credit screen', async () => {
+  const cases = [
+    ['"Üret" after "Tekrar kontrol et"', { quote: (b, n) => (n === 1 ? Q.err(409, 'generation_in_progress')() : Q.sub()) },
+      async page => { await page.click('.quote-check-btn'); await page.waitForSelector('.quote-generate-btn'); }],
+    ['in-progress bubble', { start: () => [409, { error: 'request_in_progress', detail: 'x' }] },
+      page => page.waitForSelector('.pending-retry-btn')],
+    ['quote network error', { quote: () => 'abort' },
+      page => page.waitForSelector('.quote-retry-btn')],
+    ['no report credits', { quote: Q.credit, credits: () => ({ report_credits: 0 }) },
+      page => page.waitForSelector('.chat-bubble.notice >> text=Rapor hakkın yok.')],
+  ];
+  for (const [where, opts, reach] of cases) {
+    const { context, page } = await openPage(opts);
+    try {
+      await page.waitForFunction(() => creditBalance !== null);
+      await clickCategory(page, 'personality');
+      await reach(page);
+      await screenSettled(page);
+      await assertQuestionBoxDisabled(page, where);
+    } finally { await context.close(); }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Accepted: "Tekrar dene" after a quote network error repeats the first
+// category action (unlike "Tekrar kontrol et", which always needs Üret)
+// ---------------------------------------------------------------------------
+test('quote network error -> "Tekrar dene" -> subscription: one /start with expected_spend "subscription", no extra button', async () => {
+  const { context, page, calls } = await openPage({ quote: (b, n) => (n === 1 ? 'abort' : Q.sub()) });
+  try {
+    await clickCategory(page, 'personality');
+    await page.click('.quote-retry-btn');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+    assert.equal(calls.start.length, 1);
+    assert.equal(calls.start[0].body.expected_spend, 'subscription');
+    assert.equal(calls.start[0].raw, JSON.stringify(startBody(calls.start[0].body.request_id, 'personality', 'subscription')));
+    assert.equal(await count(page, '.quote-generate-btn'), 0);
+  } finally { await context.close(); }
+});
+
+test('quote network error -> "Tekrar dene" -> report_credit: the confirm screen opens and nothing is sent before confirming', async () => {
+  const { context, page, calls } = await openPage({ quote: (b, n) => (n === 1 ? 'abort' : Q.credit()), credits: () => ({ report_credits: 2 }) });
+  try {
+    await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 2);
+    await clickCategory(page, 'personality');
+    await page.click('.quote-retry-btn');
+    await page.waitForSelector('.quote-confirm-btn');
+    await screenSettled(page);
+    assert.equal(calls.quote.length, 2);
+    assert.equal(calls.start.length, 0);
+    assert.equal(await count(page, '.quote-generate-btn'), 0);
+  } finally { await context.close(); }
+});

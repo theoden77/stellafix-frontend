@@ -3876,8 +3876,8 @@ function resetInterpretArea(){
   document.getElementById('chatLoading').style.display='none';
   const input=document.getElementById('chatInput');
   input.value='';
-  input.disabled=false;
-  document.getElementById('chatSendBtn').disabled=false;
+  input.disabled=chatInputLocked();
+  document.getElementById('chatSendBtn').disabled=chatInputLocked();
   const rem=document.getElementById('chatRemaining');
   rem.textContent='';
   rem.classList.remove('exhausted');
@@ -3967,7 +3967,7 @@ function updateRemainingUI(){
   const input=document.getElementById('chatInput');
   const btn=document.getElementById('chatSendBtn');
   if(chatInputLocked()){
-    // Salt okunur rapor ya da soru hakkı okunamadı: soru gönderilemez
+    // Açık rapor yok, salt okunur rapor, soru hakkı okunamadı ya da rapor oluşturulamadı
     el.textContent='';
     el.classList.remove('exhausted');
     input.disabled=true;
@@ -4520,8 +4520,8 @@ function applyGenResult(rec,out,ctx){
     const data=out.body||{};
     if(rec.kind==='start'){
       if(ctx.live&&sameView){
+        handleStartResponse(data); // önce: rapor açık olsun ki soru kutusu açılabilsin
         showChatLoading(false);
-        handleStartResponse(data);
         fetchCreditBalance(); // bir rapor hakkı düşmüş olabilir - göstergeyi tazele
         // Soru göstergesi ilk sorudan önce dolsun (okuma başarısız olsa da rapor ekranda kalır).
         loadReportBalance(data.session_id,out.account,chatViewId);
@@ -4697,6 +4697,9 @@ async function runQuote(flow,mode){
   if(!flowValid(flow))return; // bayat yanıt: quote hiçbir şey harcamaz, atmak güvenli
   showChatLoading(false);
   if(!resp){
+    // İlk quote hiç sonuç vermediyse "Tekrar dene" ilk kategori eylemini aynen
+    // yineler (subscription: onaysız /start, report_credit: onay ekranı); bu,
+    // her zaman ayrı bir Üret düğmesi isteyen "Tekrar kontrol et" akışına taşınmaz.
     appendChatBubble('error',t('chatErrorMessage'),{label:t('btnRetry'),cls:'quote-retry-btn',onClick:once(()=>runQuote(flow,mode))});
     return;
   }
@@ -4846,7 +4849,7 @@ async function sendFollowUp(){
   const q=input.value.trim();
   if(!q)return;
   if(!authToken){ openAuthModal(); return; }
-  if(chatInputLocked()||!interpretSessionId)return;
+  if(chatInputLocked())return;
   if(questionCreditInfo&&totalQuestionsRemaining(questionCreditInfo)===0){
     appendChatBubble('error',t('errQuestionCreditsExhausted'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
     return;
@@ -5006,7 +5009,11 @@ function currentAccountKey(){
 function newReportsState(){
   return {sessions:[], seen:new Set(), offset:0, hasMore:false, loading:false, loaded:false, statusKey:null, statusIsError:false};
 }
-function chatInputLocked(){ return historyReadOnly||balanceUnavailable||continueBlocked; }
+// Soru kutusu kapalı: açık rapor yok (onay ekranı, Üret düğmesi, işleniyor
+// balonu, quote hatası), salt okunur rapor, soru hakkı okunamadı ya da rapor
+// oluşturulamadı. Kutuyu açabilen her yol (showChatLoading, updateRemainingUI,
+// resetInterpretArea, clearChatState) bu fonksiyona bakar.
+function chatInputLocked(){ return !interpretSessionId||historyReadOnly||balanceUnavailable||continueBlocked; }
 function setBalanceUnavailable(v){
   balanceUnavailable=!!v;
   document.getElementById('balanceError').style.display=balanceUnavailable?'flex':'none';
@@ -5317,8 +5324,8 @@ function clearChatState(){
   document.getElementById('chatPanel').style.display='none';
   updateChatBackLabel();
   updateRemainingUI();
-  document.getElementById('chatInput').disabled=false;
-  document.getElementById('chatSendBtn').disabled=false;
+  document.getElementById('chatInput').disabled=chatInputLocked();
+  document.getElementById('chatSendBtn').disabled=chatInputLocked();
 }
 
 function backToReportsList(){
