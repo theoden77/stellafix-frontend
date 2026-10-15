@@ -582,3 +582,149 @@ test('t: switching the language re-renders the open list', async () => {
     assert.equal(await page.textContent('#reportsPanel .panel-title'), 'My reports');
   } finally { await context.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// Late /balance responses (after /start, and from "Try again") must never
+// touch another report, the same report reopened later, or another account.
+// Each test waits until the late response has reached the browser and the
+// page has had a turn to process it before asserting.
+// ---------------------------------------------------------------------------
+const balanceUrl = id => r => r.url().endsWith(`/api/v1/interpret/${id}/balance`);
+const settle = page => page.evaluate(() => new Promise(r => setTimeout(r, 50)));
+// Wait for a request to reach the mock (bounded, so a missing request fails the test).
+async function until(cond, what, ms = 5000) {
+  const end = Date.now() + ms;
+  while (!cond()) {
+    if (Date.now() > end) throw new Error(`timed out waiting for ${what}`);
+    await delay(10);
+  }
+}
+async function assertShowsB(page) {
+  assert.equal(await page.textContent('#chatRemaining'), 'Kalan soru hakkın: 4');
+  assert.equal(await page.$eval('#balanceError', el => el.style.display), 'none');
+  assert.equal(await page.evaluate(() => interpretSessionId), 'B');
+  assert.equal(await page.isDisabled('#chatInput'), false);
+  assert.equal(await page.isDisabled('#chatSendBtn'), false);
+}
+
+for (const [label, lateS] of [['500', [500, {}]], ['200 with other values', bal(1, 0)]]) {
+  test(`u: a late /balance (${label}) for a new report does not touch report B opened meanwhile`, async () => {
+    const B = sess('B');
+    const gS = gate();
+    const { context, page, calls } = await openPage({
+      history: () => [B], detail: () => detail(B),
+      start: () => [200, { session_id: 'S', message: 'Yeni rapor S', language: 'tr' }],
+      balance: async id => { if (id === 'S') { await gS.wait(); return lateS; } return bal(0, 4); },
+    });
+    try {
+      await page.evaluate(() => showInterpretArea('chart-1'));
+      await page.click(`button.category-card[onclick="selectCategory('personality')"]`);
+      await page.waitForSelector('.chat-bubble.assistant >> text=Yeni rapor S');
+      await until(() => calls.balance.includes('S'), 'the S /balance request'); // held by the gate
+      await openReports(page);
+      await waitRows(page, 1);
+      await openRow(page, 'B');
+      await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni B');
+      await page.waitForFunction(() => document.getElementById('chatRemaining').textContent === 'Kalan soru hakkın: 4');
+      const late = page.waitForResponse(balanceUrl('S'));
+      gS.open();
+      await late;
+      await settle(page);
+      await assertShowsB(page);
+    } finally { await context.close(); }
+  });
+}
+
+test('v: a late "Try again" /balance for report A does not touch report B opened meanwhile', async () => {
+  const A = sess('A'), B = sess('B');
+  const gRetry = gate();
+  let aCalls = 0;
+  const { context, page, calls } = await openPage({
+    history: () => [A, B], detail: id => detail(id === 'A' ? A : B),
+    balance: async id => {
+      if (id === 'B') return bal(0, 4);
+      aCalls += 1;
+      if (aCalls === 1) return [500, {}];
+      await gRetry.wait();
+      return bal(1, 9);
+    },
+  });
+  try {
+    await openReports(page);
+    await waitRows(page, 2);
+    await openRow(page, 'A');
+    await page.waitForSelector('#balanceError', { state: 'visible' });
+    await page.click('#balanceRetryBtn');
+    await until(() => calls.balance.filter(x => x === 'A').length === 2, 'the retry /balance request');
+    await page.click('#chatBackBtn');
+    await page.waitForSelector('#reportsPanel', { state: 'visible' });
+    await openRow(page, 'B');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni B');
+    await page.waitForFunction(() => document.getElementById('chatRemaining').textContent === 'Kalan soru hakkın: 4');
+    const late = page.waitForResponse(balanceUrl('A'));
+    gRetry.open();
+    await late;
+    await settle(page);
+    await assertShowsB(page);
+  } finally { await context.close(); }
+});
+
+test('w: a late /balance for a new report is not applied after logout and a new sign-in', async () => {
+  const gS = gate();
+  const { context, page, calls } = await openPage({
+    verifyToken: U2,
+    start: () => [200, { session_id: 'S', message: 'Yeni rapor S', language: 'tr' }],
+    balance: async () => { await gS.wait(); return bal(1, 3); },
+  });
+  try {
+    await page.evaluate(() => showInterpretArea('chart-1'));
+    await page.click(`button.category-card[onclick="selectCategory('personality')"]`);
+    await page.waitForSelector('.chat-bubble.assistant >> text=Yeni rapor S');
+    await until(() => calls.balance.includes('S'), 'the S /balance request');
+    await logoutViaMenu(page);
+    await loginAs(page, U2);
+    const late = page.waitForResponse(balanceUrl('S'));
+    gS.open();
+    await late;
+    await settle(page);
+    assert.equal(await page.textContent('#chatRemaining'), '');
+    assert.equal(await page.$eval('#balanceError', el => el.style.display), 'none');
+    assert.equal(await page.evaluate(() => questionCreditInfo), null);
+    assert.equal(await page.evaluate(() => interpretSessionId), null);
+  } finally { await context.close(); }
+});
+
+test('x: a late "Try again" /balance does not overwrite the same report reopened afterwards', async () => {
+  const A = sess('A');
+  const gRetry = gate();
+  let aCalls = 0;
+  const { context, page, calls } = await openPage({
+    history: () => [A], detail: () => detail(A),
+    balance: async () => {
+      aCalls += 1;
+      if (aCalls === 1) return [500, {}];
+      if (aCalls === 2) { await gRetry.wait(); return bal(1, 9); } // stale
+      return bal(0, 4);                                            // fresh, after reopening
+    },
+  });
+  try {
+    await openReports(page);
+    await waitRows(page, 1);
+    await openRow(page, 'A');
+    await page.waitForSelector('#balanceError', { state: 'visible' });
+    await page.click('#balanceRetryBtn');
+    await until(() => calls.balance.length === 2, 'the retry /balance request');
+    await page.click('#chatBackBtn');
+    await page.waitForSelector('#reportsPanel', { state: 'visible' });
+    await openRow(page, 'A');
+    await page.waitForFunction(() => document.getElementById('chatRemaining').textContent === 'Kalan soru hakkın: 4');
+    const late = page.waitForResponse(balanceUrl('A'));
+    gRetry.open();
+    await late;
+    await settle(page);
+    assert.equal(await page.textContent('#chatRemaining'), 'Kalan soru hakkın: 4');
+    assert.equal(await page.$eval('#balanceError', el => el.style.display), 'none');
+    assert.equal(await page.evaluate(() => interpretSessionId), 'A');
+    assert.equal(calls.balance.length, 3);
+  } finally { await context.close(); }
+});
