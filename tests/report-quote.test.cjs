@@ -153,6 +153,19 @@ async function sendTimes(page) {
   for (const e of log) assert.equal(typeof e.at, 'number', `send time recorded for ${e.kind} ${e.request_id}`);
   return log;
 }
+// Advances the page clock to 9 s after the previous automatic send and checks
+// nothing else left the page, then to 10 s after it. Targets are computed from
+// the recorded send time because the page clock keeps flowing in real time.
+async function passGap(page) {
+  const sinceLast = () => page.evaluate(() => Date.now() - window.__genSends[window.__genSends.length - 1].at);
+  const before = await page.evaluate(() => window.__genSends.length);
+  const toNine = 9_000 - await sinceLast();
+  assert.ok(toNine > 0, `still inside the first 9 s (${toNine} ms left)`);
+  await page.clock.fastForward(toNine);
+  await nextFrame(page);
+  assert.equal(await page.evaluate(() => window.__genSends.length), before, 'nothing sent within 9 s of the previous automatic send');
+  await page.clock.fastForward(Math.max(1, 10_000 - await sinceLast()));
+}
 const pendingKeys = page => page.evaluate(p => Object.keys(sessionStorage).filter(k => k.startsWith(p)).sort(), PREFIX);
 const pendingRecord = (page, key) => page.evaluate(k => JSON.parse(sessionStorage.getItem(k)), key);
 const keyFor = (sub, id) => `${PREFIX}${sub}:${id}`;
@@ -637,7 +650,7 @@ test('18: a /start and a /continue keep separate keys; after a reload they resum
     await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
     await delay(200);
     assert.equal(calls.continue.length, 1, 'not before the 10 s gap');
-    await page.clock.fastForward(10_000);
+    await passGap(page);
     await until(() => calls.continue.length === 2, 'resumed /continue');
     assert.equal(calls.continue[1].raw, calls.continue[0].raw);
     const sends = await sendTimes(page); // this page load: the resumed /start, then the resumed /continue
@@ -656,9 +669,9 @@ test('extra: 4 records - 3 are resumed automatically (one at a time, >= 10 s apa
   });
   try {
     await until(() => calls.start.length === 1, 'first resume');
-    await page.clock.fastForward(10_000);
+    await passGap(page);
     await until(() => calls.start.length === 2, 'second resume');
-    await page.clock.fastForward(10_000);
+    await passGap(page);
     await until(() => calls.start.length === 3, 'third resume');
     await page.clock.fastForward(60_000);
     await delay(300);
@@ -1014,6 +1027,7 @@ test('no report open: question box disabled on the "Üret" button after a check,
     ['no report credits', { quote: Q.credit, credits: () => ({ report_credits: 0 }) },
       page => page.waitForSelector('.chat-bubble.notice >> text=Rapor hakkın yok.')],
   ];
+  const failures = []; // every screen is checked; all failures are reported together
   for (const [where, opts, reach] of cases) {
     const { context, page } = await openPage(opts);
     try {
@@ -1021,9 +1035,10 @@ test('no report open: question box disabled on the "Üret" button after a check,
       await clickCategory(page, 'personality');
       await reach(page);
       await screenSettled(page);
-      await assertQuestionBoxDisabled(page, where);
+      try { await assertQuestionBoxDisabled(page, where); } catch (e) { failures.push(e.message.split('\n')[0]); }
     } finally { await context.close(); }
   }
+  assert.deepEqual(failures, []);
 });
 
 // ---------------------------------------------------------------------------
