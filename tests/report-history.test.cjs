@@ -216,8 +216,9 @@ test('e2: empty list shows the empty state and no more button', async () => {
   const { context, page } = await openPage({ history: () => [] });
   try {
     await openReports(page);
-    await page.waitForSelector('#reportsStatus', { state: 'visible' });
-    assert.match(await page.textContent('#reportsStatus'), /Henüz kayıtlı bir raporun yok/);
+    // The status line first shows "loading"; wait for the empty-state text itself.
+    await page.waitForSelector('#reportsStatus >> text=Henüz kayıtlı bir raporun yok');
+    assert.equal(await page.textContent('#reportsStatus'), 'Henüz kayıtlı bir raporun yok.');
     assert.equal(await visible(page, '#reportsMoreBtn'), false);
   } finally { await context.close(); }
 });
