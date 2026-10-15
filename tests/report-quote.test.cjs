@@ -983,7 +983,7 @@ test('extra: flight lock - "Sürdür" during an auto-resume and a double "Tekrar
 // ---------------------------------------------------------------------------
 // The screen has reached its final state: the loading row is hidden and no
 // request (balance reads included) is still on the network.
-async function screenSettled(page) {
+async function screenIdle(page) {
   await page.waitForFunction(() => document.getElementById('chatLoading').style.display === 'none');
   await page.waitForLoadState('networkidle');
 }
@@ -999,13 +999,13 @@ test('no report open: question box disabled on the confirm screen, also after a 
     await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 3);
     await clickCategory(page, 'personality');
     await page.waitForSelector('.quote-confirm-btn');
-    await screenSettled(page);
+    await screenIdle(page);
     await assertQuestionBoxDisabled(page, 'confirm screen');
     const reads = calls.credits;
     await page.evaluate(() => setLocale('en'));
     await page.evaluate(() => fetchCreditBalance());
     assert.ok(calls.credits > reads, 'balance read again');
-    await screenSettled(page);
+    await screenIdle(page);
     await assertQuestionBoxDisabled(page, 'confirm screen after language change + balance re-read');
     await page.evaluate(() => setLocale('tr'));
     await page.click('.quote-confirm-btn');
@@ -1034,7 +1034,7 @@ test('no report open: question box disabled on the "Üret" button after a check,
       await page.waitForFunction(() => creditBalance !== null);
       await clickCategory(page, 'personality');
       await reach(page);
-      await screenSettled(page);
+      await screenIdle(page);
       try { await assertQuestionBoxDisabled(page, where); } catch (e) { failures.push(e.message.split('\n')[0]); }
     } finally { await context.close(); }
   }
@@ -1065,7 +1065,7 @@ test('quote network error -> "Tekrar dene" -> report_credit: the confirm screen 
     await clickCategory(page, 'personality');
     await page.click('.quote-retry-btn');
     await page.waitForSelector('.quote-confirm-btn');
-    await screenSettled(page);
+    await screenIdle(page);
     assert.equal(calls.quote.length, 2);
     assert.equal(calls.start.length, 0);
     assert.equal(await count(page, '.quote-generate-btn'), 0);
