@@ -40,12 +40,16 @@ async function reply(route, r) {
   return json(route, 200, r);
 }
 
+// A category click first asks POST /interpret/quote; tests that click a
+// category pass `quote` (QUOTE_SUB: generate with the subscription, no
+// confirmation step).
+const QUOTE_SUB = () => ({ found_existing: false, would_spend: 'subscription', existing: null });
 async function openPage({ token = U1, history = () => [], detail: detailFn = () => [404, { detail: 'not found' }],
   balance = () => bal(1), start = () => [500, {}], cont = () => [200, { message: 'Cevap', ...bal(0) }],
-  subscribed = true, verifyToken = null, viewport } = {}) {
+  quote = null, subscribed = true, verifyToken = null, viewport } = {}) {
   const context = await h.browser.newContext({ timezoneId: 'Europe/Istanbul', ...(viewport ? { viewport } : {}) });
   const page = await context.newPage();
-  const calls = { history: [], detail: [], balance: [], start: [], continue: [] };
+  const calls = { history: [], detail: [], balance: [], start: [], continue: [], quote: [] };
   await page.addInitScript(t => { localStorage.setItem('stellafix_token', t); }, token);
   await page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.paddle\.com)\//, r => r.abort());
   // A gated (delayed) response may be released after the test already
@@ -68,6 +72,11 @@ async function openPage({ token = U1, history = () => [], detail: detailFn = () 
       const r = await history(offset, auth);
       if (Array.isArray(r) && typeof r[0] === 'number') return json(route, r[0], r[1]);
       return json(route, 200, { sessions: r, limit: 20, offset });
+    }
+    if (p === '/api/v1/interpret/quote' && quote) {
+      const body = JSON.parse(req.postData());
+      calls.quote.push(body);
+      return reply(route, quote(body, auth));
     }
     if (p === '/api/v1/interpret/start') {
       const body = JSON.parse(req.postData());
@@ -290,7 +299,10 @@ test('h: category_disabled on a follow-up shows its own message and keeps the re
     assert.match(err, /Bu kategori şu anda kullanılamıyor\./);
     assert.doesNotMatch(err, /Bu rapora erişimin yok/);
     assert.doesNotMatch(err, /raw backend text/);
-    assert.deepEqual(calls.continue, [{ session_id: 'hs', question: 'Bir sorum var' }]);
+    assert.equal(calls.continue.length, 1);
+    const { request_id: continueId, ...continueBody } = calls.continue[0];
+    assert.deepEqual(continueBody, { session_id: 'hs', question: 'Bir sorum var' });
+    assert.match(continueId, /^[0-9a-f-]{36}$/);
     assert.equal(await visible(page, '#chatPanel'), true);
     assert.ok(await page.locator('.chat-bubble.assistant >> text=Rapor metni hs').count(), 'report messages stay');
     await page.click('.chat-bubble.error .chat-bubble-action');
@@ -345,6 +357,7 @@ test('j2: without a chart, a direct selectCategory sends no /start and opens no 
 test('k: after /start, /{id}/balance fills the counter; a failed balance keeps the report and offers a retry', async () => {
   let n = 0;
   const { context, page, calls } = await openPage({
+    quote: QUOTE_SUB,
     start: () => [200, { session_id: 'new1', message: 'Yeni rapor', language: 'tr', reused: false }],
     balance: () => (++n === 1 ? bal(1) : n === 2 ? [500, {}] : bal(0, 4)),
   });
@@ -483,7 +496,7 @@ test('o: responses for a signed-out account are not applied after a new sign-in'
 test('p: a late /start for a signed-out account is not shown and raises no notice', async () => {
   const g = gate();
   const { context, page, calls } = await openPage({
-    verifyToken: U2,
+    verifyToken: U2, quote: QUOTE_SUB,
     start: async () => { await g.wait(); return [200, { session_id: 'u1rep', message: 'U1 rapor metni', language: 'tr' }]; },
   });
   try {
@@ -505,7 +518,7 @@ test('q: a /start that finishes after the user opened an old report does not ove
   const old = sess('old1');
   const g = gate();
   const { context, page, calls } = await openPage({
-    history: () => [old], detail: () => detail(old), balance: () => bal(1, 0),
+    history: () => [old], detail: () => detail(old), balance: () => bal(1, 0), quote: QUOTE_SUB,
     start: async () => { await g.wait(); return [200, { session_id: 'new9', message: 'Yeni rapor metni', language: 'tr' }]; },
   });
   try {
@@ -612,7 +625,7 @@ for (const [label, lateS] of [['500', [500, {}]], ['200 with other values', bal(
     const B = sess('B');
     const gS = gate();
     const { context, page, calls } = await openPage({
-      history: () => [B], detail: () => detail(B),
+      history: () => [B], detail: () => detail(B), quote: QUOTE_SUB,
       start: () => [200, { session_id: 'S', message: 'Yeni rapor S', language: 'tr' }],
       balance: async id => { if (id === 'S') { await gS.wait(); return lateS; } return bal(0, 4); },
     });
@@ -672,7 +685,7 @@ test('v: a late "Try again" /balance for report A does not touch report B opened
 test('w: a late /balance for a new report is not applied after logout and a new sign-in', async () => {
   const gS = gate();
   const { context, page, calls } = await openPage({
-    verifyToken: U2,
+    verifyToken: U2, quote: QUOTE_SUB,
     start: () => [200, { session_id: 'S', message: 'Yeni rapor S', language: 'tr' }],
     balance: async () => { await gS.wait(); return bal(1, 3); },
   });

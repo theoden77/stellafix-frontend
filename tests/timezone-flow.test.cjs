@@ -48,10 +48,15 @@ const json = (route, status, body) =>
 // consumed in order by POST /interpret/start; the last one repeats.
 // `startDelayMs` (default 0) delays every /interpret/start response - used
 // by the "already sent, must not be discarded" test below.
-async function openPage({ timezoneId, breakDetection = false, startResponses, timezoneLookup, startDelayMs = 0 }) {
+// A category click first asks POST /interpret/quote; `quoteResponses` is
+// consumed the same way and defaults to "generate with the subscription",
+// which sends /interpret/start without a confirmation step.
+const QUOTE_SUBSCRIPTION = [200, { found_existing: false, would_spend: 'subscription', existing: null }];
+async function openPage({ timezoneId, breakDetection = false, startResponses, timezoneLookup, startDelayMs = 0,
+  quoteResponses = [QUOTE_SUBSCRIPTION] }) {
   const context = await browser.newContext(timezoneId ? { timezoneId } : {});
   const page = await context.newPage();
-  const calls = { start: [], timezone: [] };
+  const calls = { start: [], timezone: [], quote: [] };
 
   await page.addInitScript(({ breakDetection }) => {
     localStorage.setItem('stellafix_token', 'test-token');
@@ -70,6 +75,11 @@ async function openPage({ timezoneId, breakDetection = false, startResponses, ti
     if (url.pathname === '/api/v1/credits/balance') {
       return json(route, 200, { has_active_subscription: true, subscription_status: 'active',
         subscription_ends_at: null, report_credits: 0, question_credits: 0, scheduled_cancellation_at: null });
+    }
+    if (url.pathname === '/api/v1/interpret/quote') {
+      calls.quote.push(JSON.parse(route.request().postData()));
+      const [status, body] = quoteResponses[Math.min(calls.quote.length, quoteResponses.length) - 1];
+      return json(route, status, body);
     }
     if (url.pathname === '/api/v1/interpret/start') {
       calls.start.push(JSON.parse(route.request().postData()));
@@ -171,38 +181,39 @@ test('timezone lookup failure shows a friendly message and keeps the picker', as
 
 test('422 timezone_invalid -> reselect message, rejected zone is not sent again', async () => {
   const { context, page, calls } = await openPage({
-    timezoneId: 'Asia/Tokyo', startResponses: [invalid422, OK_START], timezoneLookup: [200, { timezone: 'Europe/Berlin' }],
+    timezoneId: 'Asia/Tokyo', quoteResponses: [invalid422, QUOTE_SUBSCRIPTION], startResponses: [OK_START],
+    timezoneLookup: [200, { timezone: 'Europe/Berlin' }],
   });
   try {
     await clickCategory(page, 'yearly_review');
     await page.waitForSelector('#tzPickerPanel');
-    assert.equal(calls.start[0].timezone, 'Asia/Tokyo');
+    assert.equal(calls.quote[0].timezone, 'Asia/Tokyo');
     const chat = await page.textContent('#chatMessages');
     assert.match(chat, /yeniden seç/);
     assert.doesNotMatch(chat, /IANA|timezone_invalid|not a known/);
 
     await pickBerlin(page);
     await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni');
-    assert.equal(calls.start.length, 2);
-    assert.equal(calls.start[1].timezone, 'Europe/Berlin');
+    assert.equal(calls.quote.length, 2);
+    assert.equal(calls.quote[1].timezone, 'Europe/Berlin');
   } finally { await context.close(); }
 });
 
 test('422 timezone_missing -> location picker, not a raw error', async () => {
-  const { context, page, calls } = await openPage({ timezoneId: 'Asia/Tokyo', startResponses: [missing422] });
+  const { context, page, calls } = await openPage({ timezoneId: 'Asia/Tokyo', quoteResponses: [missing422], startResponses: [OK_START] });
   try {
     await clickCategory(page, 'monthly_review');
     await page.waitForSelector('#tzPickerPanel');
     const chat = await page.textContent('#chatMessages');
     assert.match(chat, /bulunduğun yeri seç/);
     assert.doesNotMatch(chat, /required for category/);
-    assert.equal(calls.start.length, 1);
+    assert.equal(calls.quote.length, 1);
   } finally { await context.close(); }
 });
 
 test('a 422 on another field keeps the generic invalid-input message', async () => {
   const other422 = [422, { detail: [{ type: 'period_type_not_allowed', loc: ['body', 'period_type'], msg: 'x' }] }];
-  const { context, page } = await openPage({ timezoneId: 'Asia/Tokyo', startResponses: [other422] });
+  const { context, page } = await openPage({ timezoneId: 'Asia/Tokyo', quoteResponses: [other422], startResponses: [OK_START] });
   try {
     await clickCategory(page, 'monthly_review');
     await page.waitForSelector('.chat-bubble.error');

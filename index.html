@@ -258,6 +258,18 @@
   .reports-more-btn:disabled{opacity:.5;cursor:not-allowed;}
   .report-ready-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:1000;display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);box-sizing:border-box;background:#fff;border:1px solid var(--rule);border-left:3px solid var(--gold);border-radius:12px;padding:12px 14px;box-shadow:0 8px 24px rgba(30,27,46,.18);font-family:'Inter',sans-serif;font-size:13px;color:var(--ink);}
   .report-ready-toast .toast-action{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap;}
+  .report-ready-toast.top{bottom:auto;top:20px;}
+  .chat-bubble-action:disabled{opacity:.5;cursor:default;}
+  .chat-bubble-action + .chat-bubble-action{margin-top:6px;}
+  .chat-bubble-line + .chat-bubble-line{margin-top:6px;}
+  .chat-stop-btn{margin-left:auto;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--ink);background:none;border:1px solid var(--rule);border-radius:8px;padding:6px 10px;cursor:pointer;}
+  .pending-list{margin-bottom:14px;}
+  .pending-list-title{font-size:13px;font-weight:600;margin-bottom:6px;}
+  .pending-item{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--parchment-dark);border-left:3px solid var(--lapis);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
+  .pending-item-label{flex:1 1 auto;min-width:0;}
+  .pending-item-status{flex-basis:100%;font-size:12px;opacity:.75;}
+  .pending-resume{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;}
+  .pending-resume:disabled{opacity:.5;cursor:default;}
   .report-ready-toast .toast-close{background:none;border:none;font-size:18px;line-height:1;color:var(--ink);opacity:.5;cursor:pointer;padding:0 2px;}
   #astroWheel{width:100%;max-width:440px;cursor:zoom-in;}
   /* 8. tur: tipografi R'nin kesri olarak küçültüldü - küçük satır-içi wheel'de
@@ -391,6 +403,11 @@
   <span data-i18n="reportReadyText">Raporun hazır.</span>
   <button type="button" class="toast-action" id="reportReadyOpenBtn" onclick="openReportsFromNotice()" data-i18n="btnOpenInReports">Raporlarım'da aç</button>
   <button type="button" class="toast-close" onclick="hideReportReadyNotice()" aria-label="×">×</button>
+</div>
+
+<div class="report-ready-toast top" id="resumeToast" style="display:none" role="status">
+  <span id="resumeToastText"></span>
+  <button type="button" class="toast-close" onclick="hideResumeNotice()" aria-label="×">×</button>
 </div>
 
 <div class="auth-confirm-banner" id="authConfirmBanner" style="display:none">
@@ -594,6 +611,10 @@
         <div class="panel-title" data-i18n="reportsTitle">Raporlarım</div>
         <button type="button" class="chat-back-btn" id="reportsCloseBtn" onclick="closeReportsList()" data-i18n="reportsClose">Kapat</button>
       </div>
+      <div class="pending-list" id="pendingList" style="display:none">
+        <div class="pending-list-title" data-i18n="pendingListTitle">Yarım kalan istekler</div>
+        <div id="pendingItems"></div>
+      </div>
       <div class="reports-list" id="reportsList"></div>
       <div class="reports-status" id="reportsStatus" style="display:none"></div>
       <button type="button" class="reports-more-btn" id="reportsMoreBtn" style="display:none" onclick="loadMoreReports()" data-i18n="reportsLoadMore">Daha fazla göster</button>
@@ -607,6 +628,7 @@
       <div class="chat-loading" id="chatLoading" style="display:none">
         <div class="chat-spinner"></div>
         <div><span data-i18n="chatLoadingTitle">Yıldızlar okunuyor...</span><br><small data-i18n="chatLoadingNote">Bu biraz sürebilir</small></div>
+        <button type="button" class="chat-stop-btn" id="chatStopBtn" style="display:none" onclick="stopWaitingCurrent()" data-i18n="btnStopWaiting">Beklemeyi durdur</button>
       </div>
       <div class="chat-input-row">
         <input type="text" id="chatInput" placeholder="Bir soru sor..." data-i18n-placeholder="chatInputPlaceholder" onkeydown="if(event.key==='Enter'){event.preventDefault();sendFollowUp();}">
@@ -798,6 +820,34 @@ const I18N = {
     btnRetry: "Tekrar dene",
     reportReadyText: "Raporun hazır.",
     btnOpenInReports: "Raporlarım'da aç",
+    quoteConfirmText: "1 rapor hakkı kullanılacak.",
+    quoteBalanceLine: "Kalan rapor hakkın: {n}",
+    btnConfirmGenerate: "Onayla ve raporu üret",
+    noReportCredits: "Rapor hakkın yok.",
+    msgNewReportNeeded: "Bunun için kayıtlı bir rapor yok; yeni bir rapor üretilebilir.",
+    btnGenerateSubscription: "Aboneliğin kapsamında üret",
+    btnGenerateCredit: "1 rapor hakkı kullanarak üret",
+    msgGenerationInProgress: "Bu rapor şu anda hazırlanıyor.",
+    msgAnswerInProgress: "Bu rapora başka bir soru şu anda yanıtlanıyor.",
+    btnCheckAgain: "Tekrar kontrol et",
+    msgRequestInProgress: "İsteğin hâlâ işleniyor.",
+    msgReportNotReady: "Rapor hâlâ hazırlanıyor.",
+    msgConnectionProblem: "Bağlantı sorunu oluştu. Aynı isteği tekrar gönderebilirsin.",
+    btnStopWaiting: "Beklemeyi durdur",
+    stopWaitingNote: "İstek sunucuda işlenmiş olabilir; rapor geçmişte görünebilir.",
+    errStartRefunded: "İstek tamamlanamadı, hakkın iade edildi.",
+    errStartExpired: "Yanıt süre sınırını aştı, hakkın iade edildi.",
+    errQuestionRefunded: "Soru yanıtlanamadı, hakkın iade edildi.",
+    btnAskAgain: "Tekrar sor",
+    errReportFailed: "Bu rapor oluşturulamadı; soru sorulamaz.",
+    errSpendChanged: "Bu raporun bedeli değişti: artık 1 rapor hakkı kullanılacak.",
+    errSomethingWrong: "Bir şeyler ters gitti, tekrar dene.",
+    pendingListTitle: "Yarım kalan istekler",
+    pendingItemReport: "Yarım kalan istek: {category}",
+    pendingItemQuestion: "Yarım kalan soru",
+    btnResume: "Sürdür",
+    resumingNotice: "{n} yarım kalan isteğin sürdürülüyor",
+    pausedLabel: "Bekleme durduruldu",
     errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
     tzPickerMissing: "Bu raporun tarihlerini kendi saatine göre verebilmemiz için şu an bulunduğun yeri seç: önce ülke, sonra şehir.",
     tzPickerInvalid: "Bulunduğun yerin saatini tanıyamadık. Lütfen şu an bulunduğun ülke ve şehri yeniden seç.",
@@ -992,6 +1042,34 @@ const I18N = {
     btnRetry: "Try again",
     reportReadyText: "Your report is ready.",
     btnOpenInReports: "Open in My reports",
+    quoteConfirmText: "1 report credit will be used.",
+    quoteBalanceLine: "Report credits left: {n}",
+    btnConfirmGenerate: "Confirm and generate the report",
+    noReportCredits: "You have no report credits.",
+    msgNewReportNeeded: "There is no saved report for this; a new report can be generated.",
+    btnGenerateSubscription: "Generate with your subscription",
+    btnGenerateCredit: "Generate using 1 report credit",
+    msgGenerationInProgress: "This report is being prepared right now.",
+    msgAnswerInProgress: "Another question on this report is being answered right now.",
+    btnCheckAgain: "Check again",
+    msgRequestInProgress: "Your request is still being processed.",
+    msgReportNotReady: "The report is still being prepared.",
+    msgConnectionProblem: "There was a connection problem. You can send the same request again.",
+    btnStopWaiting: "Stop waiting",
+    stopWaitingNote: "The request may have been processed on the server; the report may appear in your history.",
+    errStartRefunded: "The request couldn't be completed; your credit was returned.",
+    errStartExpired: "The response took too long; your credit was returned.",
+    errQuestionRefunded: "The question couldn't be answered; your credit was returned.",
+    btnAskAgain: "Ask again",
+    errReportFailed: "This report couldn't be created; questions can't be asked.",
+    errSpendChanged: "The cost of this report changed: 1 report credit will now be used.",
+    errSomethingWrong: "Something went wrong, please try again.",
+    pendingListTitle: "Unfinished requests",
+    pendingItemReport: "Unfinished request: {category}",
+    pendingItemQuestion: "Unfinished question",
+    btnResume: "Resume",
+    resumingNotice: "Resuming {n} unfinished request(s)",
+    pausedLabel: "Waiting stopped",
     errInvalidInput: "Something in your request wasn't valid, please try again.",
     tzPickerMissing: "To give this report's dates in your own time, choose where you are right now: first the country, then the city.",
     tzPickerInvalid: "We couldn't recognize the time where you are. Please choose your current country and city again.",
@@ -1239,10 +1317,20 @@ function updateAuthUI(){
 // DEĞİL (backend sözleşmesi: geçmiş bir tarih olabilir).
 let creditBalance=null;
 
+// Her istek AbortController ile zaman aşımlıdır. Okumalar (quote, history,
+// rapor, bakiye) 20 sn; /start ve /continue için bkz. ÜRETİM İSTEKLERİ.
+const READ_TIMEOUT_MS=20000;
+async function fetchWithTimeout(url,opts,ms){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),ms);
+  try{ return await fetch(url,{...opts,signal:ctrl.signal}); }
+  finally{ clearTimeout(timer); }
+}
+
 async function fetchCreditBalance(){
   if(!authToken){ creditBalance=null; renderCreditStatus(); return; }
   try{
-    const resp=await fetch(`${API_URL}/api/v1/credits/balance`,{headers:authHeaders()});
+    const resp=await fetchWithTimeout(`${API_URL}/api/v1/credits/balance`,{headers:authHeaders()},READ_TIMEOUT_MS);
     if(!resp.ok){
       if(resp.status===401){ handleUnauthorized(); return; }
       creditBalance=null; renderCreditStatus();
@@ -1554,6 +1642,9 @@ function logout(){
   authToken=null;
   clearStoredToken();
   creditBalance=null;
+  // Açık çıkış: bu sekmedeki yarım kalan istek kayıtları silinir. (401 ve
+  // girişte silinmez; bkz. ÜRETİM İSTEKLERİ.)
+  clearAllPending();
   resetForAccountChange();
   updateAuthUI();
   renderCreditStatus();
@@ -1721,6 +1812,7 @@ async function confirmMagicLink(){
         updateAuthUI();
         fetchCreditBalance();
         showAuthWelcomeBanner();
+        scanPending(false); // bu hesabın yarım kalan istekleri sürdürülür
       }
     }
     // Geçersiz/süresi dolmuş token — kullanıcıya teknik detay göstermeden sessizce
@@ -1760,9 +1852,8 @@ function interpretErrorInfo(status,body){
     // stellafix-api PR #30 - bu, session sahipliği (errForbidden) ile AYNI HTTP
     // kodunu ama FARKLI bir `error` alanını paylaşıyor; ayrı ele alınmazsa
     // aboneliğe özel bir kategoriye tıklayan kullanıcı yanlışlıkla "bu rapora
-    // erişimin yok" görür. Önleyici kontrol (selectCategory içinde) bunu
-    // normalde hiç API'ye ulaştırmıyor - bu dal sadece SAVUNMACI (abonelik
-    // oturum ortasında bitmişse) devreye girer.
+    // erişimin yok" görür. Kategori tıklaması önce quote yaptığı için bu yanıt
+    // normalde quote'tan gelir.
     return{textKey:'errCategoryLocked',ctaKey:'ctaSubscribe',onCta:startSubscribeCheckout};
   }
   if(status===403&&body&&body.error==='category_disabled'){
@@ -1790,19 +1881,16 @@ function timezoneErrorType(body){
   }
   return null;
 }
-// tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
-// geçiliyor (bkz. selectCategory). parseInterpretErrorBody kendi başına bir
-// await - o yüzden döndükten SONRA tekrar geçerlilik kontrolü yapılıyor;
-// eskimiş bir yanıt (422 dahil) artık hiçbir mesaj/picker göstermemeli.
-async function handleInterpretErrorResponse(resp,tzRetry){
-  const body=await parseInterpretErrorBody(resp);
-  if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
-  if(resp.status===422){
+// Ayrıştırılmış hata gövdesini sohbet paneline basar (422 saat dilimi →
+// konum seçici). Çağıran taraf yanıtın hâlâ geçerli olduğunu (hesap, görünüm,
+// tz-picker akışı) önceden kontrol eder.
+function showInterpretError(status,body){
+  if(status===422){
     const tzError=timezoneErrorType(body);
     if(tzError==='invalid'){ rejectSentTimezone(); showTimezonePicker('invalid'); return; }
     if(tzError==='missing'){ showTimezonePicker('missing'); return; }
   }
-  const info=interpretErrorInfo(resp.status,body);
+  const info=interpretErrorInfo(status,body);
   if(info.onShow)info.onShow();
   const action=info.ctaKey?{label:t(info.ctaKey),onClick:info.onCta}:null;
   appendChatBubble('error',t(info.textKey),action);
@@ -3674,18 +3762,9 @@ const SUBSCRIBER_ONLY_CATEGORIES=['weekly_review','monthly_review','yearly_revie
 function isCategoryLocked(catId){
   if(!SUBSCRIBER_ONLY_CATEGORIES.includes(catId))return false;
   // Bakiye henüz çekilmediyse (creditBalance===null - sayfa yeni yüklendi ya
-  // da giriş henüz yapılmadı) güvenli taraf kilitli GÖRÜNÜMDÜR (aşağıdaki
-  // görsel içindir); ama TIKLAMA anında selectCategory kendi kontrolünü
-  // yapar - bakiye hâlâ yüklenmediyse kilitlemez, API'ye bırakır (bkz. orada).
+  // da giriş henüz yapılmadı) güvenli taraf kilitli GÖRÜNÜMDÜR. Bu yalnızca
+  // görseldir: tıklama her zaman önce quote yapar (bkz. selectCategory).
   return !(creditBalance&&creditBalance.has_active_subscription);
-}
-// selectCategory'nin önleyici geçiş kontrolü - isCategoryLocked'tan (görsel)
-// KASITLI OLARAK farklı: bakiye henüz yüklenmediyse (creditBalance===null)
-// ENGELLEMEZ, API'ye bırakır (403/category_requires_subscription savunmacı
-// dalı yakalar) - aksi halde bakiyesi henüz gelmemiş gerçek bir abone,
-// sırf zamanlama yüzünden yanlışlıkla kilitlenmiş görünür.
-function categoryBlockedByLock(catId){
-  return SUBSCRIBER_ONLY_CATEGORIES.includes(catId)&&!!creditBalance&&!creditBalance.has_active_subscription;
 }
 
 // ============================================================
@@ -3797,8 +3876,8 @@ function resetInterpretArea(){
   document.getElementById('chatLoading').style.display='none';
   const input=document.getElementById('chatInput');
   input.value='';
-  input.disabled=false;
-  document.getElementById('chatSendBtn').disabled=false;
+  input.disabled=chatInputLocked();
+  document.getElementById('chatSendBtn').disabled=chatInputLocked();
   const rem=document.getElementById('chatRemaining');
   rem.textContent='';
   rem.classList.remove('exhausted');
@@ -3845,6 +3924,7 @@ function showChatLoading(show){
   const exhausted=questionCreditInfo&&totalQuestionsRemaining(questionCreditInfo)===0;
   const locked=!!(exhausted||chatInputLocked());
   document.getElementById('chatLoading').style.display=show?'flex':'none';
+  document.getElementById('chatStopBtn').style.display=show&&liveRecord?'':'none';
   document.getElementById('chatInput').disabled=show||locked;
   document.getElementById('chatSendBtn').disabled=show||locked;
 }
@@ -3853,28 +3933,33 @@ function showChatLoading(show){
 // Dön" gibi tıklanabilir bir sonraki-adım butonu eklemek için. Buton metni de
 // textContent ile basılır (label her zaman t() üzerinden gelen sabit bir
 // çeviri anahtarı - kullanıcı girdisi değil, ama yine de innerHTML kullanılmıyor).
+// text bir dizi olabilir (her öğe ayrı satır); action bir dizi olabilir (birden
+// fazla buton). Bir action'ın cls'i butona ek sınıf, pendingId'si ilgili
+// isteğin kimliğidir (istek ağdayken buton pasif görünür).
 function appendChatBubble(role,text,action){
   const wrap=document.getElementById('chatMessages');
   const div=document.createElement('div');
   div.className='chat-bubble '+role;
-  const textDiv=document.createElement('div');
-  textDiv.className='chat-bubble-text';
-  textDiv.textContent=text; // backend metni innerHTML değil textContent ile basılır (XSS'e kapalı)
-  div.appendChild(textDiv);
-  if(action){
+  const lines=Array.isArray(text)?text:[text];
+  for(const line of lines){
+    const textDiv=document.createElement('div');
+    textDiv.className='chat-bubble-text'+(lines.length>1?' chat-bubble-line':'');
+    textDiv.textContent=line; // backend metni innerHTML değil textContent ile basılır (XSS'e kapalı)
+    div.appendChild(textDiv);
+  }
+  const actions=Array.isArray(action)?action:(action?[action]:[]);
+  for(const a of actions){
     const btn=document.createElement('button');
     btn.type='button';
-    btn.className='chat-bubble-action';
-    btn.textContent=action.label;
-    btn.onclick=action.onClick;
+    btn.className='chat-bubble-action'+(a.cls?' '+a.cls:'');
+    btn.textContent=a.label;
+    btn.onclick=a.onClick;
+    if(a.pendingId){ btn.dataset.pendingId=a.pendingId; btn.disabled=flyingIds.has(a.pendingId); }
     div.appendChild(btn);
   }
   wrap.appendChild(div);
   wrap.scrollTop=wrap.scrollHeight;
-}
-
-function appendChatError(){
-  appendChatBubble('error',t('chatErrorMessage'));
+  return div;
 }
 
 function updateRemainingUI(){
@@ -3882,7 +3967,7 @@ function updateRemainingUI(){
   const input=document.getElementById('chatInput');
   const btn=document.getElementById('chatSendBtn');
   if(chatInputLocked()){
-    // Salt okunur rapor ya da soru hakkı okunamadı: soru gönderilemez
+    // Açık rapor yok, salt okunur rapor, soru hakkı okunamadı ya da rapor oluşturulamadı
     el.textContent='';
     el.classList.remove('exhausted');
     input.disabled=true;
@@ -4180,18 +4265,548 @@ function hideTzPickerError(){
   if(err)err.style.display='none';
 }
 
+// ============================================================
+// ÜRETİM İSTEKLERİ — quote, onay, request_id ve tarayıcı kaydı
+//
+// Kategori tıklaması önce POST /api/v1/interpret/quote yapar; quote hiçbir şey
+// harcamaz. Yanıta göre: kayıtlı rapor açılır (none), abonelikle doğrudan
+// üretilir (subscription) ya da onay ekranı gösterilir (report_credit). Yeni
+// rapor (/start) ve her soru (/continue) bir request_id taşır; /start ayrıca
+// onaylanan bedeli expected_spend olarak gönderir.
+//
+// Asıl güvence, sunucunun aynı request_id için yaptığı tekrar ve ücret
+// kontrolleridir. Tarayıcı kaydı, sonucu belirsiz bir isteğin aynı request_id
+// ve bayt bayt aynı gövdeyle tekrar gönderilmesini sağlayarak bu sözleşmeyi
+// korur.
+//
+// Kayıt (istek başına bir anahtar, sessionStorage):
+//   stellafix_pending_interpret:v1:<sub>:<request_id>
+//   {v:1, sub, kind:"start"|"continue", request_id, body, approved_spend,
+//    created_at, paused}
+// - body, ilk gönderimde JSON.stringify ile BİR KEZ üretilen metindir. İlk
+//   gönderim ve her tekrar (Tekrar dene, Sürdür, yüklemede sürdürme) fetch'e
+//   bu metni olduğu gibi verir; dil ya da saat dilimi değişse de yeniden
+//   kurulmaz.
+// - Kayıt fetch'ten hemen önce yazılır; sonra yalnızca paused değişebilir.
+// - JWT'den sub okunamazsa ya da sessionStorage yazılamazsa kayıt yalnızca
+//   bellekte tutulur.
+// - Kesin sonuçta silinir (200, 402, 403, 404, 422 ve kalıcı 409'lar). Ağ
+//   hatası, zaman aşımı, 5xx, 401, 429 ve "hâlâ işleniyor" 409'larında durur.
+// - Açık çıkışta bu sekmedeki tüm kayıtlar silinir. 401 kayıtlara dokunmaz.
+// ============================================================
+const GEN_TIMEOUT_MS=180000;
+// Bekleme üst sınırı; sunucunun kesin tamamlanma süresi değildir, ölçümle güncellenecek.
+const WAIT_LIMIT_MS=330000;
+const RESUME_MAX=3;           // bir yüklemede/girişte kendiliğinden sürdürülen en fazla kayıt
+const RESUME_GAP_MS=10000;    // kendiliğinden gönderimler arasında en az bu kadar
+const PENDING_PREFIX='stellafix_pending_interpret:v1:';
+const KEEP_409=new Set(['request_in_progress','generation_in_progress','report_not_ready']);
+
+const memPending=new Map();      // request_id -> {rec, account}: yalnızca bellekteki kayıtlar
+const flights=new Map();         // `${sub|mem}:${request_id}` -> {ctrl, stopped}: ağdaki istekler
+const flyingIds=new Set();       // ağdaki isteklerin request_id'leri (buton görünümü için)
+const requestWindows=new Map();  // request_id -> bu sayfa oturumunda bekleme penceresinin başlangıcı
+const resumeQueued=new Set();
+let flightWaiters=[];
+let lastAutoSendAt=null;
+let liveRecord=null, liveCtx=null; // sohbet panelinde şu an beklenen istek
+let continueBlocked=false;          // rapor oluşturulamadı: bu rapora soru sorulamaz
+let pendingNotes=[];                // arka planda kesin hatayla biten isteklerin kısa sonucu
+const pendingStatus=new Map();      // request_id -> son sonucun mesaj anahtarı
+
+function newRequestId(){
+  if(window.crypto&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
+  const b=new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6]=(b[6]&0x0f)|0x40;
+  b[8]=(b[8]&0x3f)|0x80;
+  const h=Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
+// JWT'deki sub; okunamazsa null (kayıt o zaman yalnızca bellekte tutulur).
+function tokenSub(){
+  if(!authToken)return null;
+  const p=decodeJwtPayload(authToken);
+  return p&&typeof p.sub==='string'&&p.sub?p.sub:null;
+}
+function pendingKey(rec){ return PENDING_PREFIX+rec.sub+':'+rec.request_id; }
+function flightKey(rec){ return (rec.sub||'mem')+':'+rec.request_id; }
+function isInFlight(rec){ return flights.has(flightKey(rec)); }
+
+// fields'in sonuna request_id (ve /start için expected_spend) eklenir; gövde
+// metni burada bir kez üretilir.
+function makePendingRecord(kind,fields,spend){
+  const request_id=newRequestId();
+  const payload={...fields,request_id};
+  if(kind==='start')payload.expected_spend=spend;
+  return {v:1,sub:tokenSub(),kind,request_id,body:JSON.stringify(payload),
+    approved_spend:kind==='start'?spend:null,created_at:Date.now(),paused:false};
+}
+function savePending(rec,account){
+  if(rec.sub){
+    try{ sessionStorage.setItem(pendingKey(rec),JSON.stringify(rec)); return; }catch(e){}
+  }
+  memPending.set(rec.request_id,{rec,account});
+}
+function pendingExists(rec){
+  if(memPending.has(rec.request_id))return true;
+  if(!rec.sub)return false;
+  try{ return sessionStorage.getItem(pendingKey(rec))!==null; }catch(e){ return false; }
+}
+function setPendingPaused(rec,paused){
+  rec.paused=paused;
+  const m=memPending.get(rec.request_id);
+  if(m){ m.rec.paused=paused; return; }
+  if(!rec.sub)return;
+  try{
+    const raw=sessionStorage.getItem(pendingKey(rec));
+    if(raw===null)return;
+    const stored=JSON.parse(raw);
+    stored.paused=paused;
+    sessionStorage.setItem(pendingKey(rec),JSON.stringify(stored));
+  }catch(e){}
+}
+function deletePending(rec){
+  memPending.delete(rec.request_id);
+  pendingStatus.delete(rec.request_id);
+  if(rec.sub){ try{ sessionStorage.removeItem(pendingKey(rec)); }catch(e){} }
+}
+// Bozuk kayıt ya da anahtardaki sub ile değerdeki sub uyuşmuyorsa null (yok sayılır).
+function parseStoredPending(key,raw){
+  let r;
+  try{ r=JSON.parse(raw); }catch(e){ return null; }
+  if(!r||typeof r!=='object'||r.v!==1)return null;
+  if(typeof r.sub!=='string'||!r.sub||typeof r.request_id!=='string'||!r.request_id)return null;
+  if(r.kind!=='start'&&r.kind!=='continue')return null;
+  if(typeof r.body!=='string'||typeof r.created_at!=='number')return null;
+  if(key!==PENDING_PREFIX+r.sub+':'+r.request_id)return null;
+  return {v:1,sub:r.sub,kind:r.kind,request_id:r.request_id,body:r.body,
+    approved_spend:r.approved_spend===undefined?null:r.approved_spend,created_at:r.created_at,paused:r.paused===true};
+}
+function storedPendingEntries(){
+  const out=[];
+  try{
+    for(let i=0;i<sessionStorage.length;i++){
+      const k=sessionStorage.key(i);
+      if(!k||!k.startsWith(PENDING_PREFIX))continue;
+      const rec=parseStoredPending(k,sessionStorage.getItem(k));
+      if(rec)out.push(rec);
+    }
+  }catch(e){}
+  return out;
+}
+// Giriş yapmış hesaba ait kayıtlar, created_at artan.
+function pendingForCurrentAccount(){
+  const account=currentAccountKey();
+  if(!account)return [];
+  const sub=tokenSub();
+  const list=sub?storedPendingEntries().filter(r=>r.sub===sub):[];
+  for(const {rec,account:a} of memPending.values()){
+    if(a===account&&!list.some(r=>r.request_id===rec.request_id))list.push(rec);
+  }
+  return list.sort((a,b)=>a.created_at-b.created_at);
+}
+function clearAllPending(){
+  memPending.clear();
+  pendingStatus.clear();
+  pendingNotes=[];
+  try{
+    const keys=[];
+    for(let i=0;i<sessionStorage.length;i++){
+      const k=sessionStorage.key(i);
+      if(k&&k.startsWith(PENDING_PREFIX))keys.push(k);
+    }
+    keys.forEach(k=>sessionStorage.removeItem(k));
+  }catch(e){}
+  renderPendingList();
+}
+function pendingFields(rec){
+  try{ const b=JSON.parse(rec.body); return b&&typeof b==='object'?b:{}; }catch(e){ return {}; }
+}
+
+function notifyFlights(){
+  document.querySelectorAll('#chatMessages [data-pending-id]').forEach(btn=>{ btn.disabled=flyingIds.has(btn.dataset.pendingId); });
+  renderPendingList();
+  if(!flights.size){ const w=flightWaiters; flightWaiters=[]; w.forEach(f=>f()); }
+}
+function waitFlightsIdle(){ return flights.size?new Promise(r=>flightWaiters.push(r)):Promise.resolve(); }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function isFinalOutcome(out){
+  if(out.net)return false;
+  if(out.ok)return true;
+  if(out.status===409)return !KEEP_409.has(out.body&&out.body.error);
+  return out.status===402||out.status===403||out.status===404||out.status===422;
+}
+
+// Bir /start ya da /continue isteğini ağa verir: ilk gönderim ya da aynı
+// kaydın (aynı request_id, aynı gövde metni) tekrarı.
+//   opts.first: ilk gönderim; kayıt burada, fetch'ten hemen önce yazılır.
+//   opts.auto: yüklemede/girişte kendiliğinden sürdürme (aralar buna göre).
+//   opts.renew: bekleme penceresi dolmuşsa yenisi açılabilir (elle Tekrar
+//     dene / Sürdür ve yüklemede sürdürme). Pencere kendiliğinden yenilenmez.
+// Aynı istek zaten ağdaysa ya da kayıt artık yoksa null döner (gönderilmez).
+async function sendRecord(rec,opts={}){
+  const key=flightKey(rec);
+  if(flights.has(key))return null;
+  if(!opts.first&&!pendingExists(rec))return null;
+  const account=currentAccountKey();
+  if(!account)return null;
+  const now=Date.now();
+  let started=requestWindows.get(rec.request_id);
+  if(started===undefined||now-started>=WAIT_LIMIT_MS){
+    if(started!==undefined&&!opts.renew)return null; // süre doldu: kendiliğinden istek yok
+    started=now;
+    requestWindows.set(rec.request_id,started);
+  }
+  const flight={ctrl:new AbortController(),stopped:false};
+  flights.set(key,flight);
+  flyingIds.add(rec.request_id);
+  notifyFlights();
+  const timer=setTimeout(()=>flight.ctrl.abort(),Math.min(GEN_TIMEOUT_MS,WAIT_LIMIT_MS-(now-started)));
+  let resp=null, body=null;
+  if(opts.first)savePending(rec,account);
+  try{
+    const sent=fetch(`${API_URL}/api/v1/interpret/${rec.kind}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...authHeaders()},
+      body:rec.body,
+      signal:flight.ctrl.signal,
+    });
+    // Kendiliğinden gönderimler arasındaki ara, isteğin gerçekten çıktığı andan ölçülür.
+    if(opts.auto)lastAutoSendAt=Date.now();
+    resp=await sent;
+    body=resp.ok?await resp.json():await parseInterpretErrorBody(resp);
+  }catch(e){ resp=null; body=null; }
+  finally{
+    clearTimeout(timer);
+    flights.delete(key);
+    flyingIds.delete(rec.request_id);
+  }
+  const out={ok:!!(resp&&resp.ok),status:resp?resp.status:0,body,net:!resp,stopped:flight.stopped,account};
+  out.final=isFinalOutcome(out);
+  if(out.final)deletePending(rec);
+  else if(!out.ok)pendingStatus.set(rec.request_id,genOutcomeKey(rec,out));
+  notifyFlights();
+  return out;
+}
+
+// Başarısız bir sonucun kullanıcıya gösterilecek mesaj anahtarı.
+function genOutcomeKey(rec,out){
+  if(out.net)return out.stopped?'pausedLabel':'msgConnectionProblem';
+  const s=out.status, err=out.body&&out.body.error;
+  if(s===401)return 'errAuthRequired';
+  if(s===429)return 'errRateLimited';
+  if(s>=500)return 'errUpstream';
+  if(s===409){
+    if(err==='request_in_progress')return 'msgRequestInProgress';
+    if(err==='generation_in_progress')return rec.kind==='start'?'msgGenerationInProgress':'msgAnswerInProgress';
+    if(err==='report_not_ready')return 'msgReportNotReady';
+    if(err==='request_failed')return rec.kind==='start'?'errStartRefunded':'errQuestionRefunded';
+    if(err==='generation_expired')return 'errStartExpired';
+    if(err==='report_failed')return 'errReportFailed';
+    if(err==='spend_changed')return 'errSpendChanged';
+    return 'errSomethingWrong';
+  }
+  if(s===402||s===403||s===404||s===422)return interpretErrorInfo(s,out.body).textKey;
+  return 'chatErrorMessage';
+}
+
+// Sonucu uygular. ctx.live: istek sohbet panelinden gönderildi; ctx.view:
+// gönderim (ya da sürdürme) anındaki görünüm. Yanıt geldiğinde hesap
+// değişmişse ya da giriş yoksa yalnızca kayıt temizliği yapılmıştır
+// (sendRecord), ekrana hiçbir şey basılmaz.
+function applyGenResult(rec,out,ctx){
+  if(!out)return;
+  if(out.account!==currentAccountKey())return;
+  const sameView=ctx.view===chatViewId;
+  if(out.ok){
+    const data=out.body||{};
+    if(rec.kind==='start'){
+      if(ctx.live&&sameView){
+        handleStartResponse(data); // önce: rapor açık olsun ki soru kutusu açılabilsin
+        showChatLoading(false);
+        fetchCreditBalance(); // bir rapor hakkı düşmüş olabilir - göstergeyi tazele
+        // Soru göstergesi ilk sorudan önce dolsun (okuma başarısız olsa da rapor ekranda kalır).
+        loadReportBalance(data.session_id,out.account,chatViewId);
+        return;
+      }
+      if(!ctx.live&&sameView&&typeof data.session_id==='string'){
+        fetchCreditBalance();
+        openHistoryReport(data.session_id);
+        return;
+      }
+      // Başarılı yanıt atılmaz; kullanıcı başka bir ekranda: rapor Raporlarım'da hazır.
+      notifyReportReady();
+      return;
+    }
+    if(ctx.live){
+      if(!sameView)return; // cevap, rapor yeniden açılınca mesajlarda görünür
+      showChatLoading(false);
+      handleContinueResponse(data);
+      return;
+    }
+    const sid=pendingFields(rec).session_id;
+    if(sameView&&typeof sid==='string'){ openHistoryReport(sid); return; }
+    notifyReportReady();
+    return;
+  }
+  if(out.status===401)handleUnauthorized(); // kayıt durur; aynı hesapla girişte sürdürülür
+  if(!ctx.live){
+    if(out.final)addPendingNote(rec,genOutcomeKey(rec,out));
+    renderPendingList();
+    return;
+  }
+  if(!sameView)return;
+  showChatLoading(false);
+  showGenError(rec,out,ctx);
+}
+
+function showGenError(rec,out,ctx){
+  const s=out.status, err=out.body&&out.body.error, key=genOutcomeKey(rec,out);
+  if(out.net&&out.stopped){ showStoppedNotice(rec,ctx); return; }
+  if(s===401){ appendChatBubble('error',t(key)); return; }
+  if(!out.final){ showKeepBubble(rec,key,ctx); return; }
+  if(s===409){
+    if(err==='request_id_conflict'){
+      console.error('request_id_conflict', rec.kind, rec.request_id);
+      appendChatBubble('error',t('errSomethingWrong'));
+      return;
+    }
+    if(rec.kind==='start'){
+      appendChatBubble('error',t(key));
+      if(err==='request_failed'||err==='generation_expired')fetchCreditBalance();
+      // Bedel değişti: kendiliğinden /start yok; yeni quote ve yeni onay.
+      if(err==='spend_changed'&&ctx.flow&&flowValid(ctx.flow))runQuote(ctx.flow,'reconfirm');
+      return;
+    }
+    if(err==='request_failed'||err==='generation_expired'){ showAskAgain(rec,key,ctx,false); return; }
+    if(err==='report_failed'){
+      continueBlocked=true; // rapor okunur kalır, soru kutusu kapanır
+      appendChatBubble('error',t(key));
+      updateRemainingUI();
+      return;
+    }
+    appendChatBubble('error',t(key));
+    return;
+  }
+  if(rec.kind==='continue'&&s===402){
+    loadReportBalance(interpretSessionId,currentAccountKey(),chatViewId);
+    showAskAgain(rec,key,ctx,true);
+    return;
+  }
+  showInterpretError(s,out.body);
+}
+
+// Sonucu belirsiz: aynı kayıt (aynı id, aynı gövde) elle tekrar gönderilebilir.
+function showKeepBubble(rec,key,ctx){
+  appendChatBubble('error',t(key),[
+    {label:t('btnRetry'),cls:'pending-retry-btn',pendingId:rec.request_id,onClick:()=>retryLive(rec,ctx)},
+    {label:t('btnStopWaiting'),cls:'pending-stop-btn',onClick:()=>stopWaiting(rec,ctx)},
+  ]);
+}
+function showStoppedNotice(rec,ctx){
+  appendChatBubble('notice',t('stopWaitingNote'),
+    {label:t('btnResume'),cls:'pending-resume-btn',pendingId:rec.request_id,onClick:()=>retryLive(rec,ctx)});
+}
+function retryLive(rec,ctx){
+  if(ctx.view!==chatViewId)return;
+  runLive(rec,ctx,{renew:true});
+}
+// "Beklemeyi durdur": ağdaki isteği keser, kaydı SİLMEZ (paused). Kayıt
+// Raporlarım'daki yarım kalan istekler listesinde "Sürdür" ile durur.
+function stopWaiting(rec,ctx){
+  if(pendingExists(rec))setPendingPaused(rec,true);
+  const f=flights.get(flightKey(rec));
+  if(f){ f.stopped=true; f.ctrl.abort(); return; } // sonuç işlenirken not gösterilir
+  if(ctx&&ctx.view===chatViewId)showStoppedNotice(rec,ctx);
+  renderPendingList();
+}
+function stopWaitingCurrent(){ if(liveRecord)stopWaiting(liveRecord,liveCtx); }
+
+// Sohbet panelinden gönderilen istek (ilk gönderim ya da elle tekrar).
+async function runLive(rec,ctx,opts){
+  if(isInFlight(rec))return;
+  if(!opts.first){
+    if(!pendingExists(rec))return;
+    if(rec.paused)setPendingPaused(rec,false);
+  }
+  liveRecord=rec; liveCtx=ctx;
+  showChatLoading(true);
+  const out=await sendRecord(rec,opts);
+  if(liveRecord===rec){ liveRecord=null; liveCtx=null; }
+  if(!out){ if(ctx.view===chatViewId)showChatLoading(false); return; }
+  applyGenResult(rec,out,ctx);
+}
+
+// Başarısız bir sorunun bilinçli tekrarı: önce soru hakkı okunur, sonra aynı
+// raporda YENİ bir request_id ile /continue gider. Quote ya da /start yok.
+function showAskAgain(rec,key,ctx,withSubscribe){
+  const f=pendingFields(rec);
+  const actions=[];
+  if(withSubscribe)actions.push({label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
+  if(typeof f.session_id==='string'&&typeof f.question==='string'){
+    actions.push({label:t('btnAskAgain'),cls:'ask-again-btn',onClick:e=>askAgain(f.session_id,f.question,ctx,e.currentTarget)});
+  }
+  appendChatBubble('error',t(key),actions);
+}
+async function askAgain(sessionId,question,ctx,btn){
+  if(btn.disabled)return;
+  btn.disabled=true;
+  if(ctx.view!==chatViewId||interpretSessionId!==sessionId)return;
+  const account=currentAccountKey();
+  await loadReportBalance(sessionId,account,chatViewId);
+  if(ctx.view!==chatViewId||account!==currentAccountKey()||interpretSessionId!==sessionId)return;
+  sendQuestion(sessionId,question);
+}
+function sendQuestion(sessionId,question){
+  const rec=makePendingRecord('continue',{session_id:sessionId,question},null);
+  runLive(rec,{live:true,view:chatViewId},{first:true});
+}
+
+// ---- Kategori akışı: quote önce ----
+// flow: {catId, quoteBody, flowId, view, account, tzRetry}. Kategori değişir,
+// ekrandan çıkılır, hesap değişir ya da daha yeni bir konum seçilirse geçersiz
+// olur: bayat quote yanıtı sessizce atılır, onay ekranından /start gitmez.
+function flowValid(flow){
+  return flow.flowId===tzPickerFlowId&&flow.view===chatViewId&&flow.account===currentAccountKey()
+    &&(!flow.tzRetry||isTzRetryStillValid(flow.tzRetry));
+}
+function once(f){
+  let done=false;
+  return e=>{
+    if(done)return;
+    done=true;
+    if(e&&e.currentTarget)e.currentTarget.disabled=true;
+    f();
+  };
+}
+
+// mode: 'click' (kategori tıklaması: subscription onaysız üretir),
+// 'check' (Tekrar kontrol et: hiçbir zaman kendiliğinden üretmez, bedeli
+// yazan Üret düğmesi gösterir), 'reconfirm' (bedel değişti: yeni onay).
+async function runQuote(flow,mode){
+  if(!flowValid(flow))return;
+  liveRecord=null; liveCtx=null;
+  showChatLoading(true);
+  let resp=null, body=null;
+  try{
+    resp=await fetchWithTimeout(`${API_URL}/api/v1/interpret/quote`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...authHeaders()},
+      body:JSON.stringify(flow.quoteBody),
+    },READ_TIMEOUT_MS);
+    body=resp.ok?await resp.json():await parseInterpretErrorBody(resp);
+  }catch(e){ resp=null; }
+  if(!flowValid(flow))return; // bayat yanıt: quote hiçbir şey harcamaz, atmak güvenli
+  showChatLoading(false);
+  if(!resp){
+    // İlk quote hiç sonuç vermediyse "Tekrar dene" ilk kategori eylemini aynen
+    // yineler (subscription: onaysız /start, report_credit: onay ekranı); bu,
+    // her zaman ayrı bir Üret düğmesi isteyen "Tekrar kontrol et" akışına taşınmaz.
+    appendChatBubble('error',t('chatErrorMessage'),{label:t('btnRetry'),cls:'quote-retry-btn',onClick:once(()=>runQuote(flow,mode))});
+    return;
+  }
+  if(resp.ok){
+    const spend=body&&body.would_spend;
+    if(spend==='none'&&body.existing&&typeof body.existing.session_id==='string'){ openSavedReport(body.existing.session_id,flow); return; }
+    if(spend==='subscription'){
+      if(mode==='click'){ sendStart(flow,'subscription'); return; }
+      showGenerateChoice(flow,'subscription');
+      return;
+    }
+    if(spend==='report_credit'){
+      if(mode==='check'){ showGenerateChoice(flow,'report_credit'); return; }
+      showConfirm(flow);
+      return;
+    }
+    appendChatBubble('error',t('errSomethingWrong'));
+    return;
+  }
+  if(resp.status===409){
+    if(body&&body.error==='generation_in_progress'){
+      appendChatBubble('notice',t('msgGenerationInProgress'),{label:t('btnCheckAgain'),cls:'quote-check-btn',onClick:once(()=>runQuote(flow,'check'))});
+      return;
+    }
+    appendChatBubble('error',t('errSomethingWrong'));
+    return;
+  }
+  showInterpretError(resp.status,body);
+}
+
+// Onay/Üret düğmesi: tek kullanımlık ve akışa bağlı.
+function generateAction(flow,spend,label,cls){
+  let used=false;
+  return {label,cls,onClick:e=>{
+    if(used||!flowValid(flow))return;
+    used=true;
+    e.currentTarget.disabled=true;
+    sendStart(flow,spend);
+  }};
+}
+async function ensureCreditBalance(flow){
+  if(!creditBalance){
+    await fetchCreditBalance();
+    if(!flowValid(flow))return false;
+  }
+  return true;
+}
+// report_credit: "1 rapor hakkı kullanılacak" ve kalan hak. Hak 0 ise onay
+// yok, Abone Ol. Bakiye okunamazsa bakiye satırı gizlenir, onay kalır.
+async function showConfirm(flow){
+  if(!await ensureCreditBalance(flow))return;
+  const n=creditBalance?(creditBalance.report_credits||0):null;
+  if(n!==null&&n<=0){
+    appendChatBubble('notice',t('noReportCredits'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
+    return;
+  }
+  const lines=[t('quoteConfirmText')];
+  if(n!==null)lines.push(t('quoteBalanceLine').replace('{n}',n));
+  appendChatBubble('notice',lines,generateAction(flow,'report_credit',t('btnConfirmGenerate'),'quote-confirm-btn'));
+}
+// Kontrol sonrası: üretim kendiliğinden başlamaz; bedeli yazan düğmeye basmak onaydır.
+async function showGenerateChoice(flow,spend){
+  if(spend==='report_credit'){
+    if(!await ensureCreditBalance(flow))return;
+    if(creditBalance&&(creditBalance.report_credits||0)<=0){
+      appendChatBubble('notice',t('noReportCredits'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
+      return;
+    }
+    appendChatBubble('notice',t('msgNewReportNeeded'),generateAction(flow,'report_credit',t('btnGenerateCredit'),'quote-generate-btn'));
+    return;
+  }
+  appendChatBubble('notice',t('msgNewReportNeeded'),generateAction(flow,'subscription',t('btnGenerateSubscription'),'quote-generate-btn'));
+}
+function sendStart(flow,spend){
+  if(!flowValid(flow))return;
+  const rec=makePendingRecord('start',flow.quoteBody,spend);
+  runLive(rec,{live:true,view:chatViewId,flow},{first:true});
+}
+
+// Quote "none": kayıtlı rapor açılır (ücret yok, /start yok). Geri düğmesi
+// kategorilere döner.
+async function openSavedReport(sessionId,flow){
+  showChatLoading(true);
+  const r=await fetchSavedReport(sessionId);
+  if(!flowValid(flow))return;
+  showChatLoading(false);
+  if(r.unauthorized){ handleUnauthorized(); appendChatBubble('error',t('errAuthRequired')); return; }
+  if(!r.detail){
+    appendChatBubble('error',t(r.detailResp&&!r.detailResp.ok?readErrorKey(r.detailResp.status):'chatErrorMessage'),
+      {label:t('btnRetry'),onClick:once(()=>openSavedReport(sessionId,flow))});
+    return;
+  }
+  showHistoryReport(r.detail,r.balance,{fromCategory:true});
+}
+
 // tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
 // geçiliyor - {requestId,flowId}, pickTzCity'nin şehir seçimi anında yakaladığı
-// kimlikler. Doğrudan bir kategori-kartı tıklamasında bu parametre YOK, o
-// yüzden mevcut davranış birebir korunuyor (bkz. isTzRetryStillValid).
+// kimlikler. Retry quote'u yeniden yapar, doğrudan /start göndermez.
 async function selectCategory(catId,tzRetry){
-  // /interpret/* artık auth zorunlu (stellafix-api PR #25) - girişsiz kullanıcıyı
-  // boşuna bir round-trip beklemeden doğrudan giriş ekranına yönlendir. Token
-  // süresi mid-session dolarsa da handleInterpretErrorResponse'daki 401 dalı
-  // (handleUnauthorized) ikinci bir savunma hattı olarak aynı işi yapar.
+  // /interpret/* auth zorunlu - girişsiz kullanıcı doğrudan giriş ekranına.
   if(!authToken){ openAuthModal(); return; }
   // Harita yoksa (ör. yalnızca Raporlarım açıldı) rapor başlatılamaz ve
-  // kategori sohbet paneli açılmaz: /interpret/start chart_id olmadan gitmez.
+  // kategori sohbet paneli açılmaz.
   if(!lastChartId)return;
   if(tzRetry){
     if(!isTzRetryStillValid(tzRetry))return; // bu retry artık geçerli değil - kategori değişti/ekrandan çıkıldı
@@ -4202,6 +4817,7 @@ async function selectCategory(catId,tzRetry){
   chatViewId++; // bu kategori sohbeti yeni bir görünüm
   historyReport=false;
   historyReadOnly=false;
+  continueBlocked=false;
   setBalanceUnavailable(false);
   updateChatBackLabel();
   document.getElementById('reportsPanel').style.display='none';
@@ -4214,74 +4830,22 @@ async function selectCategory(catId,tzRetry){
   interpretSessionId=null;
   questionCreditInfo=null;
 
-  // Önleyici kontrol (stellafix-api PR #30): kilitli bir kategoriye
-  // tıklandığında API'ye HİÇ gitmeden, mevcut jargonsuz hata-balonu +
-  // aksiyon-butonu altyapısıyla (appendChatBubble) aynı mesaj gösterilir.
-  // Backend sırası auth→rate limit→kategori erişimi→kredi harcaması
-  // olduğundan zaten rapor hakkı düşmüyor, ama boşuna bir round-trip de
-  // gerekmiyor. Bakiye henüz yüklenmediyse engellemez - bkz.
-  // categoryBlockedByLock üstündeki not.
-  if(categoryBlockedByLock(catId)){
-    appendChatBubble('error',t('errCategoryLocked'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
-    document.getElementById('chatInput').disabled=true;
-    document.getElementById('chatSendBtn').disabled=true;
-    return;
-  }
-
-  const startBody={chart_id:lastChartId,category:catId,language:currentLocale};
+  // Kilit görseli (isCategoryLocked) kalır, ama tıklama her zaman quote yapar:
+  // aynı girdiler için kayıtlı bir rapor abonelik kontrolünden önce ücretsiz
+  // açılır. Kilitli kategoride yeni üretim quote'tan 403 ile döner.
+  const quoteBody={chart_id:lastChartId,category:catId,language:currentLocale};
   lastSentTimezone=null;
   if(PERIOD_CATEGORIES.has(catId)){
     const tz=requestTimezone();
     if(!tz){ showTimezonePicker('missing'); return; }
-    startBody.timezone=tz;
+    quoteBody.timezone=tz;
     lastSentTimezone=tz;
   }
 
-  // /interpret/start çağrısından HEMEN ÖNCE: bir tz-picker retry'siyse hâlâ
-  // geçerli mi tekrar kontrol et (yukarıdaki kontrolden bu yana await yok,
-  // ama gelecekte eklenirse diye ve kontratın tam karşılığı olsun diye).
+  // Quote'tan HEMEN ÖNCE: bir tz-picker retry'siyse hâlâ geçerli mi.
   if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
-
-  // Yanıt geldiğinde hâlâ aynı hesap ve aynı sohbet görünümü mü? (bkz. RAPORLARIM)
-  const startAccount=currentAccountKey(), startView=chatViewId;
-  showChatLoading(true);
-  try{
-    const resp=await fetch(`${API_URL}/api/v1/interpret/start`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json',...authHeaders()},
-      body:JSON.stringify(startBody)
-    });
-    if(startAccount!==currentAccountKey())return; // hesap değişti: hiçbir şey basılmaz
-    if(!resp.ok){
-      if(startView!==chatViewId)return; // kullanıcı başka bir ekranda
-      showChatLoading(false);
-      await handleInterpretErrorResponse(resp,tzRetry);
-      return;
-    }
-    const data=await resp.json();
-    if(startAccount!==currentAccountKey())return;
-    if(startView!==chatViewId){
-      // Başarılı yanıt atılmaz, ama kullanıcı başka bir ekrana/rapora geçti:
-      // açık ekran ezilmez; rapor Raporlarım'da hazır.
-      notifyReportReady();
-      return;
-    }
-    showChatLoading(false);
-    // BURADA tzRetry kontrolü YOK (kasıtlı): istek zaten gönderildi ve
-    // backend'de bir rapor kredisi zaten düştü - yanıtı şimdi atmak
-    // kullanıcının parasını ödediği raporu kaybetmesi demek olurdu. Başarılı
-    // bir /interpret/start yanıtı, nereden tetiklenirse tetiklensin, HER
-    // ZAMAN işlenir - doğrudan bir kategori tıklamasının davranışıyla aynı.
-    handleStartResponse(data);
-    fetchCreditBalance(); // bir rapor kredisi düştü - göstergeyi tazele
-    // Soru göstergesi ilk sorudan önce dolsun. Bu okuma başarısız olsa da
-    // rapor ekranda kalır (yalnızca soru kutusu kapanır, Tekrar dene çıkar).
-    loadReportBalance(data.session_id,startAccount,chatViewId);
-  }catch(e){
-    if(startAccount!==currentAccountKey()||startView!==chatViewId)return;
-    showChatLoading(false);
-    appendChatError();
-  }
+  const flow={catId,quoteBody,flowId:tzPickerFlowId,view:chatViewId,account:currentAccountKey(),tzRetry:tzRetry||null};
+  await runQuote(flow,'click');
 }
 
 async function sendFollowUp(){
@@ -4296,32 +4860,121 @@ async function sendFollowUp(){
   }
   appendChatBubble('user',q);
   input.value='';
+  // session_id /start'tan saklanan değer — backend /continue yanıtında tekrar döndürmüyor.
   // Cevap yalnızca soruyu gönderen hesap ve aynı rapor görünümü hâlâ açıksa
   // uygulanır; değilse rapor yeniden açılınca mesajlarda görünür.
-  const askAccount=currentAccountKey(), askView=chatViewId;
-  const stillHere=()=>askAccount===currentAccountKey()&&askView===chatViewId;
-  showChatLoading(true);
+  sendQuestion(interpretSessionId,q);
+}
+
+// ---- Yüklemede ve girişte sürdürme ----
+// Önce hesap kuralı: token varsa ve sub okunuyorsa başka hesabın kayıtları
+// silinir. Token yoksa ya da sub okunamıyorsa hiçbir kayıt silinmez ve
+// sürdürülmez. Sonra bu hesabın duraklatılmamış kayıtlarından en fazla
+// RESUME_MAX tanesi created_at sırasıyla, ağda aynı anda en fazla bir istek ve
+// gönderimler arasında en az RESUME_GAP_MS olacak şekilde sürdürülür. 429 sırayı
+// durdurur. Kalanlar ve duraklatılmışlar Raporlarım'daki listede "Sürdür" ile durur.
+async function scanPending(fromLoad){
+  renderPendingList();
+  if(!authToken)return;
+  const sub=tokenSub();
+  if(!sub)return;
+  for(const r of storedPendingEntries()){ if(r.sub!==sub)deletePending(r); }
+  const batch=pendingForCurrentAccount()
+    .filter(r=>!r.paused&&!isInFlight(r)&&!resumeQueued.has(r.request_id))
+    .slice(0,RESUME_MAX);
+  renderPendingList();
+  if(!batch.length)return;
+  batch.forEach(r=>resumeQueued.add(r.request_id));
+  showResumeNotice(batch.length);
+  const account=currentAccountKey(), view=chatViewId;
   try{
-    // session_id /start'tan saklanan değer — backend /continue yanıtında tekrar döndürmüyor
-    const resp=await fetch(`${API_URL}/api/v1/interpret/continue`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json',...authHeaders()},
-      body:JSON.stringify({session_id:interpretSessionId,question:q})
-    });
-    if(!stillHere())return;
-    showChatLoading(false);
-    if(!resp.ok){
-      await handleInterpretErrorResponse(resp);
-      return;
+    for(const rec of batch){
+      if(currentAccountKey()!==account)break;
+      await waitFlightsIdle();
+      // Zamanlayıcı birkaç ms erken uyanabilir: ara, saat yeniden okunarak doğrulanır.
+      while(lastAutoSendAt!==null){
+        const wait=lastAutoSendAt+RESUME_GAP_MS-Date.now();
+        if(wait<=0)break;
+        await sleep(wait);
+      }
+      await waitFlightsIdle();
+      if(currentAccountKey()!==account)break;
+      if(!pendingExists(rec)||isInFlight(rec))continue;
+      const out=await sendRecord(rec,{renew:fromLoad,auto:true});
+      if(!out)continue;
+      applyGenResult(rec,out,{live:false,view});
+      if(out.status===429||out.status===401)break;
     }
-    const data=await resp.json();
-    if(!stillHere())return;
-    handleContinueResponse(data);
-  }catch(e){
-    if(!stillHere())return;
-    showChatLoading(false);
-    appendChatError();
+  }finally{
+    batch.forEach(r=>resumeQueued.delete(r.request_id));
+    renderPendingList();
   }
+}
+function showResumeNotice(n){
+  document.getElementById('resumeToastText').textContent=t('resumingNotice').replace('{n}',n);
+  document.getElementById('resumeToast').style.display='flex';
+}
+function hideResumeNotice(){ document.getElementById('resumeToast').style.display='none'; }
+
+// Listeden "Sürdür": aynı id ve aynı gövde metni.
+async function resumeFromList(rec){
+  if(isInFlight(rec)||!pendingExists(rec))return;
+  if(rec.paused)setPendingPaused(rec,false);
+  const view=chatViewId;
+  const out=await sendRecord(rec,{renew:true});
+  applyGenResult(rec,out,{live:false,view});
+  renderPendingList();
+}
+function addPendingNote(rec,key){
+  pendingNotes.push({account:currentAccountKey(),kind:rec.kind,category:pendingFields(rec).category,key});
+}
+function pendingLabel(kind,category){
+  return kind==='start'?t('pendingItemReport').replace('{category}',reportCategoryTitle(category)):t('pendingItemQuestion');
+}
+function renderPendingList(){
+  const box=document.getElementById('pendingList');
+  if(!box)return;
+  const account=currentAccountKey();
+  const recs=pendingForCurrentAccount();
+  const notes=pendingNotes.filter(n=>n.account===account);
+  const rows=recs.map(rec=>{
+    const row=document.createElement('div');
+    row.className='pending-item';
+    row.dataset.requestId=rec.request_id;
+    const label=document.createElement('span');
+    label.className='pending-item-label';
+    label.textContent=pendingLabel(rec.kind,pendingFields(rec).category);
+    row.appendChild(label);
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='pending-resume';
+    btn.textContent=t('btnResume');
+    btn.disabled=isInFlight(rec);
+    btn.onclick=()=>resumeFromList(rec);
+    row.appendChild(btn);
+    const statusKey=rec.paused?'pausedLabel':pendingStatus.get(rec.request_id);
+    if(statusKey){
+      const st=document.createElement('div');
+      st.className='pending-item-status';
+      st.textContent=t(statusKey);
+      row.appendChild(st);
+    }
+    return row;
+  });
+  for(const n of notes){
+    const row=document.createElement('div');
+    row.className='pending-item pending-note';
+    const label=document.createElement('span');
+    label.className='pending-item-label';
+    label.textContent=pendingLabel(n.kind,n.category);
+    const st=document.createElement('div');
+    st.className='pending-item-status';
+    st.textContent=t(n.key);
+    row.append(label,st);
+    rows.push(row);
+  }
+  document.getElementById('pendingItems').replaceChildren(...rows);
+  box.style.display=rows.length?'block':'none';
 }
 
 // ============================================================
@@ -4330,7 +4983,7 @@ async function sendFollowUp(){
 //   GET /api/v1/interpret/{session_id}            -> özet + messages
 //   GET /api/v1/interpret/{session_id}/balance    -> soru hakkı alanları
 // Okuma uçları ücretsizdir ve abonelik kilidine tabi değildir: burada
-// categoryBlockedByLock uygulanmaz, /interpret/start hiç çağrılmaz. Açılan
+// kilit uygulanmaz, /interpret/start hiç çağrılmaz. Açılan
 // rapora soru mevcut sendFollowUp (/continue) ile gider. Liste harita
 // hesaplanmadan da açılabilir. Backend'den gelen hiçbir alan (chart_name,
 // category, mesaj) innerHTML'e girmez: satırlar DOM API + textContent ile,
@@ -4361,7 +5014,11 @@ function currentAccountKey(){
 function newReportsState(){
   return {sessions:[], seen:new Set(), offset:0, hasMore:false, loading:false, loaded:false, statusKey:null, statusIsError:false};
 }
-function chatInputLocked(){ return historyReadOnly||balanceUnavailable; }
+// Soru kutusu kapalı: açık rapor yok (onay ekranı, Üret düğmesi, işleniyor
+// balonu, quote hatası), salt okunur rapor, soru hakkı okunamadı ya da rapor
+// oluşturulamadı. Kutuyu açabilen her yol (showChatLoading, updateRemainingUI,
+// resetInterpretArea, clearChatState) bu fonksiyona bakar.
+function chatInputLocked(){ return !interpretSessionId||historyReadOnly||balanceUnavailable||continueBlocked; }
 function setBalanceUnavailable(v){
   balanceUnavailable=!!v;
   document.getElementById('balanceError').style.display=balanceUnavailable?'flex':'none';
@@ -4484,6 +5141,7 @@ function showReportsPanel(){
   document.getElementById('chatPanel').style.display='none';
   document.getElementById('reportsPanel').style.display='block';
   renderReportsList();
+  renderPendingList();
 }
 
 function openReportsList(){
@@ -4516,7 +5174,7 @@ async function fetchReportsPage(){
   renderReportsList();
   let resp=null, data=null;
   try{
-    resp=await fetch(`${API_URL}/api/v1/interpret/history?limit=${REPORTS_PAGE_SIZE}&offset=${st.offset}`,{headers:authHeaders()});
+    resp=await fetchWithTimeout(`${API_URL}/api/v1/interpret/history?limit=${REPORTS_PAGE_SIZE}&offset=${st.offset}`,{headers:authHeaders()},READ_TIMEOUT_MS);
     if(resp.ok)data=await resp.json();
   }catch(e){ resp=null; }
   if(account!==currentAccountKey())return; // başka hesabın listesi: uygulanmaz
@@ -4556,26 +5214,17 @@ async function openHistoryReport(sessionId){
   reportsState.statusKey='reportsLoading';
   reportsState.statusIsError=false;
   renderReportsList();
-  const id=encodeURIComponent(sessionId);
-  const get=url=>fetch(url,{headers:authHeaders()}).catch(()=>null);
-  const [detailResp,balanceResp]=await Promise.all([
-    get(`${API_URL}/api/v1/interpret/${id}`),
-    get(`${API_URL}/api/v1/interpret/${id}/balance`),
-  ]);
-  let detail=null, balance=null;
-  try{ if(detailResp&&detailResp.ok)detail=await detailResp.json(); }catch(e){ detail=null; }
-  try{ if(balanceResp&&balanceResp.ok)balance=await balanceResp.json(); }catch(e){ balance=null; }
+  const r=await fetchSavedReport(sessionId);
   if(!current())return; // başka bir rapor açıldı / ekran değişti / hesap değişti
-  const unauthorized=(detailResp&&detailResp.status===401)||(balanceResp&&balanceResp.status===401);
-  if(unauthorized){
+  if(r.unauthorized){
     handleUnauthorized();
     reportsState.statusKey='errAuthRequired';
     reportsState.statusIsError=true;
     renderReportsList();
     return;
   }
-  if(!detail||!Array.isArray(detail.messages)){
-    reportsState.statusKey=detailResp&&!detailResp.ok?readErrorKey(detailResp.status):'chatErrorMessage';
+  if(!r.detail){
+    reportsState.statusKey=r.detailResp&&!r.detailResp.ok?readErrorKey(r.detailResp.status):'chatErrorMessage';
     reportsState.statusIsError=true;
     renderReportsList();
     return;
@@ -4583,12 +5232,34 @@ async function openHistoryReport(sessionId){
   reportsState.statusKey=null;
   renderReportsList();
   // Soru hakkı okunamadıysa rapor yine açılır; yalnızca soru kutusu kapalı kalır.
-  showHistoryReport(detail,balance&&typeof balance==='object'?balance:null);
+  showHistoryReport(r.detail,r.balance);
 }
 
-function showHistoryReport(d,balance){
+// GET /{id} ve /{id}/balance paralel; detail yalnızca messages dizisi varsa döner.
+async function fetchSavedReport(sessionId){
+  const id=encodeURIComponent(sessionId);
+  const get=url=>fetchWithTimeout(url,{headers:authHeaders()},READ_TIMEOUT_MS).catch(()=>null);
+  const [detailResp,balanceResp]=await Promise.all([
+    get(`${API_URL}/api/v1/interpret/${id}`),
+    get(`${API_URL}/api/v1/interpret/${id}/balance`),
+  ]);
+  let detail=null, balance=null;
+  try{ if(detailResp&&detailResp.ok)detail=await detailResp.json(); }catch(e){ detail=null; }
+  try{ if(balanceResp&&balanceResp.ok)balance=await balanceResp.json(); }catch(e){ balance=null; }
+  return {
+    detailResp,
+    detail:detail&&Array.isArray(detail.messages)?detail:null,
+    balance:balance&&typeof balance==='object'?balance:null,
+    unauthorized:!!((detailResp&&detailResp.status===401)||(balanceResp&&balanceResp.status===401)),
+  };
+}
+
+// opts.fromCategory: kategori tıklamasında quote kayıtlı raporu gösterdi;
+// geri düğmesi kategorilere döner.
+function showHistoryReport(d,balance,opts={}){
   tzPickerFlowId++;
-  historyReport=true;
+  historyReport=!opts.fromCategory;
+  continueBlocked=false;
   historyReadOnly=d.status==='pending'||!isKnownCategory(d.category);
   interpretSessionId=d.session_id;
   currentCategory=d.category;
@@ -4621,7 +5292,7 @@ async function loadReportBalance(sessionId,account,view){
   const current=()=>account===currentAccountKey()&&view===chatViewId&&interpretSessionId===sessionId;
   let resp=null, data=null;
   try{
-    resp=await fetch(`${API_URL}/api/v1/interpret/${encodeURIComponent(sessionId)}/balance`,{headers:authHeaders()});
+    resp=await fetchWithTimeout(`${API_URL}/api/v1/interpret/${encodeURIComponent(sessionId)}/balance`,{headers:authHeaders()},READ_TIMEOUT_MS);
     if(resp.ok)data=await resp.json();
   }catch(e){ resp=null; }
   if(!current())return;
@@ -4646,6 +5317,8 @@ function exitHistoryReport(){
 }
 function clearChatState(){
   historyReadOnly=false;
+  continueBlocked=false;
+  liveRecord=null; liveCtx=null;
   setBalanceUnavailable(false);
   interpretSessionId=null;
   questionCreditInfo=null;
@@ -4656,8 +5329,8 @@ function clearChatState(){
   document.getElementById('chatPanel').style.display='none';
   updateChatBackLabel();
   updateRemainingUI();
-  document.getElementById('chatInput').disabled=false;
-  document.getElementById('chatSendBtn').disabled=false;
+  document.getElementById('chatInput').disabled=chatInputLocked();
+  document.getElementById('chatSendBtn').disabled=chatInputLocked();
 }
 
 function backToReportsList(){
@@ -4674,12 +5347,14 @@ function resetForAccountChange(){
   chatViewId++;
   tzPickerFlowId++;
   hideReportReadyNotice();
+  hideResumeNotice();
   const area=document.getElementById('interpretArea');
   const wasShowing=historyReport||reportsPanelVisible()||document.getElementById('chatPanel').style.display!=='none';
   historyReport=false;
   clearReportsState();
   document.getElementById('reportsPanel').style.display='none';
   clearChatState(); // önceki hesabın raporu (geçmişten ya da yeni) ekranda kalmaz
+  renderPendingList();
   if(wasShowing){
     if(lastChartId)document.getElementById('categoryPanel').style.display='block';
     else area.style.display='none';
@@ -4702,7 +5377,7 @@ function openReportsFromNotice(){
 
 function refreshReportsLocale(){
   updateChatBackLabel();
-  if(reportsPanelVisible())renderReportsList();
+  if(reportsPanelVisible()){ renderReportsList(); renderPendingList(); }
   if(historyReport)document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(currentCategory);
 }
 
@@ -4714,6 +5389,7 @@ fetchCreditBalance();
 checkMagicLinkToken();
 initBirthCountry();
 loadSkyToday();
+scanPending(true); // bu sekmede yarım kalan istekler (aynı id ve gövdeyle)
 </script>
 </body>
 </html>
