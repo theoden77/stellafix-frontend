@@ -272,6 +272,9 @@
   .pending-item-status{flex-basis:100%;font-size:12px;opacity:.75;}
   .pending-resume{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;}
   .pending-resume:disabled{opacity:.5;cursor:default;}
+  .pending-notes{margin-top:8px;}
+  .pending-note{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--rule);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px;}
+  .pending-note-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:transparent;border:1px solid var(--lapis);border-radius:8px;padding:5px 11px;cursor:pointer;}
   .report-ready-toast .toast-close{background:none;border:none;font-size:18px;line-height:1;color:var(--ink);opacity:.5;cursor:pointer;padding:0 2px;}
   #astroWheel{width:100%;max-width:440px;cursor:zoom-in;}
   /* 8. tur: tipografi R'nin kesri olarak küçültüldü - küçük satır-içi wheel'de
@@ -614,8 +617,12 @@
         <button type="button" class="chat-back-btn" id="reportsCloseBtn" onclick="closeReportsList()">Kapat</button>
       </div>
       <div class="pending-list" id="pendingList" style="display:none">
-        <div class="pending-list-title" data-i18n="pendingListTitle">Yarım kalan istekler</div>
+        <div class="pending-list-title" id="pendingItemsTitle" data-i18n="pendingListTitle">Yarım kalan istekler</div>
         <div id="pendingItems"></div>
+        <div class="pending-notes" id="pendingNotesBox" style="display:none">
+          <div class="pending-list-title" data-i18n="pendingNotesTitle">Sonuçlanan istekler</div>
+          <div id="pendingNotes"></div>
+        </div>
       </div>
       <div class="reports-list" id="reportsList"></div>
       <div class="reports-status" id="reportsStatus" style="display:none"></div>
@@ -846,6 +853,7 @@ const I18N = {
     errSpendChanged: "Bu raporun bedeli değişti: artık 1 rapor hakkı kullanılacak.",
     errSomethingWrong: "Bir şeyler ters gitti, tekrar dene.",
     pendingListTitle: "Yarım kalan istekler",
+    pendingNotesTitle: "Sonuçlanan istekler",
     pendingItemReport: "Yarım kalan istek: {category}",
     pendingItemQuestion: "Yarım kalan soru",
     btnResume: "Sürdür",
@@ -1085,6 +1093,7 @@ const I18N = {
     errSpendChanged: "The cost of this report changed: 1 report credit will now be used.",
     errSomethingWrong: "Something went wrong, please try again.",
     pendingListTitle: "Unfinished requests",
+    pendingNotesTitle: "Finished requests",
     pendingItemReport: "Unfinished request: {category}",
     pendingItemQuestion: "Unfinished question",
     btnResume: "Resume",
@@ -4925,7 +4934,12 @@ function applyGenResult(rec,out,ctx){
     renderPendingList();
     return;
   }
-  if(!sameView)return;
+  if(!sameView){
+    // Kullanıcı başka bir ekranda: kesin sonuç Raporlarım'da not olarak kalır
+    // (yalnızca isteği gönderen hesapta - hesap yukarıda kontrol edildi).
+    if(rec.kind==='start'&&out.final){ addPendingNote(rec,genOutcomeKey(rec,out),out); renderPendingList(); }
+    return;
+  }
   showChatLoading(false);
   showGenError(rec,out,ctx);
 }
@@ -5512,10 +5526,13 @@ async function resumeFromList(rec){
   applyGenResult(rec,out,{live:false,view});
   renderPendingList();
 }
+// Notlar hesap + request_id ile tekildir: aynı isteğin sonucu iki kez not düşmez.
 function addPendingNote(rec,key,out){
+  const account=currentAccountKey();
+  if(pendingNotes.some(n=>n.account===account&&n.requestId===rec.request_id))return;
   const err=out&&out.status===409&&out.body&&out.body.error;
   const source=(err==='request_failed'||err==='generation_expired')?regenForceSource(rec):null;
-  pendingNotes.push({account:currentAccountKey(),kind:rec.kind,category:pendingFields(rec).category,key,source});
+  pendingNotes.push({account,requestId:rec.request_id,kind:rec.kind,category:pendingFields(rec).category,key,source});
 }
 function pendingLabel(kind,category){
   return kind==='start'?t('pendingItemReport').replace('{category}',reportCategoryTitle(category)):t('pendingItemQuestion');
@@ -5550,9 +5567,10 @@ function renderPendingList(){
     }
     return row;
   });
-  for(const n of notes){
+  // Notlar yarım istek değildir: ayrı alt başlık, ayrı görünüm, sürdürme düğmesi yok.
+  const noteRows=notes.map(n=>{
     const row=document.createElement('div');
-    row.className='pending-item pending-note';
+    row.className='pending-note';
     const label=document.createElement('span');
     label.className='pending-item-label';
     label.textContent=pendingLabel(n.kind,n.category);
@@ -5563,15 +5581,18 @@ function renderPendingList(){
     if(n.source){
       const b=document.createElement('button');
       b.type='button';
-      b.className='pending-resume pending-prev-report';
+      b.className='pending-note-btn pending-prev-report';
       b.textContent=t('btnOpenPreviousReport');
       b.onclick=()=>openHistoryReport(n.source);
       row.appendChild(b);
     }
-    rows.push(row);
-  }
+    return row;
+  });
   document.getElementById('pendingItems').replaceChildren(...rows);
-  box.style.display=rows.length?'block':'none';
+  document.getElementById('pendingItemsTitle').style.display=rows.length?'':'none';
+  document.getElementById('pendingNotes').replaceChildren(...noteRows);
+  document.getElementById('pendingNotesBox').style.display=noteRows.length?'':'none';
+  box.style.display=rows.length||noteRows.length?'block':'none';
 }
 
 // ============================================================

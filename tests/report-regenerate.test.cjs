@@ -801,3 +801,127 @@ test('B a forced /start in flight: a new flow on the same source never sends a s
     assert.equal(await pendingKeys(page).then(k => k.includes(keyFor('u1', first))), true, 'the in-flight record is kept');
   } finally { await context.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// C: a final failure that arrives while the user is elsewhere -> a note
+// ---------------------------------------------------------------------------
+const FAIL = { request_failed: 'İstek tamamlanamadı, hakkın iade edildi.', generation_expired: 'Yanıt süre sınırını aştı, hakkın iade edildi.' };
+const LEAVE_TO = {
+  reports: async page => { await openReports(page); },
+  'another report': async page => { await openSource(page, 'OTHER'); },
+};
+async function forcedStartHeld(err, extra = {}) {
+  const hold = gate();
+  const r = await setup({
+    others: [sess('OTHER')], quote: seq(Q.none(SRC), Q.sub), ...extra,
+    start: () => hold.wait().then(() => [409, { error: err, detail: 'x' }]),
+  });
+  await r.page.click('#regenBtn');
+  await r.page.waitForSelector('.regen-confirm-btn');
+  await r.page.click('.regen-confirm-btn');
+  await until(() => r.calls.start.length === 1, '/start');
+  return { ...r, hold };
+}
+for (const err of Object.keys(FAIL)) {
+  for (const where of Object.keys(LEAVE_TO)) {
+    test(`C forced /start ${err} arrives while on ${where}: a note in My reports with "Önceki raporu aç" (source), no "Sürdür", record deleted`, async () => {
+      const { context, page, calls, hold } = await forcedStartHeld(err);
+      try {
+        await LEAVE_TO[where](page);
+        const resp = page.waitForResponse(r => r.url().endsWith('/interpret/start'));
+        hold.open();
+        await resp;
+        await page.waitForFunction(() => Object.keys(sessionStorage).every(k => !k.startsWith('stellafix_pending_interpret:')));
+        await openReports(page);
+        await page.waitForSelector('#pendingNotes .pending-note .pending-prev-report');
+        assert.ok((await text(page, '#pendingNotes .pending-note')).includes(FAIL[err]));
+        assert.equal(await count(page, '#pendingNotes .pending-resume'), 0, 'no "Sürdür" on a note');
+        assert.equal(await count(page, '#pendingNotes .pending-item'), 0, 'not styled as an unfinished request');
+        assert.equal(await page.$eval('#pendingItemsTitle', e => e.style.display), 'none', 'no "Yarım kalan istekler" title without unfinished requests');
+        assert.ok((await text(page, '#pendingNotesBox')).includes('Sonuçlanan istekler'));
+        const before = calls.detail.length;
+        await page.click('#pendingNotes .pending-prev-report');
+        await page.waitForSelector(`.chat-bubble.assistant >> text=Rapor metni ${SRC}`);
+        assert.deepEqual(calls.detail.slice(before), [SRC]);
+        assert.equal(calls.start.length, 1);
+      } finally { await context.close(); }
+    });
+  }
+
+  test(`C forced /start ${err}: the account changes before the response -> no note for the new account`, async () => {
+    let tok = U2;
+    const { context, page, hold } = await forcedStartHeld(err, { verify: () => tok });
+    try {
+      await logoutViaMenu(page);
+      await loginAs(page, U2);
+      const resp = page.waitForResponse(r => r.url().endsWith('/interpret/start'));
+      hold.open();
+      await resp;
+      await settle(page);
+      await openReports(page);
+      await settle(page);
+      assert.equal(await count(page, '.pending-note'), 0, 'no note on the new account');
+      // Back to the first account: report what is shown.
+      await logoutViaMenu(page);
+      tok = U1;
+      await loginAs(page, tok);
+      await openReports(page);
+      await settle(page);
+      assert.equal(await count(page, '.pending-note'), 0, 'the old result is not carried over to a later login either');
+      assert.deepEqual(await pendingKeys(page), [], 'no record');
+    } finally { await context.close(); }
+  });
+}
+
+test('C the same result handled twice (live path and a resume) gives one note', async () => {
+  const { context, page } = await setup({ open: false });
+  try {
+    const n = await page.evaluate(() => {
+      const rec = makePendingRecord('start', { chart_id: 'chart-1', category: 'personality', language: 'tr', force_regenerate: true }, 'subscription');
+      rec.source_session_id = 'src-session-77';
+      const out = { ok: false, status: 409, body: { error: 'request_failed' }, final: true, account: currentAccountKey() };
+      applyGenResult(rec, out, { live: true, view: chatViewId - 1 }); // live, another view
+      applyGenResult(rec, out, { live: false, view: chatViewId });     // resume on load
+      return pendingNotes.length;
+    });
+    assert.equal(n, 1);
+    await openReports(page);
+    assert.equal(await count(page, '#pendingNotes .pending-note'), 1);
+  } finally { await context.close(); }
+});
+
+test('C notes are cleared on an explicit logout', async () => {
+  const { context, page, calls, hold } = await forcedStartHeld('request_failed', { verify: () => U1 });
+  try {
+    await openReports(page);
+    const resp = page.waitForResponse(r => r.url().endsWith('/interpret/start'));
+    hold.open();
+    await resp;
+    await page.waitForSelector('#pendingNotes .pending-note');
+    await logoutViaMenu(page);
+    await loginAs(page, U1);
+    await openReports(page);
+    await settle(page);
+    assert.equal(await count(page, '.pending-note'), 0);
+    assert.equal(calls.start.length, 1);
+  } finally { await context.close(); }
+});
+
+test('C unforced /start request_failed while elsewhere: a note without "Önceki raporu aç"', async () => {
+  const hold = gate();
+  const { context, page } = await setup({
+    others: [sess('OTHER')], quote: Q.sub, start: () => hold.wait().then(() => [409, { error: 'request_failed', detail: 'x' }]),
+  });
+  try {
+    await page.click('#regenBtn');
+    await page.waitForSelector('.regen-confirm-btn');
+    await page.click('.regen-confirm-btn');
+    await openSource(page, 'OTHER');
+    const resp = page.waitForResponse(r => r.url().endsWith('/interpret/start'));
+    hold.open();
+    await resp;
+    await openReports(page);
+    await page.waitForSelector('#pendingNotes .pending-note');
+    assert.equal(await count(page, '.pending-prev-report'), 0);
+  } finally { await context.close(); }
+});
