@@ -850,6 +850,7 @@ const I18N = {
     resumingNotice: "{n} yarım kalan isteğin sürdürülüyor",
     pausedLabel: "Bekleme durduruldu",
     msgConnectionRetrying: "Bağlantı sorunu, yeniden deneniyor…",
+    msgAutoRetryStopped: "Otomatik deneme durdu. İstek sunucuda tamamlanmış olabilir; aynı isteği tekrar gönderebilirsin.",
     msgLongWait: "Bu biraz uzun sürebilir.",
     errPrepProblem: "Rapor hazırlanırken bir sorun olmuş olabilir; birkaç dakika sonra tekrar dene.",
     errChartNotFound: "Harita bulunamadı, yeniden hesapla.",
@@ -1077,6 +1078,7 @@ const I18N = {
     resumingNotice: "Resuming {n} unfinished request(s)",
     pausedLabel: "Waiting stopped",
     msgConnectionRetrying: "Connection problem, retrying…",
+    msgAutoRetryStopped: "Automatic retries stopped. The request may have completed on the server; you can send the same request again.",
     msgLongWait: "This may take a while.",
     errPrepProblem: "Something may have gone wrong while preparing the report; please try again in a few minutes.",
     errChartNotFound: "The chart couldn't be found; please calculate it again.",
@@ -4682,11 +4684,17 @@ function renderWaitBubble(w,key){
 function expireWaiter(w){
   waiters.delete(flightKey(w.rec));
   w.gen++;
+  // Süre doldu: tek metin. Okuma hatasıyla biten report_not_ready beklemesi kendi mesajını gösterir.
+  const key=w.loop.remaining()<=0?'msgAutoRetryStopped':(w.lastKey||'msgConnectionProblem');
   if(pendingExists(w.rec))setPendingPaused(w.rec,true);
-  if(w.lastKey)pendingStatus.set(w.rec.request_id,w.lastKey);
+  pendingStatus.set(w.rec.request_id,key);
   renderPendingList();
-  if(waiterLiveHere(w))renderWaitBubble(w,w.lastKey||'msgConnectionProblem');
-  if(w.ui)expiredWaitUi.set(flightKey(w.rec),w.ui);
+  if(waiterLiveHere(w))renderWaitBubble(w,key);
+  if(w.ui){
+    setWaitStatus(w.ui,null);
+    w.ui.info.textContent=''; w.ui.info.style.display='none'; // süre doldu: 60 sn bilgisi kalmaz
+    expiredWaitUi.set(flightKey(w.rec),w.ui);
+  }
 }
 function enqueueResend(w){
   const gen=w.gen;

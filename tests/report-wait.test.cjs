@@ -95,6 +95,20 @@ function logReads() {
   };
 }
 const reads = (page, path) => page.evaluate(p => window.__reads.filter(r => r.path === p), path);
+const EXPIRY = {
+  tr: { text: 'Otomatik deneme durdu. İstek sunucuda tamamlanmış olabilir; aynı isteği tekrar gönderebilirsin.', waiting: [/İsteğin hâlâ işleniyor\./, /Rapor hâlâ hazırlanıyor\./, /Bu biraz uzun sürebilir\./] },
+  en: { text: 'Automatic retries stopped. The request may have completed on the server; you can send the same request again.', waiting: [/Your request is still being processed\./, /The report is still being prepared\./, /This may take a while\./] },
+};
+// After the window: the bubble shows only the expiry text and its buttons.
+async function expectExpiryText(page, locale) {
+  const e = EXPIRY[locale];
+  await untilAsync(async () => (await text(page, '#chatMessages')).includes(e.text), `the ${locale} expiry text`);
+  const all = await text(page, '#chatMessages');
+  for (const re of e.waiting) assert.ok(!re.test(all), `no ${re} after the window`);
+  assert.equal(await page.locator('.wait-info:visible').count(), 0, 'no 60 s notice after the window');
+  assert.equal(await count(page, '.pending-retry-btn'), 1, '"Tekrar dene" stays');
+  assert.equal(await count(page, '.pending-stop-btn'), 1, '"Beklemeyi durdur" stays');
+}
 const stopped = (page, key) => page.waitForFunction(k => { const r = sessionStorage.getItem(k); return r && JSON.parse(r).paused === true; }, key);
 
 // ---------------------------------------------------------------------------
@@ -121,6 +135,7 @@ test('9 approved: request_in_progress is resent with the same id and bytes after
     assert.equal((await pendingRecord(page, key)).paused, false);
     await page.clock.fastForward(2_000);
     await stopped(page, key);
+    await expectExpiryText(page, 'tr');
     await page.clock.fastForward(600_000);
     await nextFrame(page);
     assert.equal((await sendTimes(page)).length, 13, 'no automatic request after the window');
@@ -290,7 +305,7 @@ test('21 automatic: a hung /start is aborted at 180 s, resent automatically with
     for (let i = 0; i < 12; i++) await page.clock.fastForward(50_000);
     await nextFrame(page);
     assert.equal(calls.start.length, 2, 'no automatic request after the window');
-    assert.match(await text(page, '#chatMessages'), /Bağlantı sorunu oluştu\. Aynı isteği tekrar gönderebilirsin\./, 'the final message after the window');
+    assert.match(await text(page, '#chatMessages'), /Otomatik deneme durdu\. İstek sunucuda tamamlanmış olabilir; aynı isteği tekrar gönderebilirsin\./, 'the final message after the window');
   } finally { await context.close(); }
 });
 
@@ -645,6 +660,41 @@ for (const [label, result, shown] of [
       assert.equal(calls.quote.length, 4, 'no further check');
       assert.equal(calls.start.length, 0);
     } finally { await context.close(); }
+  });
+}
+
+for (const locale of ['tr', 'en']) {
+  test(`expiry text (${locale}): an approved /start and a report_not_ready wait both end with the expiry text only`, async () => {
+    const r1 = await openPage({ clock: true, start: () => RIP });
+    try {
+      await r1.page.evaluate(l => setLocale(l), locale);
+      await clickCategory(r1.page, 'personality');
+      await until(() => r1.calls.start.length === 1, 'the first send');
+      const key = keyFor('u1', r1.calls.start[0].body.request_id);
+      await driveUntil(r1.page, async () => (await pendingRecord(r1.page, key)).paused === true, { what: 'the end of the window' });
+      await expectExpiryText(r1.page, locale);
+    } finally { await r1.context.close(); }
+
+    const A = sess('A');
+    let reads = 0;
+    const r2 = await openPage({
+      clock: true, chart: false, history: () => [A],
+      detail: () => (++reads === 1 ? detailOf('A') : { ...detailOf('A'), status: 'pending' }),
+      cont: () => [409, { error: 'report_not_ready', detail: 'x' }],
+    });
+    try {
+      await r2.page.evaluate(l => setLocale(l), locale);
+      await openReports(r2.page);
+      await r2.page.click('#reportsList .report-row[data-session-id="A"]');
+      await r2.page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni A');
+      await r2.page.fill('#chatInput', 'Soru');
+      await r2.page.click('#chatSendBtn');
+      await until(() => r2.calls.continue.length === 1, 'the /continue');
+      const key = keyFor('u1', r2.calls.continue[0].body.request_id);
+      await driveUntil(r2.page, async () => (await pendingRecord(r2.page, key)).paused === true, { step: 10_000, what: 'the end of the window' });
+      await expectExpiryText(r2.page, locale);
+      assert.equal(r2.calls.continue.length, 1, 'still polling only, never resent');
+    } finally { await r2.context.close(); }
   });
 }
 
