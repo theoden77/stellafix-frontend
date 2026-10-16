@@ -741,3 +741,26 @@ test('x: a late "Try again" /balance does not overwrite the same report reopened
     assert.equal(calls.balance.length, 3);
   } finally { await context.close(); }
 });
+
+test('y: the My reports top button reads "Kapat" without a chart and "Kategorilere dön" once a chart exists, in both languages', async () => {
+  const { context, page } = await openPage();
+  try {
+    await openReports(page);
+    assert.equal(await page.textContent('#reportsCloseBtn'), 'Kapat');
+    await page.evaluate(() => setLocale('en'));
+    assert.equal(await page.textContent('#reportsCloseBtn'), 'Close');
+    await page.evaluate(() => setLocale('tr'));
+    await page.click('#reportsCloseBtn');
+    assert.equal(await visible(page, '#reportsPanel'), false);
+    assert.equal(await visible(page, '#interpretArea'), false, 'back on the main screen');
+
+    await page.evaluate(() => showInterpretArea('chart-1'));
+    await openReports(page);
+    assert.equal(await page.textContent('#reportsCloseBtn'), '← Kategorilere dön');
+    await page.evaluate(() => setLocale('en'));
+    assert.equal(await page.textContent('#reportsCloseBtn'), '← Back to categories');
+    await page.click('#reportsCloseBtn');
+    assert.equal(await visible(page, '#categoryPanel'), true, 'back on the categories');
+    assert.equal(await visible(page, '#reportsPanel'), false);
+  } finally { await context.close(); }
+});

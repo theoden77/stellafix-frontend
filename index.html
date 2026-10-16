@@ -610,7 +610,7 @@
     <div class="panel" id="reportsPanel" style="display:none">
       <div class="chat-panel-head">
         <div class="panel-title" data-i18n="reportsTitle">Raporlarım</div>
-        <button type="button" class="chat-back-btn" id="reportsCloseBtn" onclick="closeReportsList()" data-i18n="reportsClose">Kapat</button>
+        <button type="button" class="chat-back-btn" id="reportsCloseBtn" onclick="closeReportsList()">Kapat</button>
       </div>
       <div class="pending-list" id="pendingList" style="display:none">
         <div class="pending-list-title" data-i18n="pendingListTitle">Yarım kalan istekler</div>
@@ -3875,6 +3875,7 @@ function chatRemainingText(info){
 
 function showInterpretArea(chartId){
   lastChartId=chartId||null;
+  updateReportsCloseLabel();
   const area=document.getElementById('interpretArea');
   if(lastChartId){
     resetInterpretArea();
@@ -5389,6 +5390,12 @@ function readErrorKey(status){
   if(status===429)return 'errRateLimited';
   return 'chatErrorMessage';
 }
+// Raporlarım'ın üst düğmesi: bu sayfa oturumunda hesaplanmış bir harita varsa
+// kategorilere döner, yoksa ana ekrana kapanır (davranış: closeReportsList).
+function updateReportsCloseLabel(){
+  const btn=document.getElementById('reportsCloseBtn');
+  if(btn)btn.textContent=t(lastChartId?'btnBackToCategories':'reportsClose');
+}
 function updateChatBackLabel(){
   const btn=document.getElementById('chatBackBtn');
   if(btn)btn.textContent=t(historyReport?'btnBackToReports':'btnBackToCategories');
@@ -5459,6 +5466,7 @@ function showReportsPanel(){
   document.getElementById('categoryPanel').style.display='none';
   document.getElementById('chatPanel').style.display='none';
   document.getElementById('reportsPanel').style.display='block';
+  updateReportsCloseLabel();
   renderReportsList();
   renderPendingList();
 }
@@ -5774,6 +5782,7 @@ function resetForAccountChange(){
   tzPickerFlowId++;
   hideReportReadyNotice();
   hideResumeNotice();
+  updateReportsCloseLabel();
   const area=document.getElementById('interpretArea');
   const wasShowing=historyReport||reportsPanelVisible()||document.getElementById('chatPanel').style.display!=='none';
   historyReport=false;
@@ -5803,6 +5812,7 @@ function openReportsFromNotice(){
 
 function refreshReportsLocale(){
   updateChatBackLabel();
+  updateReportsCloseLabel();
   if(reportsPanelVisible()){ renderReportsList(); renderPendingList(); }
   if(historyReport)document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(currentCategory);
 }
@@ -5810,6 +5820,7 @@ function refreshReportsLocale(){
 document.addEventListener('click',e=>{if(!e.target.closest('.form-group')){closeDropdown();closeCountryDropdown();}});
 document.getElementById('birthDate').addEventListener('change',onDateChange);
 applyStaticText();
+updateReportsCloseLabel();
 updateAuthUI();
 fetchCreditBalance();
 checkMagicLinkToken();
