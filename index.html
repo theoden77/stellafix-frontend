@@ -4587,6 +4587,16 @@ async function pumpAuto(){
 
 // Onaylı bir isteğin beklemesi (kayıt başına bir tane).
 const waiters=new Map(); // flightKey -> waiter
+// Süresi dolmuş beklemenin balonu (flightKey -> ui). Aynı kimlik için sonraki
+// elle tekrarın sonucuna bağlanır: yine beklenebilirse yeni bekleme bu balonu
+// kullanır, değilse balon kaldırılır. Böylece aynı hesap ve kimlik için ekranda
+// en fazla bir bekleme/süre-doldu balonu olur.
+const expiredWaitUi=new Map();
+function takeExpiredUi(rec){
+  const key=flightKey(rec), ui=expiredWaitUi.get(key);
+  expiredWaitUi.delete(key);
+  return ui&&ui.bubble.isConnected?ui:null;
+}
 function isAutoWaitable(out){
   if(out.ok||out.final||out.stopped)return false;
   if(out.net||out.status>=500||out.status===429)return true;
@@ -4615,11 +4625,14 @@ function retireWaiter(w){
 function stopWaiter(rec){
   const w=waiters.get(flightKey(rec));
   if(w)retireWaiter(w);
+  const old=takeExpiredUi(rec);
+  if(old)old.bubble.remove();
 }
 // Hesap değişti: başka hesaba ait beklemeler biter.
 function retireForeignWaiters(){
   const account=currentAccountKey();
   for(const w of [...waiters.values()]){ if(w.account!==account)retireWaiter(w); }
+  for(const [key,ui] of [...expiredWaitUi]){ if(!ui.bubble.isConnected)expiredWaitUi.delete(key); }
   for(const flow of [...quoteLoops]){ if(flow.account!==account)retireQuoteLoop(flow); }
 }
 function waiterLiveHere(w){ return w.ctx.live&&w.ctx.view===chatViewId&&w.account===currentAccountKey(); }
@@ -4629,7 +4642,8 @@ function handleWait(rec,out,ctx){
   let w=activeWaiter(rec);
   if(!w){
     const started=requestWindows.get(rec.request_id);
-    w={rec,ctx,account:out.account,gen:0,ui:null,lastKey:null,mode:null};
+    w={rec,ctx,account:out.account,gen:0,ui:takeExpiredUi(rec),lastKey:null,mode:null};
+    if(w.ui){ setWaitStatus(w.ui,null); w.ui.info.style.display='none'; } // yeni pencere: eski bilgi satırı gizlenir
     w.loop=new WaitLoop({delays:GEN_RETRY_DELAYS_MS,startedAt:started===undefined?Date.now():started,
       valid:()=>w.account===currentAccountKey(),
       expire:()=>expireWaiter(w),
@@ -4672,6 +4686,7 @@ function expireWaiter(w){
   if(w.lastKey)pendingStatus.set(w.rec.request_id,w.lastKey);
   renderPendingList();
   if(waiterLiveHere(w))renderWaitBubble(w,w.lastKey||'msgConnectionProblem');
+  if(w.ui)expiredWaitUi.set(flightKey(w.rec),w.ui);
 }
 function enqueueResend(w){
   const gen=w.gen;

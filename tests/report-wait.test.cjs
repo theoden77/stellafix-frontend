@@ -649,6 +649,97 @@ for (const [label, result, shown] of [
 }
 
 // ---------------------------------------------------------------------------
+// The expired wait's bubble follows the next manual retry of the same id
+// ---------------------------------------------------------------------------
+const waitBubbles = page => page.evaluate(() => [...document.querySelectorAll('#chatMessages .chat-bubble')]
+  .filter(b => b.querySelector('.pending-retry-btn, .pending-stop-btn')).length);
+async function expectCleanAfterExpiry(page) {
+  await expectNoLeftoverWait(page);
+  const all = await text(page, '#chatMessages');
+  assert.ok(!/Otomatik deneme durdu\./.test(all), 'no expiry text left');
+  assert.ok(!/Bağlantı sorunu oluştu\./.test(all), 'no connection text left');
+  assert.equal(await waitBubbles(page), 0, 'no waiting bubble left');
+}
+// Drives an approved /start that always gets request_in_progress to the end of its window.
+async function expireApproved(page, calls) {
+  await clickCategory(page, 'personality');
+  await untilSends(page, 1);
+  await until(() => calls.start.length === 1, 'the first send');
+  const key = keyFor('u1', calls.start[0].body.request_id);
+  await driveUntil(page, async () => (await pendingRecord(page, key)).paused === true, { what: 'the end of the window' });
+  await nextFrame(page);
+  assert.equal(await waitBubbles(page), 1, 'one bubble after expiry');
+  return key;
+}
+
+test('expired wait, "Tekrar dene" → 200: the report shows and no waiting or expiry bubble, 60 s notice or active button is left; nothing more is sent', async () => {
+  let manual = false;
+  const { context, page, calls } = await openPage({ clock: true, start: () => (manual ? startOk('S1') : RIP) });
+  try {
+    await expireApproved(page, calls);
+    const sent = calls.start.length;
+    manual = true;
+    await page.locator('.pending-retry-btn').last().click();
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+    await expectCleanAfterExpiry(page);
+    for (const step of [61_000, 331_000]) {
+      await page.clock.fastForward(step);
+      await nextFrame(page);
+      await expectCleanAfterExpiry(page);
+    }
+    assert.equal(calls.start.length, sent + 1, 'only the manual retry was sent');
+    assert.equal(calls.start[sent].raw, calls.start[0].raw);
+  } finally { await context.close(); }
+});
+
+test('expired wait, "Tekrar dene" → 409 again: exactly one waiting bubble; the new window resends the same id and bytes; then 200 leaves it clean', async () => {
+  let manual = 0;
+  const { context, page, calls } = await openPage({ clock: true, start: () => (manual === 0 ? RIP : ++manual <= 2 ? RIP : startOk('S1')) });
+  try {
+    await expireApproved(page, calls);
+    const sent = calls.start.length;
+    manual = 1;
+    await page.locator('.pending-retry-btn').last().click();
+    await until(() => calls.start.length === sent + 1, 'the manual retry');
+    await untilAsync(async () => /İsteğin hâlâ işleniyor\./.test(await text(page, '#chatMessages')), 'the waiting text again');
+    assert.equal(await waitBubbles(page), 1, 'exactly one waiting bubble');
+    assert.equal(await count(page, '.pending-retry-btn'), 1, 'one "Tekrar dene"');
+    await expectAutoSend(page, 10_000);
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+    assert.equal(calls.start.length, sent + 2);
+    assert.ok(calls.start.every(c => c.raw === calls.start[0].raw), 'the same id and bytes throughout');
+    await expectCleanAfterExpiry(page);
+    for (const step of [61_000, 331_000]) {
+      await page.clock.fastForward(step);
+      await nextFrame(page);
+      await expectCleanAfterExpiry(page);
+    }
+    assert.equal(calls.start.length, sent + 2, 'nothing more is sent');
+  } finally { await context.close(); }
+});
+
+test('expired wait, "Sürdür" in My reports → 200: the expired bubble is removed and the report opens clean', async () => {
+  let manual = false;
+  const { context, page, calls } = await openPage({ clock: true, start: () => (manual ? startOk('S1') : RIP) });
+  try {
+    await expireApproved(page, calls);
+    const id = calls.start[0].body.request_id, sent = calls.start.length;
+    manual = true;
+    await openReports(page);
+    // The chat bubble is still in the page (behind the list) when "Sürdür" is pressed.
+    assert.equal(await waitBubbles(page), 1);
+    await page.click(`#pendingList .pending-item[data-request-id="${id}"] .pending-resume`);
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+    await expectCleanAfterExpiry(page);
+    assert.equal(await page.evaluate(() => expiredWaitUi.size), 0);
+    await page.clock.fastForward(331_000);
+    await nextFrame(page);
+    await expectCleanAfterExpiry(page);
+    assert.equal(calls.start.length, sent + 1);
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
 // Invariant: a new request_id only comes from a user action
 // ---------------------------------------------------------------------------
 test('a new request_id only comes from a user action; every automatic send carries an existing id and its first raw body', async () => {
