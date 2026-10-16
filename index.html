@@ -852,6 +852,8 @@ const I18N = {
     msgConnectionRetrying: "Bağlantı sorunu, yeniden deneniyor…",
     msgLongWait: "Bu biraz uzun sürebilir.",
     errPrepProblem: "Rapor hazırlanırken bir sorun olmuş olabilir; birkaç dakika sonra tekrar dene.",
+    errChartNotFound: "Harita bulunamadı, yeniden hesapla.",
+    errCategoryDisabledReadable: "Rapor okunabilir, yeni soru şu an alınamıyor.",
     errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
     tzPickerMissing: "Bu raporun tarihlerini kendi saatine göre verebilmemiz için şu an bulunduğun yeri seç: önce ülke, sonra şehir.",
     tzPickerInvalid: "Bulunduğun yerin saatini tanıyamadık. Lütfen şu an bulunduğun ülke ve şehri yeniden seç.",
@@ -1077,6 +1079,8 @@ const I18N = {
     msgConnectionRetrying: "Connection problem, retrying…",
     msgLongWait: "This may take a while.",
     errPrepProblem: "Something may have gone wrong while preparing the report; please try again in a few minutes.",
+    errChartNotFound: "The chart couldn't be found; please calculate it again.",
+    errCategoryDisabledReadable: "You can read the report, but new questions can't be taken right now.",
     errInvalidInput: "Something in your request wasn't valid, please try again.",
     tzPickerMissing: "To give this report's dates in your own time, choose where you are right now: first the country, then the city.",
     tzPickerInvalid: "We couldn't recognize the time where you are. Please choose your current country and city again.",
@@ -1869,8 +1873,10 @@ function interpretErrorInfo(status,body){
   if(status===403&&body&&body.error==='category_disabled'){
     // Kategori şu an kapalı: kayıtlı rapor okunur kalır. Raporlarım'dan açılmış
     // bir rapordaysak listeye dönüş sunulur.
-    if(historyReport)return{textKey:'errCategoryDisabled',ctaKey:'btnBackToReports',onCta:backToReportsList};
-    return{textKey:'errCategoryDisabled'};
+    // Açık bir rapordaysak rapor okunur kalır; yeni soru alınamaz.
+    const extraKey=interpretSessionId?'errCategoryDisabledReadable':null;
+    if(historyReport)return{textKey:'errCategoryDisabled',extraKey,ctaKey:'btnBackToReports',onCta:backToReportsList};
+    return{textKey:'errCategoryDisabled',extraKey};
   }
   if(status===403)return{textKey:'errForbidden',ctaKey:'ctaBackToCategories',onCta:backToCategories};
   if(status===404)return{textKey:'errNotFoundSession',ctaKey:'ctaBackToCategories',onCta:backToCategories};
@@ -1903,7 +1909,7 @@ function showInterpretError(status,body){
   const info=interpretErrorInfo(status,body);
   if(info.onShow)info.onShow();
   const action=info.ctaKey?{label:t(info.ctaKey),onClick:info.onCta}:null;
-  appendChatBubble('error',t(info.textKey),action);
+  appendChatBubble('error',info.extraKey?[t(info.textKey),t(info.extraKey)]:t(info.textKey),action);
 }
 
 // ============================================================
@@ -4779,6 +4785,7 @@ function genOutcomeKey(rec,out){
     if(err==='spend_changed')return 'errSpendChanged';
     return 'errSomethingWrong';
   }
+  if(s===404&&rec.kind==='start')return 'errChartNotFound'; // /start'ta 404 haritaya aittir
   if(s===402||s===403||s===404||s===422)return interpretErrorInfo(s,out.body).textKey;
   return 'chatErrorMessage';
 }
@@ -4866,6 +4873,7 @@ function showGenError(rec,out,ctx){
     appendChatBubble('error',t(key));
     return;
   }
+  if(rec.kind==='start'&&s===404){ appendChatBubble('error',t(key)); return; }
   if(rec.kind==='continue'&&s===402){
     loadReportBalance(interpretSessionId,currentAccountKey(),chatViewId);
     showAskAgain(rec,key,ctx,true);
@@ -5023,6 +5031,7 @@ async function runQuote(flow,mode){
     return;
   }
   if(resp.status===409){ appendChatBubble('error',t('errSomethingWrong')); return; }
+  if(resp.status===404){ appendChatBubble('error',t('errChartNotFound')); return; } // quote'ta 404 haritaya aittir
   showInterpretError(resp.status,body);
 }
 
