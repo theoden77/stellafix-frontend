@@ -591,6 +591,144 @@ test('an account change during a wait shows nothing on the new account and sends
 });
 
 // ---------------------------------------------------------------------------
+// A finished wait leaves no waiting bubble, buttons or 60 s notice behind
+// ---------------------------------------------------------------------------
+const activeButtons = (page, sel) => page.evaluate(s => [...document.querySelectorAll(s)].filter(b => b.isConnected && !b.disabled).length, sel);
+async function expectNoLeftoverWait(page) {
+  const all = await text(page, '#chatMessages');
+  assert.ok(!/İsteğin hâlâ işleniyor\./.test(all), 'no "İsteğin hâlâ işleniyor." left');
+  assert.ok(!/Bu rapor şu anda hazırlanıyor\./.test(all), 'no "Bu rapor şu anda hazırlanıyor." left');
+  assert.ok(!/Bu biraz uzun sürebilir\./.test(all), 'no 60 s notice');
+  for (const sel of ['.pending-retry-btn', '.pending-stop-btn', '.quote-check-btn', '.quote-stop-btn']) {
+    assert.equal(await activeButtons(page, sel), 0, `no active ${sel}`);
+  }
+}
+for (const [label, second, shown] of [
+  ['200', () => startOk('S1'), /Rapor metni S1/],
+  ['409 request_failed', () => [409, { error: 'request_failed', detail: 'raw' }], /İstek tamamlanamadı, hakkın iade edildi\./],
+]) {
+  test(`a finished wait (${label} on the first resend) leaves no waiting bubble, active buttons or 60 s notice; nothing more is sent`, async () => {
+    const { context, page, calls } = await openPage({ clock: true, start: (b, n) => (n === 1 ? RIP : second()) });
+    try {
+      await clickCategory(page, 'personality');
+      await untilSends(page, 1);
+      await expectAutoSend(page, 10_000);
+      await untilAsync(async () => shown.test(await text(page, '#chatMessages')), 'the result');
+      const t0 = (await sendTimes(page))[0].at;
+      await page.clock.fastForward(t0 + 61_000 - await pageNow(page));
+      await nextFrame(page);
+      await expectNoLeftoverWait(page);
+      await page.clock.fastForward(t0 + 331_000 - await pageNow(page));
+      for (let i = 0; i < 4; i++) await page.clock.fastForward(60_000);
+      await nextFrame(page);
+      await expectNoLeftoverWait(page);
+      assert.match(await text(page, '#chatMessages'), shown, 'the result stays');
+      assert.equal(calls.start.length, 2, 'no further request');
+      assert.equal(await page.evaluate(() => waiters.size), 0, 'the wait is gone');
+    } finally { await context.close(); }
+  });
+}
+
+for (const [label, result, shown] of [
+  ['(d) "Üret" button', Q.sub, '.quote-generate-btn'],
+  ['(c) none', Q.none('savedQ'), '.chat-bubble.assistant >> text=Rapor metni savedQ'],
+]) {
+  test(`a quote loop that ends with ${label} leaves no "hazırlanıyor" bubble, active check/stop buttons or 60 s notice`, async () => {
+    const { context, page, calls } = await openPage({ clock: true, quote: (b, n) => (n <= 3 ? GIP : result()) });
+    try {
+      await clickCategory(page, 'personality');
+      await page.waitForSelector('.quote-check-btn');
+      await driveUntil(page, async () => (await count(page, shown)) > 0, { step: 3_000, what: 'the end of the loop' });
+      for (let i = 0; i < 6; i++) await page.clock.fastForward(60_000);
+      await nextFrame(page);
+      await expectNoLeftoverWait(page);
+      assert.equal(calls.quote.length, 4, 'no further check');
+      assert.equal(calls.start.length, 0);
+    } finally { await context.close(); }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Invariant: a new request_id only comes from a user action
+// ---------------------------------------------------------------------------
+test('a new request_id only comes from a user action; every automatic send carries an existing id and its first raw body', async () => {
+  // rid-r was created by an earlier user action and is resumed on load.
+  const seed = [seedRecord('u1', 'rid-r', startBody('rid-r'), { created_at: 1 })];
+  const n = {};
+  const { context, page, calls } = await openPage({
+    clock: true, seed, credits: () => ({ report_credits: 3 }),
+    quote: b => (b.category === 'career' ? (++n.q === 1 || n.q === 2 ? GIP : Q.credit()) : Q.sub()),
+    start: b => {
+      const k = (n[b.request_id] = (n[b.request_id] || 0) + 1);
+      if (b.request_id === 'rid-r') return k === 1 ? [429, { error: 'rate_limited', detail: 'x' }] : startOk('S-r');
+      if (k === 1) return 'abort';           // network error
+      if (k === 2) return RIP;               // still in progress
+      return startOk(`S-${k}`);
+    },
+  });
+  n.q = 0;
+  const done = page => page.evaluate(() => Object.keys(sessionStorage).every(k => !k.startsWith('stellafix_pending_interpret:')));
+  try {
+    await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 3);
+    const userIds = ['rid-r'];
+    const firstNew = async () => {
+      await until(() => calls.start.some(c => !userIds.includes(c.body.request_id)), 'the id of the user action');
+      return calls.start.find(c => !userIds.includes(c.body.request_id)).body.request_id;
+    };
+    // User action 1: a normal category click with a subscription.
+    await clickCategory(page, 'personality');
+    userIds.push(await firstNew());
+    await driveUntil(page, async () => calls.start.filter(c => c.body.request_id === userIds[1]).length >= 3 && (await done(page)), { step: 2_000, maxSteps: 150, what: 'the first report and the resumed record' });
+    // User action 2: the priced "Üret" button after the quote check loop.
+    await page.click('#chatBackBtn');
+    await clickCategory(page, 'career');
+    await driveUntil(page, async () => (await count(page, '.quote-generate-btn')) > 0, { step: 3_000, what: 'the Üret button' });
+    assert.equal(calls.start.filter(c => !userIds.includes(c.body.request_id)).length, 0, 'the quote loop sent no /start');
+    await page.click('.quote-generate-btn');
+    userIds.push(await firstNew());
+    await driveUntil(page, async () => calls.start.filter(c => c.body.request_id === userIds[2]).length >= 3 && (await done(page)), { step: 2_000, maxSteps: 150, what: 'the second report' });
+
+    const seen = [...new Set(calls.start.map(c => c.body.request_id))];
+    assert.deepEqual([...seen].sort(), [...userIds].sort(), 'the ids on the network are exactly the ids of the user actions');
+    for (const id of seen) {
+      const raws = calls.start.filter(c => c.body.request_id === id).map(c => c.raw);
+      assert.ok(raws.every(r => r === raws[0]), `${id}: every send has the first raw body`);
+    }
+    assert.equal(calls.start.filter(c => c.body.request_id === 'rid-r')[0].raw, JSON.stringify(startBody('rid-r')));
+    assert.equal(calls.continue.length, 0);
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// After the window: "Tekrar kontrol et" gets 409 again
+// ---------------------------------------------------------------------------
+test('after the window, "Tekrar kontrol et" that gets 409 again starts one new bounded loop; it ends at 330 s with only "Tekrar kontrol et" and never sends /start', async () => {
+  const { context, page, calls } = await openPage({ clock: true, quote: () => GIP });
+  try {
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.quote-check-btn');
+    const expired = '.chat-bubble.error >> text=Rapor hazırlanırken bir sorun olmuş olabilir; birkaç dakika sonra tekrar dene.';
+    await driveUntil(page, async () => (await count(page, expired)) === 1, { what: 'the first expiry' });
+    const firstLoop = calls.quote.length;
+    await page.locator('.chat-bubble.error .quote-check-btn').last().click();
+    await until(() => calls.quote.length === firstLoop + 1, 'the check');
+    const checkedAt = await pageNow(page);
+    await page.waitForSelector('.quote-stop-btn');
+    await driveUntil(page, async () => (await count(page, expired)) === 2, { what: 'the second expiry' });
+    assert.ok(await pageNow(page) - checkedAt >= 329_000, 'the new loop runs its own 330 s window');
+    assert.ok(calls.quote.length - firstLoop > 2, 'the new loop polled');
+    assert.equal(calls.start.length, 0);
+    const polls = calls.quote.length;
+    for (let i = 0; i < 12; i++) await page.clock.fastForward(60_000);
+    await nextFrame(page);
+    assert.equal(calls.quote.length, polls, 'no loop starts by itself after the second expiry');
+    assert.equal(calls.start.length, 0);
+    assert.equal(await activeButtons(page, '.quote-stop-btn'), 0, 'nothing is waiting');
+    assert.equal(await activeButtons(page, '.quote-check-btn'), 1, 'only the expiry "Tekrar kontrol et"');
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
 // Early timer wake-up: the 10 s gap is still kept
 // ---------------------------------------------------------------------------
 // Runs after the fake clock: every timer of 1 s or more fires 100 ms early.
