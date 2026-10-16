@@ -627,7 +627,9 @@ test('21: a hung /start is aborted at 180 s and kept; a retry uses the rest of t
     await page.click('.pending-retry-btn');
     await until(() => calls.start.length === 2, 'manual retry');
     assert.equal(calls.start[1].raw, calls.start[0].raw);
-    await page.clock.fastForward(149_000);
+    // The window is counted from the first send, so the clock is moved to 329 s after it.
+    const firstSentAt = (await sendTimes(page))[0].at;
+    await page.clock.fastForward(Math.max(1, firstSentAt + 329_000 - await page.evaluate(() => Date.now())));
     await delay(100);
     assert.equal(net.failedStart, 1, 'still waiting inside the window');
     await page.clock.fastForward(2_000);

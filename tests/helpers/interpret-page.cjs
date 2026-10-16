@@ -90,7 +90,8 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
       if (m) {
         let id = null;
         try { id = JSON.parse(init && init.body).request_id; } catch (e) { /* not JSON */ }
-        const entry = { kind: m[1], request_id: id, at: Date.now(), respAt: null };
+        // timers: how many timers the page had asked for before this send (see __timers below).
+        const entry = { kind: m[1], request_id: id, at: Date.now(), respAt: null, timers: window.__timers ? window.__timers.length : 0 };
         window.__genSends.push(entry);
         const p = orig.apply(this, arguments);
         // Page clock when the response (or the network error) arrived.
@@ -103,6 +104,17 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
   });
   if (clock) await page.clock.install({ time: new Date('2026-10-15T10:00:00Z') });
   if (afterClock) await page.addInitScript(afterClock); // runs after the fake clock is installed
+  // Timers of 1 s or more as the page requests them: [{ms, at, firedAt}], page clock.
+  await page.addInitScript(() => {
+    window.__timers = [];
+    const orig = window.setTimeout;
+    window.setTimeout = function (fn, ms, ...args) {
+      if (typeof fn !== 'function' || !(ms >= 1000)) return orig.call(this, fn, ms, ...args);
+      const entry = { ms, at: Date.now(), firedAt: null };
+      window.__timers.push(entry);
+      return orig.call(this, function () { entry.firedAt = Date.now(); return fn.apply(this, arguments); }, ms, ...args);
+    };
+  });
   await page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.paddle\.com)\//, r => r.abort());
   await page.route(`${API}/**`, route => handleApi(route).catch(() => {}));
   async function handleApi(route) {

@@ -33,23 +33,32 @@ async function untilAsync(cond, what, ms = 5000) {
     await delay(10);
   }
 }
-// Expects the next automatic send `delayMs` after the previous result arrived:
-// nothing leaves the page 300 ms before that, and it leaves right after. The
-// delay is measured from the response, not from the previous send: under load
-// the fake page clock can step back a few hundred ms between the two.
+// Expects the next automatic send `delayMs` after the previous result: the
+// page asks for a timer of exactly `delayMs` after that result, nothing leaves
+// the page before the timer fires, and the send leaves right after it. Under
+// load the fake page clock can step back a few hundred ms, so the clock
+// boundaries are checked with a 1000 ms margin; the requested delay is exact.
 async function expectAutoSend(page, delayMs) {
   await untilAsync(async () => (await sendTimes(page)).slice(-1)[0].respAt !== null, 'the previous response');
   const log = await sendTimes(page);
   const prev = log[log.length - 1];
-  const early = prev.respAt + delayMs - 300 - await pageNow(page);
+  // A timer asked for after the previous send (by order, not by clock reading).
+  const findTimer = () => page.evaluate(([d, from]) => window.__timers.findLastIndex((x, i) => i >= from && x.ms === d), [delayMs, prev.timers]);
+  await untilAsync(async () => (await findTimer()) !== -1, `a ${delayMs} ms timer after the previous result`);
+  const index = await findTimer();
+  const timerOf = () => page.evaluate(i => window.__timers[i], index);
+  const timer = await timerOf();
+  const early = timer.at + delayMs - 1000 - await pageNow(page);
   if (early > 0) await page.clock.fastForward(early);
   await nextFrame(page);
   assert.equal((await sendTimes(page)).length, log.length, `nothing sent before ${delayMs} ms`);
-  await page.clock.fastForward(Math.max(1, prev.respAt + delayMs + 100 - await pageNow(page)));
+  await page.clock.fastForward(Math.max(1, timer.at + delayMs + 100 - await pageNow(page)));
   await untilSends(page, log.length + 1, `the send after ${delayMs} ms`);
   const next = (await sendTimes(page))[log.length];
-  const gap = next.at - prev.respAt;
-  assert.ok(gap >= delayMs && gap < delayMs + 1500, `send ${gap} ms after the previous result for an expected ${delayMs} ms delay`);
+  const fired = (await timerOf()).firedAt;
+  assert.ok(fired !== null && next.at >= fired, 'sent only after the timer fired');
+  const gap = next.at - timer.at;
+  assert.ok(gap >= delayMs - 1000 && gap < delayMs + 1500, `send ${gap} ms after the timer was set for an expected ${delayMs} ms delay`);
   return next;
 }
 // Advances the page clock in steps until cond() holds (or fails after maxSteps).
@@ -268,15 +277,8 @@ test('21 automatic: a hung /start is aborted at 180 s, resent automatically with
     await until(() => net.failedStart === 1, 'abort at 180 s');
     await page.waitForSelector('.pending-retry-btn');
     assert.match(await text(page, '#chatMessages'), /Bağlantı sorunu, yeniden deneniyor…/);
-    // The resend delay counts from the abort, not from the first send.
-    const abortedAt = await pageNow(page);
-    await page.clock.fastForward(9_500);
-    await nextFrame(page);
-    assert.equal((await sendTimes(page)).length, 1, 'nothing sent before 10 s');
-    await page.clock.fastForward(800);
-    await untilSends(page, 2, 'the resend 10 s after the abort');
-    const resendGap = (await sendTimes(page))[1].at - abortedAt;
-    assert.ok(resendGap >= 10_000 && resendGap < 11_500, `resend ${resendGap} ms after the abort`);
+    // The resend delay counts from the abort (the page-side failure), not from the first send.
+    await expectAutoSend(page, 10_000);
     await until(() => calls.start.length === 2, 'the mock saw the resend');
     assert.equal(calls.start[1].raw, calls.start[0].raw);
     await page.clock.fastForward(t0 + 329_000 - await pageNow(page));
@@ -508,6 +510,7 @@ test('resume on load: a 429 keeps the record and retries it with a doubled delay
     assert.deepEqual(log.map(e => e.request_id), ['rid-1', 'rid-2', 'rid-1']);
     assert.ok(log[2].at - log[0].respAt >= 20_000, 'the doubled delay: 20 s after the 429');
     for (let i = 1; i < 3; i++) assert.ok(log[i].at - log[i - 1].at >= 10_000, `>= 10 s apart (${log[i].at - log[i - 1].at} ms)`);
+    await until(() => calls.start.length === 3, 'the mock saw the retried record');
     assert.equal(calls.start[2].raw, calls.start[0].raw);
     assert.equal(net.max, 1);
     await page.waitForFunction(() => Object.keys(sessionStorage).every(k => !k.startsWith('stellafix_pending_interpret:')));
