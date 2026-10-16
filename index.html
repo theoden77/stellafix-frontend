@@ -4602,9 +4602,25 @@ function preemptWaiter(rec){
   const w=activeWaiter(rec);
   if(w){ w.gen++; w.loop.cancelTimer(); }
 }
+// Bekleme biter (başarı, kesin sonuç, durdurma, 401, hesap değişimi): döngü ve
+// 60 sn zamanlayıcısı durur, bekleme balonu kaldırılır. Kalıcı mesajlar
+// (rapor, hata metni) ayrı balonlardadır ve yerinde kalır.
+function retireWaiter(w){
+  w.gen++;
+  w.loop.stop();
+  if(waiters.get(flightKey(w.rec))===w)waiters.delete(flightKey(w.rec));
+  if(w.ui&&w.ui.bubble.isConnected)w.ui.bubble.remove();
+  w.ui=null;
+}
 function stopWaiter(rec){
   const w=waiters.get(flightKey(rec));
-  if(w){ w.gen++; w.loop.stop(); waiters.delete(flightKey(rec)); }
+  if(w)retireWaiter(w);
+}
+// Hesap değişti: başka hesaba ait beklemeler biter.
+function retireForeignWaiters(){
+  const account=currentAccountKey();
+  for(const w of [...waiters.values()]){ if(w.account!==account)retireWaiter(w); }
+  for(const flow of [...quoteLoops]){ if(flow.account!==account)retireQuoteLoop(flow); }
 }
 function waiterLiveHere(w){ return w.ctx.live&&w.ctx.view===chatViewId&&w.account===currentAccountKey(); }
 
@@ -4797,6 +4813,7 @@ function genOutcomeKey(rec,out){
 // (sendRecord), ekrana hiçbir şey basılmaz.
 function applyGenResult(rec,out,ctx){
   if(!out)return;
+  if(!isAutoWaitable(out)||out.account!==currentAccountKey())stopWaiter(rec); // bekleme bitti
   if(out.account!==currentAccountKey())return;
   const sameView=ctx.view===chatViewId;
   if(out.ok){
@@ -4830,7 +4847,7 @@ function applyGenResult(rec,out,ctx){
     notifyReportReady();
     return;
   }
-  if(out.status===401){ stopWaiter(rec); handleUnauthorized(); } // kayıt durur; aynı hesapla girişte sürdürülür
+  if(out.status===401)handleUnauthorized(); // kayıt durur; aynı hesapla girişte sürdürülür
   if(isAutoWaitable(out)){
     if(ctx.live&&sameView)showChatLoading(false);
     handleWait(rec,out,ctx);
@@ -4990,7 +5007,7 @@ async function runQuote(flow,mode){
     },loop?Math.min(READ_TIMEOUT_MS,loop.remaining()):READ_TIMEOUT_MS);
     body=resp.ok?await resp.json():await parseInterpretErrorBody(resp);
   }catch(e){ resp=null; }
-  if(!flowValid(flow)){ if(flow.loop)flow.loop.stop(); return; } // bayat yanıt: quote hiçbir şey harcamaz, atmak güvenli
+  if(!flowValid(flow)){ quoteLoops.delete(flow); if(flow.loop)flow.loop.stop(); return; } // bayat yanıt: quote hiçbir şey harcamaz, atmak güvenli
   if(loop&&loop.stopped)return; // "Beklemeyi durdur": yalnızca yoklama durur
   if(!loop)showChatLoading(false);
   const rateLimited=!!resp&&resp.status===429;
@@ -5005,8 +5022,8 @@ async function runQuote(flow,mode){
     startQuoteLoop(flow);
     return;
   }
-  // Buradan sonrası döngüyü bitirir.
-  if(flow.loop)flow.loop.stop();
+  // Buradan sonrası döngüyü bitirir; "hazırlanıyor" balonları kaldırılır.
+  retireQuoteLoop(flow);
   if(!resp){
     // İlk quote hiç sonuç vermediyse "Tekrar dene" ilk kategori eylemini aynen
     // yineler (subscription: onaysız /start, report_credit: onay ekranı); bu,
@@ -5039,20 +5056,35 @@ async function runQuote(flow,mode){
 // Quote 409 generation_in_progress: "hazırlanıyor" balonu ve otomatik kontrol.
 // Döngü pencere içinde sürer; "Tekrar kontrol et" hemen bir kontrol yapar,
 // "Beklemeyi durdur" yalnızca yoklamayı durdurur.
+// Quote döngüsü biter (sonuç, süre dolması, hesap değişimi): döngü ve 60 sn
+// zamanlayıcısı durur, "hazırlanıyor" balonları kaldırılır.
+const quoteLoops=new Set(); // döngüsü süren akışlar
+function retireQuoteLoop(flow){
+  quoteLoops.delete(flow);
+  if(flow.loop)flow.loop.stop();
+  for(const b of flow.loopBubbles||[]){ if(b.isConnected)b.remove(); }
+  flow.loopBubbles=[];
+  flow.loopUi=null;
+}
 function startQuoteLoop(flow){
   const bubble=appendChatBubble('notice',t('msgGenerationInProgress'),[
     {label:t('btnCheckAgain'),cls:'quote-check-btn',onClick:once(()=>{ if(flow.loop)flow.loop.cancelTimer(); runQuote(flow,'check'); })},
     {label:t('btnStopWaiting'),cls:'quote-stop-btn',onClick:once(()=>{
+      // Yalnızca yoklama durur; "Tekrar kontrol et" kullanıcı eylemi olarak kalır.
+      quoteLoops.delete(flow);
       if(flow.loop)flow.loop.stop();
       setWaitStatus(flow.loopUi,'pausedLabel');
     })},
   ]);
   flow.loopUi=attachWaitUi(bubble);
+  (flow.loopBubbles=flow.loopBubbles||[]).push(bubble);
+  quoteLoops.add(flow);
   let loop=flow.loop;
   if(!loop||loop.stopped){
     loop=new WaitLoop({delays:READ_POLL_DELAYS_MS,startedAt:Date.now(),valid:()=>flowValid(flow),
       expire:()=>{
         // Süre doldu: kendiliğinden /start yok; "Tekrar kontrol et" yeni bir quote yapar.
+        retireQuoteLoop(flow);
         appendChatBubble('error',t('errPrepProblem'),{label:t('btnCheckAgain'),cls:'quote-check-btn',onClick:once(()=>runQuote(flow,'check'))});
       },
       info:()=>setWaitInfo(flow.loopUi)});
@@ -5789,6 +5821,7 @@ function resetForAccountChange(){
   clearReportsState();
   document.getElementById('reportsPanel').style.display='none';
   clearChatState(); // önceki hesabın raporu (geçmişten ya da yeni) ekranda kalmaz
+  retireForeignWaiters();
   renderPendingList();
   if(wasShowing){
     if(lastChartId)document.getElementById('categoryPanel').style.display='block';
