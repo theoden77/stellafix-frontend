@@ -742,8 +742,8 @@ test('x: a late "Try again" /balance does not overwrite the same report reopened
   } finally { await context.close(); }
 });
 
-test('y: the My reports top button reads "Kapat" without a chart and "Kategorilere dön" once a chart exists, in both languages', async () => {
-  const { context, page } = await openPage();
+test('y: the My reports top button reads "Kapat" without a chart and "Kategorilere dön" once a chart exists, in both languages and after logging in again', async () => {
+  const { context, page } = await openPage({ verifyToken: U1 });
   try {
     await openReports(page);
     assert.equal(await page.textContent('#reportsCloseBtn'), 'Kapat');
@@ -762,5 +762,14 @@ test('y: the My reports top button reads "Kapat" without a chart and "Kategorile
     await page.click('#reportsCloseBtn');
     assert.equal(await visible(page, '#categoryPanel'), true, 'back on the categories');
     assert.equal(await visible(page, '#reportsPanel'), false);
+
+    // Logout and login again: the chart of this page session is still there.
+    await page.evaluate(() => setLocale('tr'));
+    await logoutViaMenu(page);
+    await loginAs(page, U1);
+    await openReports(page);
+    assert.equal(await page.textContent('#reportsCloseBtn'), '← Kategorilere dön');
+    await page.click('#reportsCloseBtn');
+    assert.equal(await visible(page, '#categoryPanel'), true, 'back on the categories after logging in again');
   } finally { await context.close(); }
 });
