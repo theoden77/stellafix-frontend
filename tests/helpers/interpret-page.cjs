@@ -61,7 +61,7 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
   subscribed = false, verify = null, seed = [], clock = false, chart = true, timezoneId = 'Europe/Istanbul', afterClock = null } = {}) {
   const context = await harness().browser.newContext({ timezoneId });
   const page = await context.newPage();
-  const calls = { quote: [], start: [], continue: [], detail: [], balance: [], history: [], credits: 0, log: [] };
+  const calls = { quote: [], start: [], continue: [], detail: [], balance: [], history: [], historyOffsets: [], credits: 0, log: [] };
   const net = { active: 0, max: 0, failedStart: 0, failedContinue: 0 };
   const isGen = u => /\/api\/v1\/interpret\/(start|continue)$/.test(u);
   page.on('request', r => { if (isGen(r.url())) { net.active += 1; net.max = Math.max(net.max, net.active); } });
@@ -89,7 +89,12 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
       if (m) {
         let id = null;
         try { id = JSON.parse(init && init.body).request_id; } catch (e) { /* not JSON */ }
-        window.__genSends.push({ kind: m[1], request_id: id, at: Date.now() });
+        const entry = { kind: m[1], request_id: id, at: Date.now(), respAt: null };
+        window.__genSends.push(entry);
+        const p = orig.apply(this, arguments);
+        // Page clock when the response (or the network error) arrived.
+        p.then(() => { entry.respAt = Date.now(); }, () => { entry.respAt = Date.now(); });
+        return p;
       }
       return orig.apply(this, arguments);
     };
@@ -112,8 +117,10 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
     }
     if (p === '/api/v1/auth/verify' && verify) return json(route, 200, { access_token: verify(), token_type: 'bearer' });
     if (p === '/api/v1/interpret/history') {
+      const offset = Number(url.searchParams.get('offset') || 0);
       calls.history.push(auth);
-      return json(route, 200, { sessions: await history(auth), limit: 20, offset: 0 });
+      calls.historyOffsets.push(offset);
+      return json(route, 200, { sessions: await history(auth, offset), limit: 20, offset });
     }
     if (p === '/api/v1/interpret/quote') {
       const raw = req.postData();
