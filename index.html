@@ -1926,11 +1926,13 @@ function timezoneErrorType(body){
 // Ayrıştırılmış hata gövdesini sohbet paneline basar (422 saat dilimi →
 // konum seçici). Çağıran taraf yanıtın hâlâ geçerli olduğunu (hesap, görünüm,
 // tz-picker akışı) önceden kontrol eder.
-function showInterpretError(status,body){
+// tzOwner: seçiciyi açan akış (bkz. showTimezonePicker); yoksa şehir seçimi
+// hiçbir istek göndermez.
+function showInterpretError(status,body,tzOwner){
   if(status===422){
     const tzError=timezoneErrorType(body);
-    if(tzError==='invalid'){ rejectSentTimezone(); showTimezonePicker('invalid'); return; }
-    if(tzError==='missing'){ showTimezonePicker('missing'); return; }
+    if(tzError==='invalid'){ rejectSentTimezone(); showTimezonePicker('invalid',tzOwner); return; }
+    if(tzError==='missing'){ showTimezonePicker('missing',tzOwner); return; }
   }
   const info=interpretErrorInfo(status,body);
   if(info.onShow)info.onShow();
@@ -4142,7 +4144,15 @@ function savePickedTimezone(tz){
 let tzPicker=null; // {cc, data:{admin1,cities}, norm:[...]}
 const TZ_PICKER_MAX_OPTIONS=10;
 
-function showTimezonePicker(reason){
+// Seçiciyi kimin açtığı açıkça işaretlenir: {flowId, run}. Şehir seçilince
+// yalnızca bu işaretin akışına dönülür (kategori akışı ya da yeniden üretimin
+// aynı adımı). İşaret yoksa ya da akış değiştiyse hiçbir şey gönderilmez.
+let tzPickerOwner=null;
+function categoryTzOwner(catId,flowId){
+  return {flowId,run:tzRetry=>selectCategory(catId,tzRetry)};
+}
+function showTimezonePicker(reason,owner){
+  tzPickerOwner=owner&&owner.flowId===tzPickerFlowId?owner:null;
   const wrap=document.getElementById('chatMessages');
   const old=document.getElementById('tzPickerPanel');
   if(old)old.remove();
@@ -4294,14 +4304,11 @@ async function pickTzCity(i){
   // kategori değişti ya da seçim ekranından çıkıldı - rapor BAŞLATMA. Seçilen
   // saat dilimi yine de kaydedildi, sonraki bir seçimde tekrar kullanılabilir.
   if(myFlowId!==tzPickerFlowId)return;
-  // Yeniden üretim: picker'ı açan adıma, yakalanan bağlamla döner; kategori tıklaması akışına düşmez.
-  if(regenTzResume&&regenTzResume.flowId===myFlowId){
-    const r=regenTzResume;
-    regenTzResume=null;
-    r.run({requestId:myRequestId,flowId:myFlowId});
-    return;
-  }
-  if(currentCategory)selectCategory(currentCategory,{requestId:myRequestId,flowId:myFlowId});
+  // Yalnızca seçiciyi açan akışa dönülür (yeniden üretim kategori akışına düşmez).
+  const owner=tzPickerOwner;
+  if(!owner||owner.flowId!==myFlowId)return;
+  tzPickerOwner=null;
+  owner.run({requestId:myRequestId,flowId:myFlowId});
 }
 
 function showTzPickerError(){
@@ -4961,7 +4968,15 @@ function showGenError(rec,out,ctx){
     showAskAgain(rec,key,ctx,true);
     return;
   }
-  showInterpretError(s,out.body);
+  showInterpretError(s,out.body,genTzOwner(rec,ctx));
+}
+// /start 422 saat dilimi: seçiciden sonra isteği başlatan akışa dönülür.
+// Yeniden üretimde aynı force_regenerate değerinin quote adımına (yeni onay,
+// yeni request_id); kategori akışında kategori seçimine.
+function genTzOwner(rec,ctx){
+  const f=ctx&&ctx.flow;
+  if(rec.kind!=='start'||!f||!flowValid(f))return null;
+  return f.regen?regenTzOwner(f.ctx,f.force?'b':'a'):categoryTzOwner(f.catId,f.flowId);
 }
 
 // Sonucu belirsiz: aynı kayıt (aynı id, aynı gövde) elle tekrar gönderilebilir.
@@ -5116,8 +5131,7 @@ async function runQuote(flow,mode){
   }
   if(resp.status===409){ appendChatBubble('error',t('errSomethingWrong')); return; }
   if(resp.status===404){ appendChatBubble('error',t('errChartNotFound')); return; } // quote'ta 404 haritaya aittir
-  if(flow.regen&&resp.status===422&&timezoneErrorType(body))setRegenTzResume(flow.ctx,'check');
-  showInterpretError(resp.status,body);
+  showInterpretError(resp.status,body,flow.regen?regenTzOwner(flow.ctx,'check'):categoryTzOwner(flow.catId,flow.flowId));
 }
 
 // Quote 409 generation_in_progress: "hazırlanıyor" balonu ve otomatik kontrol.
@@ -5246,7 +5260,6 @@ const REGEN_TARGET_KEYS={weekly_review:'regenTargetWeekly',monthly_review:'regen
   yearly_review:'regenTargetYearly',eclipse_nearest:'regenTargetEclipse'};
 let regenSource=null;   // açık raporun yeniden üretim kaynağı (yoksa null)
 let regenActive=null;   // açık bir yeniden üretim akışının bağlamı (çift tıklama)
-let regenTzResume=null; // {flowId, run}: picker'dan sonra dönülecek adım
 function setRegenSource(src){
   regenSource=src&&typeof src.sessionId==='string'&&src.sessionId&&typeof src.chartId==='string'&&src.chartId
     &&isKnownCategory(src.category)?src:null;
@@ -5292,21 +5305,20 @@ function withoutForce(flow){
 function regenQuote(ctx,step,tzRetry){
   if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
   const flow=regenFlow(ctx,step==='b',tzRetry);
-  if(!flow){ setRegenTzResume(ctx,step); showTimezonePicker('missing'); return; }
+  if(!flow){ showTimezonePicker('missing',regenTzOwner(ctx,step)); return; }
   lastSentTimezone=flow.quoteBody.timezone||null;
   runQuote(flow,step==='a'?'regen':step==='b'?'regenForce':'check');
 }
-function setRegenTzResume(ctx,step){
-  regenTzResume={flowId:ctx.flowId,run:tzRetry=>regenQuote(ctx,step,tzRetry)};
+function regenTzOwner(ctx,step){
+  return {flowId:ctx.flowId,run:tzRetry=>regenQuote(ctx,step,tzRetry)};
 }
 function regenClose(flow){ if(flow.ctx)flow.ctx.open=false; }
 function regenQuoteResult(flow,mode,resp,body){
   if(!resp.ok){
-    if(resp.status===422&&timezoneErrorType(body))setRegenTzResume(flow.ctx,mode==='regenForce'?'b':'a');
-    else regenClose(flow);
+    regenClose(flow);
     if(resp.status===409){ appendChatBubble('error',t('errSomethingWrong')); return; }
     if(resp.status===404){ appendChatBubble('error',t('errChartNotFound')); return; }
-    showInterpretError(resp.status,body);
+    showInterpretError(resp.status,body,regenTzOwner(flow.ctx,mode==='regenForce'?'b':'a'));
     return;
   }
   const spend=body&&body.would_spend;
@@ -5415,7 +5427,7 @@ async function selectCategory(catId,tzRetry){
   lastSentTimezone=null;
   if(PERIOD_CATEGORIES.has(catId)){
     const tz=requestTimezone();
-    if(!tz){ showTimezonePicker('missing'); return; }
+    if(!tz){ showTimezonePicker('missing',categoryTzOwner(catId,tzPickerFlowId)); return; }
     quoteBody.timezone=tz;
     lastSentTimezone=tz;
   }

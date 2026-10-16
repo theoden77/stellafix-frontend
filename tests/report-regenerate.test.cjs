@@ -7,7 +7,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { startHarness, API, json } = require('./helpers/harness.cjs');
 const {
-  useHarness, U2, UUID, delay, gate, never, until, Q, startOk, sess, openPage, pendingKeys, pendingRecord, keyFor,
+  useHarness, U1, U2, UUID, delay, gate, never, until, Q, startOk, sess, openPage, pendingKeys, pendingRecord, keyFor,
   text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody, clickCategory,
 } = require('./helpers/interpret-page.cjs');
 
@@ -665,5 +665,66 @@ test('R18 picker on the forced quote: the forced quote is redone, then the confi
     await until(() => calls.start.length === 1, '/start');
     assert.equal(calls.start[0].body.force_regenerate, true);
     assert.equal(calls.start[0].body.timezone, 'Europe/Berlin');
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// A: /start 422 time zone in the regen view -> back to the regen quote step
+// ---------------------------------------------------------------------------
+for (const forced of [true, false]) {
+  test(`A ${forced ? '(a) forced' : '(b) unforced'} /start 422: the picker returns to the ${forced ? 'forced' : 'first'} quote with the source chart; a new confirm and a new request_id`, async () => {
+    const { context, page, calls } = await setup({
+      chart: true, src: { ...weekly, chart_id: 'chart-9' },
+      quote: forced ? seq(Q.none(SRC), Q.sub) : seq(Q.sub), start: (b, n) => (n === 1 ? invalidTz : startOk('NEW')),
+    });
+    try {
+      await routeTimezone(page);
+      await page.click('#regenBtn');
+      await page.waitForSelector('.regen-confirm-btn');
+      const q0 = calls.quote.length;
+      await page.click('.regen-confirm-btn');
+      await pickBerlin(page);
+      await until(() => calls.quote.length === q0 + 1, 'the quote after the picker');
+      const q = calls.quote[q0].body;
+      assert.equal(q.chart_id, 'chart-9', 'the source chart, not the selected chart');
+      assert.equal(q.timezone, 'Europe/Berlin');
+      assert.equal(q.force_regenerate === true, forced, 'the same force value');
+      await settle(page);
+      assert.equal(calls.start.length, 1, 'no /start before the new confirm');
+      await page.waitForSelector('.regen-confirm-btn:not([disabled])');
+      assert.equal(calls.quote.length, q0 + 1, 'one quote after the picker');
+      assert.deepEqual(await pendingKeys(page), [], 'the 422 record is deleted');
+      await settle(page);
+      assert.equal(calls.start.length, 1, 'still no /start before the new confirm');
+      await page.click('.regen-confirm-btn:not([disabled])');
+      await until(() => calls.start.length === 2, 'the second /start');
+      const [a, b] = calls.start.map(s => s.body);
+      assert.notEqual(b.request_id, a.request_id);
+      assert.equal(b.chart_id, 'chart-9');
+      assert.equal(b.force_regenerate === true, forced);
+      assert.equal(b.timezone, 'Europe/Berlin');
+    } finally { await context.close(); }
+  });
+}
+
+test('A (c) the flow becomes invalid while the picker is open (another report opens): the city pick sends nothing', async () => {
+  const lookup = gate();
+  const { context, page, calls } = await setup({
+    chart: true, src: { ...weekly, chart_id: 'chart-9' }, others: [sess('OTHER')],
+    quote: seq(Q.none(SRC), Q.sub), start: () => invalidTz,
+  });
+  try {
+    await page.route(`${API}/api/v1/timezone**`, async r => { await lookup.wait(); return json(r, 200, { timezone: 'Europe/Berlin' }); });
+    await page.click('#regenBtn');
+    await page.waitForSelector('.regen-confirm-btn');
+    await page.click('.regen-confirm-btn');
+    await pickBerlin(page);
+    await openSource(page, 'OTHER');
+    const q = calls.quote.length;
+    lookup.open();
+    await page.waitForResponse(r => r.url().includes('/api/v1/timezone'));
+    await settle(page);
+    assert.equal(calls.quote.length, q, 'no quote');
+    assert.equal(calls.start.length, 1, 'no /start');
   } finally { await context.close(); }
 });
