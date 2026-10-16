@@ -866,6 +866,7 @@ const I18N = {
     regenSavedExists: "Bu dönem için kayıtlı bir rapor var",
     btnOpenReport: "Raporu aç",
     btnOpenPreviousReport: "Önceki raporu aç",
+    errReportChanged: "Bu rapor az önce yeniden üretildi.",
     errCategoryDisabledReadable: "Rapor okunabilir, yeni soru şu an alınamıyor.",
     errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
     tzPickerMissing: "Bu raporun tarihlerini kendi saatine göre verebilmemiz için şu an bulunduğun yeri seç: önce ülke, sonra şehir.",
@@ -1104,6 +1105,7 @@ const I18N = {
     regenSavedExists: "There is already a saved report for this period",
     btnOpenReport: "Open report",
     btnOpenPreviousReport: "Open the previous report",
+    errReportChanged: "This report was just generated again.",
     errCategoryDisabledReadable: "You can read the report, but new questions can't be taken right now.",
     errInvalidInput: "Something in your request wasn't valid, please try again.",
     tzPickerMissing: "To give this report's dates in your own time, choose where you are right now: first the country, then the city.",
@@ -4855,6 +4857,7 @@ function genOutcomeKey(rec,out){
     if(err==='generation_expired')return 'errStartExpired';
     if(err==='report_failed')return 'errReportFailed';
     if(err==='spend_changed')return 'errSpendChanged';
+    if(err==='report_changed')return 'errReportChanged';
     return 'errSomethingWrong';
   }
   if(s===404&&rec.kind==='start')return 'errChartNotFound'; // /start'ta 404 haritaya aittir
@@ -4938,6 +4941,8 @@ function showGenError(rec,out,ctx){
       // Bedel değişti: kendiliğinden /start yok; yeni quote ve yeni onay (yeniden
       // üretimde aynı force_regenerate değeriyle, abonelikte de).
       if(err==='spend_changed'&&ctx.flow&&flowValid(ctx.flow))runQuote(ctx.flow,ctx.flow.regen?(ctx.flow.force?'regenForce':'regen'):'reconfirm');
+      // Rapor az önce yeniden üretildi: force_regenerate olmadan kontrol; üretim başlatmaz.
+      if(err==='report_changed'&&ctx.flow&&flowValid(ctx.flow))runQuote(withoutForce(ctx.flow),'check');
       return;
     }
     if(err==='request_failed'||err==='generation_expired'){ showAskAgain(rec,key,ctx,false); return; }
