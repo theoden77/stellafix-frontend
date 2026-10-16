@@ -214,6 +214,7 @@
   .category-card-desc{font-size:12px;color:var(--ink);opacity:.6;line-height:1.4;}
   .chat-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--rule);}
   .chat-panel-head .panel-title{margin:0;padding:0;border:none;}
+  .chat-panel-head{gap:8px;flex-wrap:wrap;}
   .chat-back-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:none;border:none;cursor:pointer;text-transform:none;padding:4px 0;}
   .chat-back-btn:hover{text-decoration:underline;}
   .chat-messages{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:480px;overflow-y:auto;}
@@ -624,6 +625,7 @@
       <div class="chat-panel-head">
         <div class="panel-title" id="chatCategoryTitle"></div>
         <button type="button" class="chat-back-btn" id="chatBackBtn" onclick="backToCategories()" data-i18n="btnBackToCategories">← Kategorilere dön</button>
+        <button type="button" class="chat-back-btn" id="regenBtn" style="display:none" onclick="startRegenerate()" data-i18n="btnRegenerate">Yeniden üret</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-loading" id="chatLoading" style="display:none">
@@ -854,6 +856,15 @@ const I18N = {
     msgLongWait: "Bu biraz uzun sürebilir.",
     errPrepProblem: "Rapor hazırlanırken bir sorun olmuş olabilir; birkaç dakika sonra tekrar dene.",
     errChartNotFound: "Harita bulunamadı, yeniden hesapla.",
+    btnRegenerate: "Yeniden üret",
+    regenTargetWeekly: "Bugünden başlayan 7 günlük dönem için yeni rapor",
+    regenTargetMonthly: "Bugünden başlayan 30 günlük dönem için yeni rapor",
+    regenTargetYearly: "Bugünden başlayan 12 aylık dönem için yeni rapor",
+    regenTargetEclipse: "Şu anki en yakın tutulma için yeni rapor",
+    regenTargetSame: "Bu rapor yeniden üretilecek; mevcut rapor okunabilir kalır.",
+    regenPriceSubscription: "Aboneliğin kapsamında (ek ücret yok)",
+    regenSavedExists: "Bu dönem için kayıtlı bir rapor var",
+    btnOpenReport: "Raporu aç",
     errCategoryDisabledReadable: "Rapor okunabilir, yeni soru şu an alınamıyor.",
     errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
     tzPickerMissing: "Bu raporun tarihlerini kendi saatine göre verebilmemiz için şu an bulunduğun yeri seç: önce ülke, sonra şehir.",
@@ -1082,6 +1093,15 @@ const I18N = {
     msgLongWait: "This may take a while.",
     errPrepProblem: "Something may have gone wrong while preparing the report; please try again in a few minutes.",
     errChartNotFound: "The chart couldn't be found; please calculate it again.",
+    btnRegenerate: "Generate again",
+    regenTargetWeekly: "A new report for the 7-day period starting today",
+    regenTargetMonthly: "A new report for the 30-day period starting today",
+    regenTargetYearly: "A new report for the 12-month period starting today",
+    regenTargetEclipse: "A new report for the current nearest eclipse",
+    regenTargetSame: "This report will be generated again; the current report stays readable.",
+    regenPriceSubscription: "Covered by your subscription (no extra charge)",
+    regenSavedExists: "There is already a saved report for this period",
+    btnOpenReport: "Open report",
     errCategoryDisabledReadable: "You can read the report, but new questions can't be taken right now.",
     errInvalidInput: "Something in your request wasn't valid, please try again.",
     tzPickerMissing: "To give this report's dates in your own time, choose where you are right now: first the country, then the city.",
@@ -4270,6 +4290,13 @@ async function pickTzCity(i){
   // kategori değişti ya da seçim ekranından çıkıldı - rapor BAŞLATMA. Seçilen
   // saat dilimi yine de kaydedildi, sonraki bir seçimde tekrar kullanılabilir.
   if(myFlowId!==tzPickerFlowId)return;
+  // Yeniden üretim: picker'ı açan adıma, yakalanan bağlamla döner; kategori tıklaması akışına düşmez.
+  if(regenTzResume&&regenTzResume.flowId===myFlowId){
+    const r=regenTzResume;
+    regenTzResume=null;
+    r.run({requestId:myRequestId,flowId:myFlowId});
+    return;
+  }
   if(currentCategory)selectCategory(currentCategory,{requestId:myRequestId,flowId:myFlowId});
 }
 
@@ -4844,6 +4871,8 @@ function applyGenResult(rec,out,ctx){
     if(rec.kind==='start'){
       if(ctx.live&&sameView){
         handleStartResponse(data); // önce: rapor açık olsun ki soru kutusu açılabilsin
+        const f=pendingFields(rec);
+        setRegenSource(typeof data.session_id==='string'?{sessionId:data.session_id,chartId:f.chart_id,category:f.category,language:f.language}:null);
         showChatLoading(false);
         fetchCreditBalance(); // bir rapor hakkı düşmüş olabilir - göstergeyi tazele
         // Soru göstergesi ilk sorudan önce dolsun (okuma başarısız olsa da rapor ekranda kalır).
@@ -4900,8 +4929,9 @@ function showGenError(rec,out,ctx){
     if(rec.kind==='start'){
       appendChatBubble('error',t(key));
       if(err==='request_failed'||err==='generation_expired')fetchCreditBalance();
-      // Bedel değişti: kendiliğinden /start yok; yeni quote ve yeni onay.
-      if(err==='spend_changed'&&ctx.flow&&flowValid(ctx.flow))runQuote(ctx.flow,'reconfirm');
+      // Bedel değişti: kendiliğinden /start yok; yeni quote ve yeni onay (yeniden
+      // üretimde aynı force_regenerate değeriyle, abonelikte de).
+      if(err==='spend_changed'&&ctx.flow&&flowValid(ctx.flow))runQuote(ctx.flow,ctx.flow.regen?(ctx.flow.force?'regenForce':'regen'):'reconfirm');
       return;
     }
     if(err==='request_failed'||err==='generation_expired'){ showAskAgain(rec,key,ctx,false); return; }
@@ -5042,7 +5072,8 @@ async function runQuote(flow,mode){
   }
   if(resp&&resp.status===409&&body&&body.error==='generation_in_progress'){
     if(loop){ setWaitStatus(flow.loopUi,null); loop.schedule(()=>runQuote(flow,'loop'),false); return; }
-    startQuoteLoop(flow);
+    // Yeniden üretimde de kontrol döngüsü force_regenerate olmadan çalışır.
+    startQuoteLoop(flow.regen?withoutForce(flow):flow);
     return;
   }
   // Buradan sonrası döngüyü bitirir; "hazırlanıyor" balonları kaldırılır.
@@ -5054,6 +5085,7 @@ async function runQuote(flow,mode){
     appendChatBubble('error',t('chatErrorMessage'),{label:t('btnRetry'),cls:'quote-retry-btn',onClick:once(()=>runQuote(flow,mode))});
     return;
   }
+  if(mode==='regen'||mode==='regenForce'){ regenQuoteResult(flow,mode,resp,body); return; }
   const checking=mode==='check'||mode==='loop';
   if(resp.ok){
     const spend=body&&body.would_spend;
@@ -5073,6 +5105,7 @@ async function runQuote(flow,mode){
   }
   if(resp.status===409){ appendChatBubble('error',t('errSomethingWrong')); return; }
   if(resp.status===404){ appendChatBubble('error',t('errChartNotFound')); return; } // quote'ta 404 haritaya aittir
+  if(flow.regen&&resp.status===422&&timezoneErrorType(body))setRegenTzResume(flow.ctx,'check');
   showInterpretError(resp.status,body);
 }
 
@@ -5163,6 +5196,7 @@ async function showGenerateChoice(flow,spend){
 }
 function sendStart(flow,spend){
   if(!flowValid(flow))return;
+  if(flow.regen){ startRegen(flow,spend); return; }
   const rec=makePendingRecord('start',flow.quoteBody,spend);
   runLive(rec,{live:true,view:chatViewId,flow},{first:true});
 }
@@ -5180,7 +5214,150 @@ async function openSavedReport(sessionId,flow){
       {label:t('btnRetry'),onClick:once(()=>openSavedReport(sessionId,flow))});
     return;
   }
-  showHistoryReport(r.detail,r.balance,{fromCategory:true});
+  showHistoryReport(r.detail,r.balance,{fromCategory:!flow.regen||!historyReport,chartId:flow.quoteBody.chart_id});
+}
+
+// ---- Yeniden üret ----
+// Bir rapor ekranında, rapor tamamlanmışsa, kategori bilinen 8 kategoriden
+// biriyse, chart_id biliniyorsa ve giriş yapılmışsa görünür. Basıldığı anda
+// kaynak raporun session_id'si, chart_id, kategori, dil, hesap ve görünüm
+// yakalanır; akışın her adımı bu değerleri kullanır, açık rapordan ya da
+// arayüz dilinden yeniden okumaz. Görünüm, kategori, rapor ya da hesap
+// değişirse akış geçersizdir (flowValid).
+// Hedef her zaman BUGÜNÜN dönemi/seçimidir. period_type gönderilmez: sunucu
+// o zaman haftalığı gönderilen saat diliminde bugünden başlayan 7 takvim
+// günü, aylığı 30 takvim günü, yıllığı 12 ay olarak alır ve hedef metinleri
+// bununla örtüşür. period_type gönderilmesi gerekirse metinler kesin süre
+// vaat etmeyen bir biçime çevrilmelidir.
+// Her üretim, bedel ne olursa olsun (abonelik dahil) açık onay ister;
+// kategori tıklamasındaki "abonelikte onaysız" kuralı burada yoktur.
+const REGEN_TARGET_KEYS={weekly_review:'regenTargetWeekly',monthly_review:'regenTargetMonthly',
+  yearly_review:'regenTargetYearly',eclipse_nearest:'regenTargetEclipse'};
+let regenSource=null;   // açık raporun yeniden üretim kaynağı (yoksa null)
+let regenActive=null;   // açık bir yeniden üretim akışının bağlamı (çift tıklama)
+let regenTzResume=null; // {flowId, run}: picker'dan sonra dönülecek adım
+function setRegenSource(src){
+  regenSource=src&&typeof src.sessionId==='string'&&src.sessionId&&typeof src.chartId==='string'&&src.chartId
+    &&isKnownCategory(src.category)?src:null;
+  updateRegenButton();
+}
+function updateRegenButton(){
+  const btn=document.getElementById('regenBtn');
+  if(btn)btn.style.display=regenSource&&authToken?'':'none';
+}
+function regenActiveFor(src){
+  const a=regenActive;
+  return !!(a&&a.open&&a.source===src.sessionId&&a.view===chatViewId&&a.flowId===tzPickerFlowId&&a.account===currentAccountKey());
+}
+function startRegenerate(){
+  if(!authToken||!regenSource)return;
+  if(regenActiveFor(regenSource))return; // aynı rapor için akış zaten açık
+  tzPickerFlowId++; // bekleyen her picker dönüşü geçersiz
+  const src=regenSource;
+  const ctx={source:src.sessionId,chartId:src.chartId,category:src.category,
+    language:src.language==='tr'||src.language==='en'?src.language:currentLocale,
+    account:currentAccountKey(),view:chatViewId,flowId:tzPickerFlowId,open:true};
+  regenActive=ctx;
+  regenQuote(ctx,'a',null);
+}
+// Yakalanan bağlamdan quote gövdesi; saat dilimi dönemli kategoride BUGÜNKÜ
+// istek saat dilimi (oturumdaki değil). Saat dilimi yoksa null.
+function regenFlow(ctx,force,tzRetry){
+  const quoteBody={chart_id:ctx.chartId,category:ctx.category,language:ctx.language};
+  if(PERIOD_CATEGORIES.has(ctx.category)){
+    const tz=requestTimezone();
+    if(!tz)return null;
+    quoteBody.timezone=tz;
+  }
+  if(force)quoteBody.force_regenerate=true;
+  return {regen:true,force,ctx,catId:ctx.category,quoteBody,flowId:ctx.flowId,view:ctx.view,account:ctx.account,tzRetry:tzRetry||null};
+}
+function withoutForce(flow){
+  const quoteBody={...flow.quoteBody};
+  delete quoteBody.force_regenerate;
+  return {...flow,force:false,quoteBody,loop:null,loopBubbles:[],loopUi:null};
+}
+// step: 'a' (force olmadan), 'b' (force_regenerate:true), 'check' (force olmadan, yalnızca kontrol).
+function regenQuote(ctx,step,tzRetry){
+  if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
+  const flow=regenFlow(ctx,step==='b',tzRetry);
+  if(!flow){ setRegenTzResume(ctx,step); showTimezonePicker('missing'); return; }
+  lastSentTimezone=flow.quoteBody.timezone||null;
+  runQuote(flow,step==='a'?'regen':step==='b'?'regenForce':'check');
+}
+function setRegenTzResume(ctx,step){
+  regenTzResume={flowId:ctx.flowId,run:tzRetry=>regenQuote(ctx,step,tzRetry)};
+}
+function regenClose(flow){ if(flow.ctx)flow.ctx.open=false; }
+function regenQuoteResult(flow,mode,resp,body){
+  if(!resp.ok){
+    if(resp.status===422&&timezoneErrorType(body))setRegenTzResume(flow.ctx,mode==='regenForce'?'b':'a');
+    else regenClose(flow);
+    if(resp.status===409){ appendChatBubble('error',t('errSomethingWrong')); return; }
+    if(resp.status===404){ appendChatBubble('error',t('errChartNotFound')); return; }
+    showInterpretError(resp.status,body);
+    return;
+  }
+  const spend=body&&body.would_spend;
+  if(spend==='subscription'||spend==='report_credit'){ showRegenConfirm(flow,spend); return; }
+  const existing=spend==='none'&&body.existing&&typeof body.existing.session_id==='string'?body.existing.session_id:null;
+  if(mode==='regen'&&existing===flow.ctx.source){ regenQuote(flow.ctx,'b',flow.tzRetry); return; } // ekrandaki rapor bugünün hedefi: zorla
+  regenClose(flow);
+  if(mode==='regen'&&existing){
+    // Bugünün hedefi için başka bir kayıtlı rapor var: üretim yok, kendiliğinden açılmaz.
+    appendChatBubble('notice',t('regenSavedExists'),{label:t('btnOpenReport'),cls:'regen-open-btn',onClick:once(()=>{
+      if(flowValid(flow))openSavedReport(existing,flow);
+    })});
+    return;
+  }
+  appendChatBubble('error',t('errSomethingWrong'));
+}
+// Onay her zaman: hedef metni + bedel. report_credit'te hak 0 ise onay yerine
+// Abone Ol; bakiye okunamazsa bakiye satırı gizlenir, onay kalır.
+async function showRegenConfirm(flow,spend){
+  const lines=[t(REGEN_TARGET_KEYS[flow.ctx.category]||'regenTargetSame')];
+  if(spend==='report_credit'){
+    if(!await ensureCreditBalance(flow))return;
+    const n=creditBalance?(creditBalance.report_credits||0):null;
+    if(n!==null&&n<=0){
+      regenClose(flow);
+      appendChatBubble('notice',t('noReportCredits'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
+      return;
+    }
+    lines.push(t('quoteConfirmText'));
+    if(n!==null)lines.push(t('quoteBalanceLine').replace('{n}',n));
+  }else{
+    lines.push(t('regenPriceSubscription'));
+  }
+  appendChatBubble('notice',lines,generateAction(flow,spend,t('btnConfirmGenerate'),'regen-confirm-btn'));
+}
+// Onaylandı: sonuç yeni bir sohbet görünümünde gösterilir; eski rapor hiçbir
+// yerden silinmez.
+function startRegen(flow,spend){
+  if(!flowValid(flow))return;
+  regenClose(flow);
+  const rec=makePendingRecord('start',flow.quoteBody,spend);
+  tzPickerFlowId++;
+  chatViewId++;
+  stopReportPoll(false);
+  setRegenSource(null);
+  interpretSessionId=null;
+  questionCreditInfo=null;
+  historyReadOnly=false;
+  continueBlocked=false;
+  setBalanceUnavailable(false);
+  currentCategory=flow.ctx.category;
+  document.getElementById('reportsPanel').style.display='none';
+  document.getElementById('categoryPanel').style.display='none';
+  document.getElementById('chatPanel').style.display='block';
+  document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(flow.ctx.category);
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('chatRemaining').textContent='';
+  updateChatBackLabel();
+  updateRemainingUI();
+  const viewFlow={...flow,view:chatViewId,flowId:tzPickerFlowId,tzRetry:null,loop:null,loopBubbles:[],loopUi:null,
+    ctx:{...flow.ctx,view:chatViewId,flowId:tzPickerFlowId}};
+  runLive(rec,{live:true,view:chatViewId,flow:viewFlow},{first:true});
 }
 
 // tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
@@ -5213,6 +5390,7 @@ async function selectCategory(catId,tzRetry){
   document.getElementById('chatRemaining').textContent='';
   interpretSessionId=null;
   questionCreditInfo=null;
+  setRegenSource(null);
 
   // Kilit görseli (isCategoryLocked) kalır, ama tıklama her zaman quote yapar:
   // aynı girdiler için kayıtlı bir rapor abonelik kontrolünden önce ücretsiz
@@ -5668,6 +5846,8 @@ function showHistoryReport(d,balance,opts={}){
     continueBlocked=true;
     appendChatBubble('error',t('errReportFailed'));
   }else if(!isKnownCategory(d.category))appendChatBubble('notice',t('reportReadOnlyNote'));
+  // Kategori tıklamasıyla açılan raporda akışın chart_id'si, Raporlarım'dan açılanda detaydaki.
+  setRegenSource(d.status==='completed'?{sessionId:d.session_id,chartId:opts.chartId||d.chart_id,category:d.category,language:d.language}:null);
   updateChatBackLabel();
   showChatLoading(false);
   updateRemainingUI();
@@ -5804,6 +5984,7 @@ function exitHistoryReport(){
   clearChatState();
 }
 function clearChatState(){
+  setRegenSource(null);
   historyReadOnly=false;
   continueBlocked=false;
   liveRecord=null; liveCtx=null;
