@@ -865,6 +865,7 @@ const I18N = {
     regenPriceSubscription: "Aboneliğin kapsamında (ek ücret yok)",
     regenSavedExists: "Bu dönem için kayıtlı bir rapor var",
     btnOpenReport: "Raporu aç",
+    btnOpenPreviousReport: "Önceki raporu aç",
     errCategoryDisabledReadable: "Rapor okunabilir, yeni soru şu an alınamıyor.",
     errInvalidInput: "Gönderilen bilgi eksik veya geçersiz, tekrar dene.",
     tzPickerMissing: "Bu raporun tarihlerini kendi saatine göre verebilmemiz için şu an bulunduğun yeri seç: önce ülke, sonra şehir.",
@@ -1102,6 +1103,7 @@ const I18N = {
     regenPriceSubscription: "Covered by your subscription (no extra charge)",
     regenSavedExists: "There is already a saved report for this period",
     btnOpenReport: "Open report",
+    btnOpenPreviousReport: "Open the previous report",
     errCategoryDisabledReadable: "You can read the report, but new questions can't be taken right now.",
     errInvalidInput: "Something in your request wasn't valid, please try again.",
     tzPickerMissing: "To give this report's dates in your own time, choose where you are right now: first the country, then the city.",
@@ -4426,8 +4428,11 @@ function parseStoredPending(key,raw){
   if(r.kind!=='start'&&r.kind!=='continue')return null;
   if(typeof r.body!=='string'||typeof r.created_at!=='number')return null;
   if(key!==PENDING_PREFIX+r.sub+':'+r.request_id)return null;
-  return {v:1,sub:r.sub,kind:r.kind,request_id:r.request_id,body:r.body,
+  const rec={v:1,sub:r.sub,kind:r.kind,request_id:r.request_id,body:r.body,
     approved_spend:r.approved_spend===undefined?null:r.approved_spend,created_at:r.created_at,paused:r.paused===true};
+  // Yalnızca istemcide: yeniden üretimin kaynağı. Gövdeye girmez; eski kayıtlarda yoktur.
+  if(typeof r.source_session_id==='string'&&r.source_session_id)rec.source_session_id=r.source_session_id;
+  return rec;
 }
 function storedPendingEntries(){
   const out=[];
@@ -4906,7 +4911,7 @@ function applyGenResult(rec,out,ctx){
     return;
   }
   if(!ctx.live){
-    if(out.final)addPendingNote(rec,genOutcomeKey(rec,out));
+    if(out.final)addPendingNote(rec,genOutcomeKey(rec,out),out);
     renderPendingList();
     return;
   }
@@ -4927,7 +4932,8 @@ function showGenError(rec,out,ctx){
       return;
     }
     if(rec.kind==='start'){
-      appendChatBubble('error',t(key));
+      const prev=(err==='request_failed'||err==='generation_expired')?regenForceSource(rec):null;
+      appendChatBubble('error',t(key),prev?{label:t('btnOpenPreviousReport'),cls:'prev-report-btn',onClick:once(()=>openHistoryReport(prev))}:null);
       if(err==='request_failed'||err==='generation_expired')fetchCreditBalance();
       // Bedel değişti: kendiliğinden /start yok; yeni quote ve yeni onay (yeniden
       // üretimde aynı force_regenerate değeriyle, abonelikte de).
@@ -5332,11 +5338,12 @@ async function showRegenConfirm(flow,spend){
   appendChatBubble('notice',lines,generateAction(flow,spend,t('btnConfirmGenerate'),'regen-confirm-btn'));
 }
 // Onaylandı: sonuç yeni bir sohbet görünümünde gösterilir; eski rapor hiçbir
-// yerden silinmez.
+// yerden silinmez. Kayıtta kaynak raporun session_id'si gövdeden ayrı tutulur.
 function startRegen(flow,spend){
   if(!flowValid(flow))return;
   regenClose(flow);
   const rec=makePendingRecord('start',flow.quoteBody,spend);
+  rec.source_session_id=flow.ctx.source;
   tzPickerFlowId++;
   chatViewId++;
   stopReportPoll(false);
@@ -5358,6 +5365,10 @@ function startRegen(flow,spend){
   const viewFlow={...flow,view:chatViewId,flowId:tzPickerFlowId,tzRetry:null,loop:null,loopBubbles:[],loopUi:null,
     ctx:{...flow.ctx,view:chatViewId,flowId:tzPickerFlowId}};
   runLive(rec,{live:true,view:chatViewId,flow:viewFlow},{first:true});
+}
+// Zorlamalı bir isteğin kaynak raporu (yalnızca kayıtta bu alan varsa).
+function regenForceSource(rec){
+  return rec&&rec.source_session_id&&pendingFields(rec).force_regenerate===true?rec.source_session_id:null;
 }
 
 // tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
@@ -5478,8 +5489,10 @@ async function resumeFromList(rec){
   applyGenResult(rec,out,{live:false,view});
   renderPendingList();
 }
-function addPendingNote(rec,key){
-  pendingNotes.push({account:currentAccountKey(),kind:rec.kind,category:pendingFields(rec).category,key});
+function addPendingNote(rec,key,out){
+  const err=out&&out.status===409&&out.body&&out.body.error;
+  const source=(err==='request_failed'||err==='generation_expired')?regenForceSource(rec):null;
+  pendingNotes.push({account:currentAccountKey(),kind:rec.kind,category:pendingFields(rec).category,key,source});
 }
 function pendingLabel(kind,category){
   return kind==='start'?t('pendingItemReport').replace('{category}',reportCategoryTitle(category)):t('pendingItemQuestion');
@@ -5524,6 +5537,14 @@ function renderPendingList(){
     st.className='pending-item-status';
     st.textContent=t(n.key);
     row.append(label,st);
+    if(n.source){
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='pending-resume pending-prev-report';
+      b.textContent=t('btnOpenPreviousReport');
+      b.onclick=()=>openHistoryReport(n.source);
+      row.appendChild(b);
+    }
     rows.push(row);
   }
   document.getElementById('pendingItems').replaceChildren(...rows);
