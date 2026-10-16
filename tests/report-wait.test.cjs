@@ -582,6 +582,27 @@ test('an automatic resend waits while a manual "Sürdür" request is on the netw
   } finally { await context.close(); }
 });
 
+test('flight lock at the send itself: a second send of the same id while one is on the network is refused; the first one goes out once', async () => {
+  const seed = [seedRecord('u1', 'rid-f', startBody('rid-f'), { created_at: 1, paused: true })];
+  const g = gate();
+  const { context, page, calls } = await openPage({ seed, start: () => g.wait().then(() => startOk('S-f')) });
+  try {
+    // Two sends from the page in the same task, past every caller's own check.
+    const second = await page.evaluate(() => {
+      const rec = pendingForCurrentAccount().find(r => r.request_id === 'rid-f');
+      window.__firstSend = sendRecord(rec, { renew: true });
+      return sendRecord(rec, { renew: true });
+    });
+    assert.equal(second, null, 'the second send is refused');
+    await until(() => calls.start.length === 1, 'the first send');
+    g.open();
+    const first = await page.evaluate(() => window.__firstSend.then(o => o && o.ok));
+    assert.equal(first, true);
+    assert.equal(calls.start.length, 1, 'only one request for the id');
+    assert.equal(await page.evaluate(() => window.__genMax), 1);
+  } finally { await context.close(); }
+});
+
 test('an account change during a wait shows nothing on the new account and sends nothing for the old one', async () => {
   let current = U2;
   const { context, page, calls } = await openPage({

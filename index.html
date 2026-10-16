@@ -4459,7 +4459,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 //   kayıttaki aynı gövde metniyle 10, 15, 20, 30, 30… sn sonra yeniden gider.
 //   Pencere, o isteğin bu sayfa oturumunda ilk gönderildiği andan WAIT_LIMIT_MS;
 //   kendiliğinden yenilenmez. Süre dolunca kayıt duraklatılır (silinmez).
-// - Onaysız akış (quote 409) ve okuma yoklamaları: 3, 5, 8, 13, 20, 30… sn;
+// - Onaysız akış (quote 409 generation_in_progress) ve okuma yoklamaları: 3, 5, 8, 13, 20, 30… sn;
 //   pencere, döngünün başladığı andan WAIT_LIMIT_MS. Quote kontrolü üretim
 //   başlatmaz; yeni üretim gerekiyorsa bedeli yazan Üret düğmesi gösterilir.
 // - 429 bir sonraki gecikmeyi ikiye katlar. Sekme gizliyken istek gitmez;
@@ -5012,7 +5012,7 @@ function once(f){
 // mode: 'click' (kategori tıklaması: subscription onaysız üretir),
 // 'check' (Tekrar kontrol et: hiçbir zaman kendiliğinden üretmez, bedeli
 // yazan Üret düğmesi gösterir), 'reconfirm' (bedel değişti: yeni onay),
-// 'loop' (409 sonrası otomatik kontrol: 'check' gibi, ama sohbete yalnızca
+// 'loop' (409 generation_in_progress sonrası otomatik kontrol: 'check' gibi, ama sohbete yalnızca
 // sonuç basılır).
 async function runQuote(flow,mode){
   if(!flowValid(flow))return;
