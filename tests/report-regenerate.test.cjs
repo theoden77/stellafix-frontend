@@ -728,3 +728,76 @@ test('A (c) the flow becomes invalid while the picker is open (another report op
     assert.equal(calls.start.length, 1, 'no /start');
   } finally { await context.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// B: the flow closes when the check loop ends; sent records are untouched
+// ---------------------------------------------------------------------------
+test('B the check loop expires: "Yeniden üret" starts a new flow (a new quote)', async () => {
+  const { context, page, calls } = await setup({ clock: true, quote: seq(Q.none(SRC), () => GIP) });
+  try {
+    await page.click('#regenBtn');
+    await page.waitForSelector('.quote-stop-btn');
+    for (let i = 0; i < 40 && !(await text(page, '#chatMessages')).includes('Rapor hazırlanırken bir sorun olmuş olabilir'); i++) {
+      await page.clock.fastForward(30_000); await nextFrame(page); await delay(20);
+    }
+    assert.ok((await text(page, '#chatMessages')).includes('Rapor hazırlanırken bir sorun olmuş olabilir'), 'the loop expired');
+    const q = calls.quote.length;
+    await page.click('#regenBtn');
+    await until(() => calls.quote.length === q + 1, 'a new quote');
+    assert.equal('force_regenerate' in calls.quote[q].body, false, 'a new flow starts at step (a)');
+  } finally { await context.close(); }
+});
+
+test('B "Beklemeyi durdur" on the check loop: "Yeniden üret" starts a new flow (a new quote)', async () => {
+  const { context, page, calls } = await setup({ quote: seq(Q.none(SRC), () => GIP) });
+  try {
+    await page.click('#regenBtn');
+    await page.waitForSelector('.quote-stop-btn');
+    await page.click('.quote-stop-btn');
+    const q = calls.quote.length;
+    await page.click('#regenBtn');
+    await until(() => calls.quote.length === q + 1, 'a new quote');
+    assert.equal(calls.start.length, 0);
+  } finally { await context.close(); }
+});
+
+test('B a paused forced record stays exactly as it is (id, bytes, paused) when a new flow runs; it is not resent', async () => {
+  const body = { chart_id: 'chart-1', category: 'personality', language: 'tr', force_regenerate: true, request_id: 'rid-paused', expected_spend: 'subscription' };
+  const [key, raw0] = seedRecord('u1', 'rid-paused', body, { paused: true });
+  const raw = JSON.stringify({ ...JSON.parse(raw0), source_session_id: SRC });
+  const { context, page, calls } = await setup({ seed: [[key, raw]], quote: seq(Q.none(SRC), Q.sub), start: () => startOk('NEW') });
+  try {
+    await page.click('#regenBtn');
+    await page.waitForSelector('.regen-confirm-btn');
+    await settle(page);
+    assert.equal(calls.start.length, 0, 'no /start before the confirm');
+    assert.equal(await page.evaluate(k => sessionStorage.getItem(k), key), raw, 'untouched while the flow is open');
+    await page.click('.regen-confirm-btn');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni NEW');
+    await settle(page);
+    assert.equal(calls.start.length, 1);
+    assert.notEqual(calls.start[0].body.request_id, 'rid-paused');
+    assert.ok(calls.start.every(s => s.body.request_id !== 'rid-paused'), 'the paused record is not resent');
+    assert.equal(await page.evaluate(k => sessionStorage.getItem(k), key), raw, 'same id, bytes and paused state');
+  } finally { await context.close(); }
+});
+
+test('B a forced /start in flight: a new flow on the same source never sends a second /start with that id', async () => {
+  const { context, page, calls } = await setup({ quote: seq(Q.none(SRC), Q.sub), start: (b, n) => (n === 1 ? never() : startOk('NEW2')) });
+  try {
+    await page.click('#regenBtn');
+    await page.waitForSelector('.regen-confirm-btn');
+    await page.click('.regen-confirm-btn');
+    await until(() => calls.start.length === 1, 'the first /start');
+    const first = calls.start[0].body.request_id;
+    await openSource(page, SRC);
+    await page.click('#regenBtn');
+    await page.waitForSelector('.regen-confirm-btn');
+    await page.click('.regen-confirm-btn');
+    await until(() => calls.start.length === 2, 'the second /start');
+    await settle(page);
+    assert.equal(calls.start.length, 2);
+    assert.equal(calls.start.filter(s => s.body.request_id === first).length, 1, 'the in-flight id is sent once');
+    assert.equal(await pendingKeys(page).then(k => k.includes(keyFor('u1', first))), true, 'the in-flight record is kept');
+  } finally { await context.close(); }
+});

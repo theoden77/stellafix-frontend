@@ -5141,6 +5141,7 @@ async function runQuote(flow,mode){
 // zamanlayıcısı durur, "hazırlanıyor" balonları kaldırılır.
 const quoteLoops=new Set(); // döngüsü süren akışlar
 function retireQuoteLoop(flow){
+  regenClose(flow);
   quoteLoops.delete(flow);
   if(flow.loop)flow.loop.stop();
   for(const b of flow.loopBubbles||[]){ if(b.isConnected)b.remove(); }
@@ -5152,6 +5153,7 @@ function startQuoteLoop(flow){
     {label:t('btnCheckAgain'),cls:'quote-check-btn',onClick:once(()=>{ if(flow.loop)flow.loop.cancelTimer(); runQuote(flow,'check'); })},
     {label:t('btnStopWaiting'),cls:'quote-stop-btn',onClick:once(()=>{
       // Yalnızca yoklama durur; "Tekrar kontrol et" kullanıcı eylemi olarak kalır.
+      regenClose(flow);
       quoteLoops.delete(flow);
       if(flow.loop)flow.loop.stop();
       setWaitStatus(flow.loopUi,'pausedLabel');
@@ -5160,6 +5162,7 @@ function startQuoteLoop(flow){
   flow.loopUi=attachWaitUi(bubble);
   (flow.loopBubbles=flow.loopBubbles||[]).push(bubble);
   quoteLoops.add(flow);
+  if(flow.ctx)flow.ctx.open=true; // yeniden üretim: döngü sürerken akış açık
   let loop=flow.loop;
   if(!loop||loop.stopped){
     loop=new WaitLoop({delays:READ_POLL_DELAYS_MS,startedAt:Date.now(),valid:()=>flowValid(flow),
@@ -5305,17 +5308,20 @@ function withoutForce(flow){
 function regenQuote(ctx,step,tzRetry){
   if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
   const flow=regenFlow(ctx,step==='b',tzRetry);
-  if(!flow){ showTimezonePicker('missing',regenTzOwner(ctx,step)); return; }
+  if(!flow){ ctx.open=false; showTimezonePicker('missing',regenTzOwner(ctx,step)); return; }
   lastSentTimezone=flow.quoteBody.timezone||null;
+  ctx.open=true;
   runQuote(flow,step==='a'?'regen':step==='b'?'regenForce':'check');
 }
 function regenTzOwner(ctx,step){
   return {flowId:ctx.flowId,run:tzRetry=>regenQuote(ctx,step,tzRetry)};
 }
+// Akış yalnızca bir quote yoldayken ya da kontrol döngüsü sürerken açıktır;
+// sonuçta, hatada, döngü bitince ya da durdurulunca kapanır ve "Yeniden üret"
+// yeni bir akış başlatır. Kapanış gönderilmiş /start kayıtlarına dokunmaz.
 function regenClose(flow){ if(flow.ctx)flow.ctx.open=false; }
 function regenQuoteResult(flow,mode,resp,body){
   if(!resp.ok){
-    regenClose(flow);
     if(resp.status===409){ appendChatBubble('error',t('errSomethingWrong')); return; }
     if(resp.status===404){ appendChatBubble('error',t('errChartNotFound')); return; }
     showInterpretError(resp.status,body,regenTzOwner(flow.ctx,mode==='regenForce'?'b':'a'));
