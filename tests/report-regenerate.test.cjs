@@ -925,3 +925,88 @@ test('C unforced /start request_failed while elsewhere: a note without "Önceki 
     assert.equal(await count(page, '.pending-prev-report'), 0);
   } finally { await context.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// Note labels: a finished request is not labelled as an unfinished one
+// ---------------------------------------------------------------------------
+for (const [locale, label, unfinished] of [['tr', 'Rapor isteği: ', 'Yarım kalan'], ['en', 'Report request: ', 'Unfinished']]) {
+  test(`note label (${locale}): a forced request_failed note says "${label}…", never "${unfinished}"`, async () => {
+    const { context, page, hold } = await forcedStartHeld('request_failed');
+    try {
+      await page.evaluate(l => setLocale(l), locale);
+      await openSource(page, 'OTHER');
+      const resp = page.waitForResponse(r => r.url().endsWith('/interpret/start'));
+      hold.open();
+      await resp;
+      await openReports(page);
+      await page.waitForSelector('#pendingNotes .pending-note');
+      const shown = (await text(page, '#pendingNotes .pending-note .pending-item-label')).trim();
+      assert.ok(shown.startsWith(label), shown);
+      assert.ok(!(await text(page, '#pendingNotesBox')).includes(unfinished), 'no unfinished-request wording in the notes');
+    } finally { await context.close(); }
+  });
+}
+
+for (const [locale, label] of [['tr', 'Soru'], ['en', 'Question']]) {
+  test(`note label (${locale}): a question note from the background (resume on load) says "${label}"`, async () => {
+    const seed = [seedRecord('u1', 'rid-q', { session_id: 's1', question: 'Soru?', request_id: 'rid-q' }, { kind: 'continue' })];
+    const { context, page, calls } = await setup({ open: false, seed, cont: () => [409, { error: 'request_failed', detail: 'x' }] });
+    try {
+      await until(() => calls.continue.length === 1, 'the resumed /continue');
+      await page.waitForFunction(() => Object.keys(sessionStorage).every(k => !k.startsWith('stellafix_pending_interpret:')));
+      await page.evaluate(l => setLocale(l), locale);
+      await openReports(page);
+      await page.waitForSelector('#pendingNotes .pending-note');
+      assert.equal((await text(page, '#pendingNotes .pending-note .pending-item-label')).trim(), label);
+    } finally { await context.close(); }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Category flow: /start 422 time zone -> the picker returns to the category
+// ---------------------------------------------------------------------------
+test('category /start 422 (a): record deleted, the picker re-runs the category quote with the new time zone, a NEW request_id, the old id never again', async () => {
+  const { context, page, calls } = await openPage({ quote: Q.sub, start: (b, n) => (n === 1 ? invalidTz : startOk('W1')) });
+  try {
+    await routeTimezone(page);
+    await clickCategory(page, 'weekly_review');
+    await until(() => calls.start.length === 1, 'the first /start');
+    const first = calls.start[0].body.request_id;
+    await page.waitForSelector('#tzCountryInput');
+    await page.waitForFunction(k => !sessionStorage.getItem(k), keyFor('u1', first));
+    const q = calls.quote.length;
+    await pickBerlin(page);
+    await until(() => calls.quote.length === q + 1, 'the category quote after the picker');
+    assert.equal(calls.quote[q].body.timezone, 'Europe/Berlin');
+    assert.equal(calls.quote[q].body.category, 'weekly_review');
+    await until(() => calls.start.length === 2, 'the /start after the picker');
+    const b = calls.start[1].body;
+    assert.notEqual(b.request_id, first, 'a new request_id');
+    assert.equal(b.timezone, 'Europe/Berlin');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni W1');
+    await settle(page);
+    assert.equal(calls.start.filter(s => s.body.request_id === first).length, 1, 'the old id is never sent again');
+  } finally { await context.close(); }
+});
+
+test('category /start 422 (b): another category is chosen while the picker is open; the city pick sends nothing', async () => {
+  const lookup = gate();
+  const { context, page, calls } = await openPage({
+    quote: b => (b.category === 'personality' ? Q.none('P')() : Q.sub()), start: () => invalidTz,
+  });
+  try {
+    await page.route(`${API}/api/v1/timezone**`, async r => { await lookup.wait(); return json(r, 200, { timezone: 'Europe/Berlin' }); });
+    await clickCategory(page, 'weekly_review');
+    await until(() => calls.start.length === 1, 'the first /start');
+    await pickBerlin(page);
+    await page.click('#chatBackBtn');
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni P');
+    const q = calls.quote.length, s = calls.start.length;
+    lookup.open();
+    await page.waitForResponse(r => r.url().includes('/api/v1/timezone'));
+    await settle(page);
+    assert.equal(calls.quote.length, q, 'no quote');
+    assert.equal(calls.start.length, s, 'no /start');
+  } finally { await context.close(); }
+});

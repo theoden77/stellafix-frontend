@@ -854,6 +854,8 @@ const I18N = {
     errSomethingWrong: "Bir şeyler ters gitti, tekrar dene.",
     pendingListTitle: "Yarım kalan istekler",
     pendingNotesTitle: "Sonuçlanan istekler",
+    noteItemReport: "Rapor isteği: {category}",
+    noteItemQuestion: "Soru",
     pendingItemReport: "Yarım kalan istek: {category}",
     pendingItemQuestion: "Yarım kalan soru",
     btnResume: "Sürdür",
@@ -1094,6 +1096,8 @@ const I18N = {
     errSomethingWrong: "Something went wrong, please try again.",
     pendingListTitle: "Unfinished requests",
     pendingNotesTitle: "Finished requests",
+    noteItemReport: "Report request: {category}",
+    noteItemQuestion: "Question",
     pendingItemReport: "Unfinished request: {category}",
     pendingItemQuestion: "Unfinished question",
     btnResume: "Resume",
@@ -5537,6 +5541,10 @@ function addPendingNote(rec,key,out){
 function pendingLabel(kind,category){
   return kind==='start'?t('pendingItemReport').replace('{category}',reportCategoryTitle(category)):t('pendingItemQuestion');
 }
+// Not etiketi yarım istek etiketinden ayrıdır: sonuçlanmış bir istektir.
+function noteLabel(kind,category){
+  return kind==='start'?t('noteItemReport').replace('{category}',reportCategoryTitle(category)):t('noteItemQuestion');
+}
 function renderPendingList(){
   const box=document.getElementById('pendingList');
   if(!box)return;
@@ -5573,7 +5581,7 @@ function renderPendingList(){
     row.className='pending-note';
     const label=document.createElement('span');
     label.className='pending-item-label';
-    label.textContent=pendingLabel(n.kind,n.category);
+    label.textContent=noteLabel(n.kind,n.category);
     const st=document.createElement('div');
     st.className='pending-item-status';
     st.textContent=t(n.key);
