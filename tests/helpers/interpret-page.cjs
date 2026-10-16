@@ -82,6 +82,7 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
   // test never reads a time that has not been written yet.
   await page.addInitScript(() => {
     window.__genSends = [];
+    window.__genActive = 0; window.__genMax = 0; // /start and /continue on the network, as the page sees it
     const orig = window.fetch;
     window.fetch = function (input, init) {
       const url = String(input && input.url ? input.url : input);
@@ -93,7 +94,8 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
         window.__genSends.push(entry);
         const p = orig.apply(this, arguments);
         // Page clock when the response (or the network error) arrived.
-        p.then(() => { entry.respAt = Date.now(); }, () => { entry.respAt = Date.now(); });
+        window.__genActive += 1; window.__genMax = Math.max(window.__genMax, window.__genActive);
+        p.then(() => { entry.respAt = Date.now(); window.__genActive -= 1; }, () => { entry.respAt = Date.now(); window.__genActive -= 1; });
         return p;
       }
       return orig.apply(this, arguments);

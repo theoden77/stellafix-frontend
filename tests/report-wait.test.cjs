@@ -224,6 +224,40 @@ test('19 loop: "Beklemeyi durdur" during an automatic resend aborts it, keeps th
   } finally { await context.close(); }
 });
 
+test('19 loop, between resends: "Beklemeyi durdur" while the next resend is only scheduled keeps the record paused and nothing is sent later', async () => {
+  const { context, page, calls } = await openPage({ clock: true, start: (b, n) => (n === 1 ? RIP : startOk('S1')) });
+  try {
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.pending-stop-btn');
+    await page.click('.pending-stop-btn');
+    await until(() => calls.start.length === 1, 'the mock saw the send');
+    const key = keyFor('u1', calls.start[0].body.request_id);
+    await stopped(page, key);
+    for (let i = 0; i < 8; i++) await page.clock.fastForward(50_000);
+    await nextFrame(page);
+    assert.equal((await sendTimes(page)).length, 1, 'the scheduled resend does not go');
+    assert.deepEqual(await pendingKeys(page), [key], 'kept');
+    await openReports(page);
+    await page.click(`#pendingList .pending-item[data-request-id="${calls.start[0].body.request_id}"] .pending-resume`);
+    await until(() => calls.start.length === 2, 'Sürdür');
+    assert.equal(calls.start[1].raw, calls.start[0].raw);
+  } finally { await context.close(); }
+});
+
+test('quote check loop: "Beklemeyi durdur" stops the checks; no quote and no /start later', async () => {
+  const { context, page, calls } = await openPage({ clock: true, quote: (b, n) => (n === 1 ? GIP : Q.sub()) });
+  try {
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.quote-stop-btn');
+    await page.click('.quote-stop-btn');
+    for (let i = 0; i < 8; i++) await page.clock.fastForward(50_000);
+    await nextFrame(page);
+    assert.equal(calls.quote.length, 1, 'no automatic check after stopping');
+    assert.equal(calls.start.length, 0);
+    assert.equal(await count(page, '.quote-generate-btn'), 0);
+  } finally { await context.close(); }
+});
+
 test('21 automatic: a hung /start is aborted at 180 s, resent automatically with the same id, aborted at 330 s, then nothing more', async () => {
   const { context, page, calls, net } = await openPage({ clock: true, start: () => never() });
   try {
@@ -499,6 +533,37 @@ test('two waiting records share one queue: every automatic send is >= 10 s after
   } finally { await context.close(); }
 });
 
+test('an automatic resend waits while a manual "Sürdür" request is on the network', async () => {
+  const seed = [seedRecord('u1', 'rid-b', startBody('rid-b'), { created_at: 1, paused: true })];
+  const { context, page, calls, net } = await openPage({
+    clock: true, seed,
+    start: (b, n) => (b.request_id === 'rid-b' ? never() : (n === 1 ? RIP : startOk('S1'))),
+  });
+  try {
+    await clickCategory(page, 'personality'); // A: request_in_progress, resend scheduled after 10 s
+    await page.waitForSelector('.pending-retry-btn');
+    await until(() => calls.start.length === 1, 'A');
+    const idA = calls.start[0].body.request_id;
+    await openReports(page);
+    await page.click('#pendingList .pending-item[data-request-id="rid-b"] .pending-resume'); // B: hangs
+    await untilSends(page, 2);
+    const tB = (await sendTimes(page))[1].at;
+    for (let i = 0; i < 6; i++) await page.clock.fastForward(25_000);
+    await nextFrame(page);
+    assert.equal((await sendTimes(page)).length, 2, "A's resend waits while B is on the network");
+    await page.clock.fastForward(tB + 181_000 - await pageNow(page));
+    await until(() => net.failedStart === 1, 'B aborted at 180 s');
+    await driveUntil(page, async () => (await sendTimes(page)).length >= 3, { step: 2_000, what: "A's resend" });
+    const log = await sendTimes(page);
+    assert.equal(log[2].request_id, idA);
+    assert.ok(log[2].at - tB >= 180_000, 'only after B left the network');
+    // Counted in the page: an aborted request's failure event can reach the test after the next request's start.
+    assert.equal(await page.evaluate(() => window.__genMax), 1);
+    await until(() => calls.start.length === 3, 'the mock saw the resend');
+    assert.equal(calls.start[2].raw, calls.start[0].raw);
+  } finally { await context.close(); }
+});
+
 test('an account change during a wait shows nothing on the new account and sends nothing for the old one', async () => {
   let current = U2;
   const { context, page, calls } = await openPage({
@@ -525,19 +590,22 @@ test('an account change during a wait shows nothing on the new account and sends
 // ---------------------------------------------------------------------------
 // Early timer wake-up: the 10 s gap is still kept
 // ---------------------------------------------------------------------------
-// Runs after the fake clock: every timer of 1 s or more fires 5 ms early.
+// Runs after the fake clock: every timer of 1 s or more fires 100 ms early.
 function earlyTimers() {
   const orig = window.setTimeout;
-  window.setTimeout = function (fn, ms, ...args) { return orig.call(this, fn, ms >= 1000 ? ms - 5 : ms, ...args); };
+  window.setTimeout = function (fn, ms, ...args) { return orig.call(this, fn, ms >= 1000 ? ms - 100 : ms, ...args); };
 }
-test('timers firing 5 ms early: two automatic sends are still >= 10 000 ms apart', async () => {
+test('timers firing 100 ms early: two automatic sends are still >= 10 000 ms apart', async () => {
   const seed = [1, 2].map(i => seedRecord('u1', `rid-${i}`, startBody(`rid-${i}`), { created_at: i }));
   const { context, page } = await openPage({ clock: true, chart: false, seed, afterClock: earlyTimers, start: b => startOk(`S-${b.request_id}`) });
   try {
     const woke = await page.evaluate(() => new Promise(r => { const t0 = Date.now(); setTimeout(() => r(Date.now() - t0), 1000); }));
     assert.ok(woke < 1000, `sanity: a 1000 ms timer fired after ${woke} ms`);
     await untilSends(page, 1);
-    await passGap(page);
+    await untilAsync(async () => (await sendTimes(page))[0].respAt !== null, 'the first response');
+    // runFor fires each timer at its own (early) due time, unlike fastForward,
+    // which would wake it at the end of the jump.
+    await page.clock.runFor(11_000);
     await untilSends(page, 2);
     const [a, b] = await sendTimes(page);
     assert.ok(b.at - a.at >= 10_000, `gap ${b.at - a.at} ms`);
