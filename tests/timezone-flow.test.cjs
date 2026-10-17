@@ -264,35 +264,20 @@ function raceLookup(aDelayMs, bDelayMs) {
   };
 }
 
-async function fastDoubleSelection(t, aDelayMs, bDelayMs) {
-  const { context, page, calls } = await openPage({
-    breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(aDelayMs, bDelayMs),
-  });
-  try {
-    await clickCategory(page, 'monthly_review');
-    await page.waitForSelector('#tzPickerPanel');
-    await pickGermanyThenCity(page, 'Berlin'); // A - fetch fires, in flight
-    await pickCity(page, 'Munich');            // B - fired before A's response arrives, nothing disables the input meanwhile
-    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni');
-    await delay(Math.max(aDelayMs, bDelayMs) + 100); // let the slower (stale) response land too
-    console.log(`[${t.name}] /interpret/start calls: ${calls.start.length}`, calls.start.map(b => b.timezone));
-    assert.equal(calls.start.length, 1, 'exactly one /interpret/start, not one per city');
-    assert.equal(calls.start[0].timezone, 'Europe/Vienna', "the LAST picked city (B/Munich)'s zone, not A's");
-  } finally { await context.close(); }
-}
 
-// A resolves before B, with both responses held by gates instead of fixed
-// delays: A's response is released only after B's lookup has reached the
-// mock (so B is always picked while A is still in flight, however slow the
-// clicks are), and B's response only after A's has been delivered to the page
-// (so A always arrives first). The 100 ms at the end is the same settle time
-// as before, now taken after both responses were delivered.
-async function fastDoubleSelectionAFirst(t) {
-  const releaseA = gate(), releaseB = gate();
+// Both lookup responses are held by gates instead of fixed delays: neither
+// is released until B's lookup has reached the mock (so B is always picked
+// while A is still in flight, however slow the clicks are). Then the first
+// response is released, and the second only after the first has been
+// delivered to the page, so the arrival order is forced. The 100 ms at the
+// end is the same settle time as before, now taken after both responses
+// were delivered.
+async function fastDoubleSelection(t, first) {
+  const release = { A: gate(), B: gate() };
   const lookup = async (callIndex) => {
-    if (callIndex === 1) { await releaseA.wait(); return [200, { timezone: 'Europe/Berlin' }]; }
-    await releaseB.wait();
-    return [200, { timezone: 'Europe/Vienna' }];
+    if (callIndex === 1) { await release.A.wait(); return [200, { timezone: 'Europe/Berlin' }]; }
+    await release.B.wait();
+    return [200, { timezone: 'Europe/Vienna' }]; // stand-in for "Munich's zone" - just needs to differ from Berlin's for the assertion
   };
   const { context, page, calls } = await openPage({
     breakDetection: true, startResponses: [OK_START], timezoneLookup: lookup,
@@ -306,29 +291,25 @@ async function fastDoubleSelectionAFirst(t) {
     await pickCity(page, 'Munich');            // B - fired while A is still held
     await until(() => calls.timezone.length === 2, 'both lookups at the mock (A and B in flight)');
     assert.equal(calls.start.length, 0, 'nothing started while both lookups are in flight');
-    releaseA.open();
-    await until(() => delivered.length === 1, "A's response delivered to the page");
-    releaseB.open();
+    const second = first === 'A' ? 'B' : 'A';
+    release[first].open();
+    await until(() => delivered.length === 1, `${first}'s response delivered to the page`);
+    release[second].open();
+    await until(() => delivered.length === 2, `${second}'s response delivered to the page`);
     await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni');
-    await until(() => delivered.length === 2, "B's response delivered to the page");
     await delay(100);
     console.log(`[${t.name}] /interpret/start calls: ${calls.start.length}`, calls.start.map(b => b.timezone));
     assert.equal(calls.start.length, 1, 'exactly one /interpret/start, not one per city');
     assert.equal(calls.start[0].timezone, 'Europe/Vienna', "the LAST picked city (B/Munich)'s zone, not A's");
-  } finally { releaseA.open(); releaseB.open(); await context.close(); }
+  } finally { release.A.open(); release.B.open(); await context.close(); }
 }
 
 test('fast double city selection, A resolves before B -> only B starts a report', { timeout: TEST_TIMEOUT_MS }, async (t) => {
-  await fastDoubleSelectionAFirst(t);
+  await fastDoubleSelection(t, 'A');
 });
 
-// 300ms/600ms (not 30/150): both city clicks (country pick + two city picks,
-// each a real Playwright round-trip) must complete before EITHER response
-// resolves, or the "fast" response would win on its own before the second
-// click even happens and the test would not exercise the race at all.
-
 test('fast double city selection, reversed arrival: B resolves before A -> still only B', { timeout: TEST_TIMEOUT_MS }, async (t) => {
-  await fastDoubleSelection(t, 600, 300);
+  await fastDoubleSelection(t, 'B');
 });
 
 test('leaving the picker screen before the response arrives -> no /interpret/start', { timeout: TEST_TIMEOUT_MS }, async (t) => {
