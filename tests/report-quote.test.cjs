@@ -3,21 +3,22 @@
 // browser record (sessionStorage) and its resume / keep / delete rules, and
 // the request timeouts. The API is mocked with page.route; no real backend
 // is called. Run: npm test
-const { test, before, after } = require('node:test');
+const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { startHarness } = require('./helpers/harness.cjs');
+const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
 const {
   useHarness, b64url, fakeJwt, U1, U2, PREFIX, UUID, delay, gate, never, until, Q, startOk, bal, sess, detailOf, reply, openPage, clickCategory, sendTimes, passGap, pendingKeys, pendingRecord, keyFor, text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody,
 } = require('./helpers/interpret-page.cjs');
 
 let h;
-before(async () => { h = await startHarness(); useHarness(h); });
-after(async () => { await h?.close(); });
+before(async () => { h = await startHarness(); useHarness(h); }, { timeout: HOOK_TIMEOUT_MS });
+afterEach(async () => { await closeOpenContexts(h?.browser); }, { timeout: HOOK_TIMEOUT_MS });
+after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 // ---------------------------------------------------------------------------
 // 1. Quote branches
 // ---------------------------------------------------------------------------
-test('1 none: a saved report opens from the quote - detail and balance read, no /start, back goes to categories', async () => {
+test('1 none: a saved report opens from the quote - detail and balance read, no /start, back goes to categories', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.none('saved1'), balance: () => bal(1, 2) });
   try {
     await clickCategory(page, 'personality');
@@ -33,7 +34,7 @@ test('1 none: a saved report opens from the quote - detail and balance read, no 
   } finally { await context.close(); }
 });
 
-test('1 subscription: /start goes without a confirmation, carrying request_id and expected_spend "subscription"', async () => {
+test('1 subscription: /start goes without a confirmation, carrying request_id and expected_spend "subscription"', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.sub, start: () => startOk('S1') });
   try {
     await clickCategory(page, 'personality');
@@ -51,7 +52,7 @@ test('1 subscription: /start goes without a confirmation, carrying request_id an
   } finally { await context.close(); }
 });
 
-test('1 report_credit: confirm screen with the balance; nothing is sent until confirmed', async () => {
+test('1 report_credit: confirm screen with the balance; nothing is sent until confirmed', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.credit, credits: () => ({ report_credits: 3 }) });
   try {
     await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 3);
@@ -69,7 +70,7 @@ test('1 report_credit: confirm screen with the balance; nothing is sent until co
   } finally { await context.close(); }
 });
 
-test('1 report_credit with no credits: "Rapor hakkın yok" and Subscribe, no confirm button', async () => {
+test('1 report_credit with no credits: "Rapor hakkın yok" and Subscribe, no confirm button', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.credit, credits: () => ({ report_credits: 0 }) });
   try {
     await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 0);
@@ -81,7 +82,7 @@ test('1 report_credit with no credits: "Rapor hakkın yok" and Subscribe, no con
   } finally { await context.close(); }
 });
 
-test('1 report_credit with an unreadable balance: reads it once more, then shows the confirm button without a balance line', async () => {
+test('1 report_credit with an unreadable balance: reads it once more, then shows the confirm button without a balance line', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.credit, credits: () => [500, {}] });
   try {
     await until(() => calls.credits >= 1, 'the first balance read');
@@ -96,7 +97,7 @@ test('1 report_credit with an unreadable balance: reads it once more, then shows
   } finally { await context.close(); }
 });
 
-test('1 403 category_requires_subscription: lock message and Subscribe; 403 category_disabled: its own message', async () => {
+test('1 403 category_requires_subscription: lock message and Subscribe; 403 category_disabled: its own message', { timeout: TEST_TIMEOUT_MS }, async () => {
   for (const [error, re] of [['category_requires_subscription', /abonelere özel|aboneli/i], ['category_disabled', /Bu kategori şu anda kullanılamıyor\./]]) {
     const { context, page, calls } = await openPage({ quote: Q.err(403, error) });
     try {
@@ -116,7 +117,7 @@ test('1 403 category_requires_subscription: lock message and Subscribe; 403 cate
   }
 });
 
-test('1 409 generation_in_progress (manual form): message and "Tekrar kontrol et", no /start', async () => {
+test('1 409 generation_in_progress (manual form): message and "Tekrar kontrol et", no /start', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.err(409, 'generation_in_progress') });
   try {
     await clickCategory(page, 'personality');
@@ -128,7 +129,7 @@ test('1 409 generation_in_progress (manual form): message and "Tekrar kontrol et
   } finally { await context.close(); }
 });
 
-test('1 quote network error: "Tekrar dene" makes a new quote, no record is created', async () => {
+test('1 quote network error: "Tekrar dene" makes a new quote, no record is created', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: (b, n) => (n === 1 ? 'abort' : Q.sub()) });
   try {
     await clickCategory(page, 'personality');
@@ -145,7 +146,7 @@ test('1 quote network error: "Tekrar dene" makes a new quote, no record is creat
 // ---------------------------------------------------------------------------
 // 2, 3. Lock no longer blocks before the API; category_disabled on a question
 // ---------------------------------------------------------------------------
-test('2: a non-subscriber clicking a locked weekly category gets the saved report from the quote', async () => {
+test('2: a non-subscriber clicking a locked weekly category gets the saved report from the quote', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ subscribed: false, quote: Q.none('wk1'), balance: () => bal(1, 2) });
   try {
     await page.waitForFunction(() => creditBalance && creditBalance.has_active_subscription === false);
@@ -160,7 +161,7 @@ test('2: a non-subscriber clicking a locked weekly category gets the saved repor
   } finally { await context.close(); }
 });
 
-test('3: a health report from history - /continue 403 category_disabled shows the new message, report stays, record deleted', async () => {
+test('3: a health report from history - /continue 403 category_disabled shows the new message, report stays, record deleted', { timeout: TEST_TIMEOUT_MS }, async () => {
   const hs = sess('hs', { category: 'health' });
   const { context, page, calls } = await openPage({
     chart: false, history: () => [hs], detail: () => ({ ...hs, messages: [{ role: 'assistant', content: 'Rapor metni hs' }] }),
@@ -183,7 +184,7 @@ test('3: a health report from history - /continue 403 category_disabled shows th
 // ---------------------------------------------------------------------------
 // 4. spend_changed
 // ---------------------------------------------------------------------------
-test('4 spend_changed: no automatic second /start; a new quote and a new confirmation; a new id on confirm', async () => {
+test('4 spend_changed: no automatic second /start; a new quote and a new confirmation; a new id on confirm', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     quote: (b, n) => (n === 1 ? Q.sub() : Q.credit()), credits: () => ({ report_credits: 2 }),
     start: (b, n) => (n === 1 ? [409, { error: 'spend_changed', quoted: 'subscription', actual: 'report_credit', found_existing: false }] : startOk('S2')),
@@ -211,7 +212,7 @@ test('4 spend_changed: no automatic second /start; a new quote and a new confirm
 // ---------------------------------------------------------------------------
 // 5, 6, 7. Same id, same bytes; record written before fetch; reload resumes
 // ---------------------------------------------------------------------------
-test('5: after a network error "Tekrar dene" resends the same id and the byte-identical body, even after a language change', async () => {
+test('5: after a network error "Tekrar dene" resends the same id and the byte-identical body, even after a language change', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ start: (b, n) => (n === 1 ? 'abort' : startOk('S1')) });
   try {
     await clickCategory(page, 'personality');
@@ -229,7 +230,7 @@ test('5: after a network error "Tekrar dene" resends the same id and the byte-id
   } finally { await context.close(); }
 });
 
-test('6: the record already exists in sessionStorage when /start reaches the network', async () => {
+test('6: the record already exists in sessionStorage when /start reaches the network', { timeout: TEST_TIMEOUT_MS }, async () => {
   let seen = null;
   const { context, page, calls } = await openPage({
     start: async (body, n, entry) => {
@@ -251,7 +252,7 @@ test('6: the record already exists in sessionStorage when /start reaches the net
   } finally { await context.close(); }
 });
 
-test('7: a reload during /start resumes it with the same id and body, opens the report and deletes the record', async () => {
+test('7: a reload during /start resumes it with the same id and body, opens the report and deletes the record', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, reload } = await openPage({ start: (b, n) => (n === 1 ? never() : startOk('S1')) });
   try {
     await clickCategory(page, 'personality');
@@ -270,7 +271,7 @@ test('7: a reload during /start resumes it with the same id and body, opens the 
 // ---------------------------------------------------------------------------
 // 8, 15, 16, 17. Account rules
 // ---------------------------------------------------------------------------
-test('8: a record of u1 is not used under u2 - no /start, the record is deleted', async () => {
+test('8: a record of u1 is not used under u2 - no /start, the record is deleted', { timeout: TEST_TIMEOUT_MS }, async () => {
   const [k, v] = seedRecord('u1', 'rid-u1', startBody('rid-u1'));
   const { context, page, calls } = await openPage({ token: U2, seed: [[k, v]] });
   try {
@@ -281,7 +282,7 @@ test('8: a record of u1 is not used under u2 - no /start, the record is deleted'
   } finally { await context.close(); }
 });
 
-test('15: 401 keeps the record; after a reload nothing is sent without a token; logging in as u1 resumes the same id and bytes', async () => {
+test('15: 401 keeps the record; after a reload nothing is sent without a token; logging in as u1 resumes the same id and bytes', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, reload } = await openPage({
     verify: () => U1, start: (b, n) => (n === 1 ? [401, { detail: 'Not authenticated' }] : startOk('S1')),
   });
@@ -305,7 +306,7 @@ test('15: 401 keeps the record; after a reload nothing is sent without a token; 
   } finally { await context.close(); }
 });
 
-test('16: without a token the records stay and nothing is sent', async () => {
+test('16: without a token the records stay and nothing is sent', { timeout: TEST_TIMEOUT_MS }, async () => {
   const a = seedRecord('u1', 'rid-a', startBody('rid-a'));
   const c = seedRecord('u1', 'rid-c', { session_id: 'A', question: 'q', request_id: 'rid-c' }, { kind: 'continue', created_at: 2 });
   const { context, page, calls } = await openPage({ token: null, seed: [a, c] });
@@ -317,7 +318,7 @@ test('16: without a token the records stay and nothing is sent', async () => {
   } finally { await context.close(); }
 });
 
-test('17: a late u1 /start is not shown to u2; u1 sees the report in the list after signing in again', async () => {
+test('17: a late u1 /start is not shown to u2; u1 sees the report in the list after signing in again', { timeout: TEST_TIMEOUT_MS }, async () => {
   const g = gate();
   let current = U2;
   const { context, page, calls } = await openPage({
@@ -346,7 +347,7 @@ test('17: a late u1 /start is not shown to u2; u1 sees the report in the list af
   } finally { await context.close(); }
 });
 
-test('extra: logout deletes the records of this tab', async () => {
+test('extra: logout deletes the records of this tab', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ start: () => never() });
   try {
     await clickCategory(page, 'personality');
@@ -357,7 +358,7 @@ test('extra: logout deletes the records of this tab', async () => {
   } finally { await context.close(); }
 });
 
-test('extra: logging in again with the same account keeps the record and resumes it with the same id', async () => {
+test('extra: logging in again with the same account keeps the record and resumes it with the same id', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     verify: () => U1, start: (b, n) => (n === 1 ? [401, {}] : startOk('S1')),
   });
@@ -376,7 +377,7 @@ test('extra: logging in again with the same account keeps the record and resumes
 // 10. Refunded / failed results delete the record
 // ---------------------------------------------------------------------------
 for (const [error, msg] of [['request_failed', 'İstek tamamlanamadı, hakkın iade edildi.'], ['generation_expired', 'Yanıt süre sınırını aştı, hakkın iade edildi.']]) {
-  test(`10 /start ${error}: message, record deleted, nothing resent after a reload`, async () => {
+  test(`10 /start ${error}: message, record deleted, nothing resent after a reload`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls, reload } = await openPage({ start: () => [409, { error, detail: 'x' }] });
     try {
       await clickCategory(page, 'personality');
@@ -391,7 +392,7 @@ for (const [error, msg] of [['request_failed', 'İstek tamamlanamadı, hakkın i
   });
 }
 
-test('10 /continue report_failed: question box closes, report stays readable, record deleted, nothing resent', async () => {
+test('10 /continue report_failed: question box closes, report stays readable, record deleted, nothing resent', { timeout: TEST_TIMEOUT_MS }, async () => {
   const A = sess('A');
   const { context, page, calls, reload } = await openPage({
     chart: false, history: () => [A], cont: () => [409, { error: 'report_failed', detail: 'x' }],
@@ -418,7 +419,7 @@ test('10 /continue report_failed: question box closes, report stays readable, re
 // ---------------------------------------------------------------------------
 // 13. A successful /start is never discarded
 // ---------------------------------------------------------------------------
-test('13: /start finishing after the user moved to My reports is processed: record deleted, "ready" notice', async () => {
+test('13: /start finishing after the user moved to My reports is processed: record deleted, "ready" notice', { timeout: TEST_TIMEOUT_MS }, async () => {
   const g = gate();
   const { context, page, calls } = await openPage({ start: async () => { await g.wait(); return startOk('S9'); }, history: () => [] });
   try {
@@ -437,7 +438,7 @@ test('13: /start finishing after the user moved to My reports is processed: reco
 // ---------------------------------------------------------------------------
 // 18. Two requests, two keys; ordered resume, one at a time, 10 s apart
 // ---------------------------------------------------------------------------
-test('18: a /start and a /continue keep separate keys; after a reload they resume in order, one at a time, 10 s apart', async () => {
+test('18: a /start and a /continue keep separate keys; after a reload they resume in order, one at a time, 10 s apart', { timeout: TEST_TIMEOUT_MS }, async () => {
   const B = sess('B');
   const gResumedStart = gate();
   const { context, page, calls, reload } = await openPage({
@@ -448,6 +449,9 @@ test('18: a /start and a /continue keep separate keys; after a reload they resum
   try {
     await clickCategory(page, 'personality');
     await until(() => calls.start.length === 1, '/start');
+    // The two requests are made at different moments. The paused page clock
+    // does not move by itself, and the resume order follows creation time.
+    await page.clock.fastForward(1_000);
     await openReports(page);
     await page.click('#reportsList .report-row[data-session-id="B"]');
     await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni B');
@@ -481,7 +485,7 @@ test('18: a /start and a /continue keep separate keys; after a reload they resum
   } finally { await context.close(); }
 });
 
-test('extra: 4 records - 3 are resumed automatically (one at a time, >= 10 s apart), the 4th stays in the list', async () => {
+test('extra: 4 records - 3 are resumed automatically (one at a time, >= 10 s apart), the 4th stays in the list', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seed = [1, 2, 3, 4].map(i => seedRecord('u1', `rid-${i}`, startBody(`rid-${i}`), { created_at: i }));
   let resumed = 0;
   const { context, page, calls, net } = await openPage({
@@ -514,7 +518,7 @@ test('extra: 4 records - 3 are resumed automatically (one at a time, >= 10 s apa
 // ---------------------------------------------------------------------------
 // 19. "Beklemeyi durdur"
 // ---------------------------------------------------------------------------
-test('19: after request_in_progress, "Beklemeyi durdur" keeps the record (paused), nothing is sent automatically, "Sürdür" resends the same id', async () => {
+test('19: after request_in_progress, "Beklemeyi durdur" keeps the record (paused), nothing is sent automatically, "Sürdür" resends the same id', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     clock: true, start: (b, n) => (n === 1 ? [409, { error: 'request_in_progress', detail: 'x' }] : startOk('S1')),
   });
@@ -541,7 +545,7 @@ test('19: after request_in_progress, "Beklemeyi durdur" keeps the record (paused
   } finally { await context.close(); }
 });
 
-test('19b: "Beklemeyi durdur" while /start is on the network aborts it and keeps the record', async () => {
+test('19b: "Beklemeyi durdur" while /start is on the network aborts it and keeps the record', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, net } = await openPage({ start: (b, n) => (n === 1 ? never() : startOk('S1')) });
   try {
     await clickCategory(page, 'personality');
@@ -558,7 +562,7 @@ test('19b: "Beklemeyi durdur" while /start is on the network aborts it and keeps
   } finally { await context.close(); }
 });
 
-test('extra: the stop-waiting texts promise no cancellation or refund', async () => {
+test('extra: the stop-waiting texts promise no cancellation or refund', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await openPage({ chart: false });
   try {
     for (const loc of ['tr', 'en']) {
@@ -576,7 +580,7 @@ for (const [label, failure, msg] of [
   ['generation_expired', [409, { error: 'generation_expired', detail: 'x' }], 'Yanıt süre sınırını aştı, hakkın iade edildi.'],
   ['402 question', [402, { error: 'insufficient_credits', credit_type: 'question', detail: 'x' }], null],
 ]) {
-  test(`20 ${label}: "Tekrar sor" reads the balance, then sends /continue with the same session and a new request_id; no quote, no /start`, async () => {
+  test(`20 ${label}: "Tekrar sor" reads the balance, then sends /continue with the same session and a new request_id; no quote, no /start`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const A = sess('A');
     const { context, page, calls } = await openPage({
       chart: false, history: () => [A], cont: (b, n) => (n === 1 ? failure : [200, { message: 'Cevap 2', ...bal(0) }]),
@@ -610,7 +614,7 @@ for (const [label, failure, msg] of [
 // ---------------------------------------------------------------------------
 // 21. Timeouts
 // ---------------------------------------------------------------------------
-test('21: a hung /start is aborted at 180 s and kept; a retry uses the rest of the 330 s window; nothing is sent after it; a retry after expiry resends the same id and bytes', async () => {
+test('21: a hung /start is aborted at 180 s and kept; a retry uses the rest of the 330 s window; nothing is sent after it; a retry after expiry resends the same id and bytes', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, net } = await openPage({ clock: true, start: () => never() });
   try {
     await clickCategory(page, 'personality');
@@ -646,7 +650,7 @@ test('21: a hung /start is aborted at 180 s and kept; a retry uses the rest of t
   } finally { await context.close(); }
 });
 
-test('21: a hung quote is aborted at 20 s, offers "Tekrar dene" and creates no record', async () => {
+test('21: a hung quote is aborted at 20 s, offers "Tekrar dene" and creates no record', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ clock: true, quote: () => never() });
   try {
     await clickCategory(page, 'personality');
@@ -668,7 +672,7 @@ for (const [label, second, credits, expect] of [
   ['subscription', Q.sub, 3, { button: 'Aboneliğin kapsamında üret', spend: 'subscription' }],
   ['report_credit', Q.credit, 2, { button: '1 rapor hakkı kullanarak üret', spend: 'report_credit' }],
 ]) {
-  test(`E: 409 -> "Tekrar kontrol et" -> ${label}: a priced button; nothing is sent until it is pressed`, async () => {
+  test(`E: 409 -> "Tekrar kontrol et" -> ${label}: a priced button; nothing is sent until it is pressed`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await openPage({
       quote: (b, n) => (n === 1 ? Q.err(409, 'generation_in_progress')() : second()), credits: () => ({ report_credits: credits }),
     });
@@ -689,7 +693,7 @@ for (const [label, second, credits, expect] of [
   });
 }
 
-test('E: 409 -> "Tekrar kontrol et" -> report_credit with 0 credits: "Rapor hakkın yok" and Subscribe, no button', async () => {
+test('E: 409 -> "Tekrar kontrol et" -> report_credit with 0 credits: "Rapor hakkın yok" and Subscribe, no button', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     quote: (b, n) => (n === 1 ? Q.err(409, 'generation_in_progress')() : Q.credit()), credits: () => ({ report_credits: 0 }),
   });
@@ -703,7 +707,7 @@ test('E: 409 -> "Tekrar kontrol et" -> report_credit with 0 credits: "Rapor hakk
   } finally { await context.close(); }
 });
 
-test('E: 409 -> "Tekrar kontrol et" -> none opens the report; again 409 keeps waiting; another 409 shows no Üret button', async () => {
+test('E: 409 -> "Tekrar kontrol et" -> none opens the report; again 409 keeps waiting; another 409 shows no Üret button', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seq = [Q.err(409, 'generation_in_progress'), Q.err(409, 'generation_in_progress'), Q.none('saved7')];
   const { context, page, calls } = await openPage({ quote: (b, n) => seq[n - 1]() });
   try {
@@ -728,7 +732,7 @@ test('E: 409 -> "Tekrar kontrol et" -> none opens the report; again 409 keeps wa
 // ---------------------------------------------------------------------------
 // Flow guards and the flight lock
 // ---------------------------------------------------------------------------
-test('extra: a stale quote is dropped - the confirm screen does not open after the category changed', async () => {
+test('extra: a stale quote is dropped - the confirm screen does not open after the category changed', { timeout: TEST_TIMEOUT_MS }, async () => {
   const g = gate();
   const { context, page, calls } = await openPage({
     quote: async b => { if (b.category === 'career') { await g.wait(); return Q.credit(); } return Q.none('saved-p')(); },
@@ -748,7 +752,7 @@ test('extra: a stale quote is dropped - the confirm screen does not open after t
   } finally { await context.close(); }
 });
 
-test('extra: no /start from the confirm screen after leaving it or changing the category', async () => {
+test('extra: no /start from the confirm screen after leaving it or changing the category', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.credit, credits: () => ({ report_credits: 2 }) });
   try {
     await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 2);
@@ -764,7 +768,7 @@ test('extra: no /start from the confirm screen after leaving it or changing the 
   } finally { await context.close(); }
 });
 
-test('extra: flight lock - "Sürdür" during an auto-resume and a double "Tekrar dene" never put a second request for the same id on the network', async () => {
+test('extra: flight lock - "Sürdür" during an auto-resume and a double "Tekrar dene" never put a second request for the same id on the network', { timeout: TEST_TIMEOUT_MS }, async () => {
   const g = gate();
   const seed = [seedRecord('u1', 'rid-1', startBody('rid-1'))];
   const { context, page, calls, net } = await openPage({
@@ -815,7 +819,7 @@ async function assertQuestionBoxDisabled(page, where) {
   assert.equal(await page.isDisabled('#chatSendBtn'), true, `${where}: #chatSendBtn disabled`);
 }
 
-test('no report open: question box disabled on the confirm screen, also after a language change and a balance re-read; enabled after /start succeeds', async () => {
+test('no report open: question box disabled on the confirm screen, also after a language change and a balance re-read; enabled after /start succeeds', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.credit, credits: () => ({ report_credits: 3 }), balance: () => bal(1, 2) });
   try {
     await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 3);
@@ -838,7 +842,7 @@ test('no report open: question box disabled on the confirm screen, also after a 
   } finally { await context.close(); }
 });
 
-test('no report open: question box disabled on the "Üret" button after a check, the in-progress bubble, a quote network error and the no-credit screen', async () => {
+test('no report open: question box disabled on the "Üret" button after a check, the in-progress bubble, a quote network error and the no-credit screen', { timeout: TEST_TIMEOUT_MS }, async () => {
   const cases = [
     ['"Üret" after "Tekrar kontrol et"', { quote: (b, n) => (n === 1 ? Q.err(409, 'generation_in_progress')() : Q.sub()) },
       async page => { await page.click('.quote-check-btn'); await page.waitForSelector('.quote-generate-btn'); }],
@@ -867,7 +871,7 @@ test('no report open: question box disabled on the "Üret" button after a check,
 // Accepted: "Tekrar dene" after a quote network error repeats the first
 // category action (unlike "Tekrar kontrol et", which always needs Üret)
 // ---------------------------------------------------------------------------
-test('quote network error -> "Tekrar dene" -> subscription: one /start with expected_spend "subscription", no extra button', async () => {
+test('quote network error -> "Tekrar dene" -> subscription: one /start with expected_spend "subscription", no extra button', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: (b, n) => (n === 1 ? 'abort' : Q.sub()) });
   try {
     await clickCategory(page, 'personality');
@@ -880,7 +884,7 @@ test('quote network error -> "Tekrar dene" -> subscription: one /start with expe
   } finally { await context.close(); }
 });
 
-test('quote network error -> "Tekrar dene" -> report_credit: the confirm screen opens and nothing is sent before confirming', async () => {
+test('quote network error -> "Tekrar dene" -> report_credit: the confirm screen opens and nothing is sent before confirming', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: (b, n) => (n === 1 ? 'abort' : Q.credit()), credits: () => ({ report_credits: 2 }) });
   try {
     await page.waitForFunction(() => creditBalance && creditBalance.report_credits === 2);
