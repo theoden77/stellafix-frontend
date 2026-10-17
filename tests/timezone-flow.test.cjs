@@ -13,6 +13,8 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { gate, until } = require('./helpers/interpret-page.cjs');
+const { TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS } = require('./helpers/harness.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const API = 'https://api.stellafix.io';
@@ -33,12 +35,12 @@ before(async () => {
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   baseUrl = `http://127.0.0.1:${server.address().port}/`;
   browser = await chromium.launch();
-});
+}, { timeout: HOOK_TIMEOUT_MS });
 
 after(async () => {
   await browser?.close();
   await new Promise(r => server.close(r));
-});
+}, { timeout: HOOK_TIMEOUT_MS });
 
 const json = (route, status, body) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -125,7 +127,7 @@ async function pickBerlin(page) {
   await page.click('#tzCityDropdown .city-option');
 }
 
-test('detected browser time zone is sent in the /interpret/start body', async () => {
+test('detected browser time zone is sent in the /interpret/start body', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ timezoneId: 'Asia/Tokyo', startResponses: [OK_START] });
   try {
     await clickCategory(page, 'monthly_review');
@@ -143,7 +145,7 @@ test('detected browser time zone is sent in the /interpret/start body', async ()
   } finally { await context.close(); }
 });
 
-test('detection fails -> location picker -> backend lookup -> request carries that time zone', async () => {
+test('detection fails -> location picker -> backend lookup -> request carries that time zone', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     breakDetection: true, startResponses: [OK_START], timezoneLookup: [200, { timezone: 'Europe/Berlin' }],
   });
@@ -164,7 +166,7 @@ test('detection fails -> location picker -> backend lookup -> request carries th
   } finally { await context.close(); }
 });
 
-test('timezone lookup failure shows a friendly message and keeps the picker', async () => {
+test('timezone lookup failure shows a friendly message and keeps the picker', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     breakDetection: true, startResponses: [OK_START], timezoneLookup: [422, { detail: 'No timezone found for this location' }],
   });
@@ -179,7 +181,7 @@ test('timezone lookup failure shows a friendly message and keeps the picker', as
   } finally { await context.close(); }
 });
 
-test('422 timezone_invalid -> reselect message, rejected zone is not sent again', async () => {
+test('422 timezone_invalid -> reselect message, rejected zone is not sent again', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     timezoneId: 'Asia/Tokyo', quoteResponses: [invalid422, QUOTE_SUBSCRIPTION], startResponses: [OK_START],
     timezoneLookup: [200, { timezone: 'Europe/Berlin' }],
@@ -199,7 +201,7 @@ test('422 timezone_invalid -> reselect message, rejected zone is not sent again'
   } finally { await context.close(); }
 });
 
-test('422 timezone_missing -> location picker, not a raw error', async () => {
+test('422 timezone_missing -> location picker, not a raw error', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ timezoneId: 'Asia/Tokyo', quoteResponses: [missing422], startResponses: [OK_START] });
   try {
     await clickCategory(page, 'monthly_review');
@@ -211,7 +213,7 @@ test('422 timezone_missing -> location picker, not a raw error', async () => {
   } finally { await context.close(); }
 });
 
-test('a 422 on another field keeps the generic invalid-input message', async () => {
+test('a 422 on another field keeps the generic invalid-input message', { timeout: TEST_TIMEOUT_MS }, async () => {
   const other422 = [422, { detail: [{ type: 'period_type_not_allowed', loc: ['body', 'period_type'], msg: 'x' }] }];
   const { context, page } = await openPage({ timezoneId: 'Asia/Tokyo', quoteResponses: [other422], startResponses: [OK_START] });
   try {
@@ -278,19 +280,57 @@ async function fastDoubleSelection(t, aDelayMs, bDelayMs) {
   } finally { await context.close(); }
 }
 
+// A resolves before B, with both responses held by gates instead of fixed
+// delays: A's response is released only after B's lookup has reached the
+// mock (so B is always picked while A is still in flight, however slow the
+// clicks are), and B's response only after A's has been delivered to the page
+// (so A always arrives first). The 100 ms at the end is the same settle time
+// as before, now taken after both responses were delivered.
+async function fastDoubleSelectionAFirst(t) {
+  const releaseA = gate(), releaseB = gate();
+  const lookup = async (callIndex) => {
+    if (callIndex === 1) { await releaseA.wait(); return [200, { timezone: 'Europe/Berlin' }]; }
+    await releaseB.wait();
+    return [200, { timezone: 'Europe/Vienna' }];
+  };
+  const { context, page, calls } = await openPage({
+    breakDetection: true, startResponses: [OK_START], timezoneLookup: lookup,
+  });
+  const delivered = [];
+  page.on('requestfinished', r => { if (new URL(r.url()).pathname === '/api/v1/timezone') delivered.push(r.url()); });
+  try {
+    await clickCategory(page, 'monthly_review');
+    await page.waitForSelector('#tzPickerPanel');
+    await pickGermanyThenCity(page, 'Berlin'); // A - fetch fires, held at the mock
+    await pickCity(page, 'Munich');            // B - fired while A is still held
+    await until(() => calls.timezone.length === 2, 'both lookups at the mock (A and B in flight)');
+    assert.equal(calls.start.length, 0, 'nothing started while both lookups are in flight');
+    releaseA.open();
+    await until(() => delivered.length === 1, "A's response delivered to the page");
+    releaseB.open();
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni');
+    await until(() => delivered.length === 2, "B's response delivered to the page");
+    await delay(100);
+    console.log(`[${t.name}] /interpret/start calls: ${calls.start.length}`, calls.start.map(b => b.timezone));
+    assert.equal(calls.start.length, 1, 'exactly one /interpret/start, not one per city');
+    assert.equal(calls.start[0].timezone, 'Europe/Vienna', "the LAST picked city (B/Munich)'s zone, not A's");
+  } finally { releaseA.open(); releaseB.open(); await context.close(); }
+}
+
+test('fast double city selection, A resolves before B -> only B starts a report', { timeout: TEST_TIMEOUT_MS }, async (t) => {
+  await fastDoubleSelectionAFirst(t);
+});
+
 // 300ms/600ms (not 30/150): both city clicks (country pick + two city picks,
 // each a real Playwright round-trip) must complete before EITHER response
 // resolves, or the "fast" response would win on its own before the second
 // click even happens and the test would not exercise the race at all.
-test('fast double city selection, A resolves before B -> only B starts a report', async (t) => {
-  await fastDoubleSelection(t, 300, 600);
-});
 
-test('fast double city selection, reversed arrival: B resolves before A -> still only B', async (t) => {
+test('fast double city selection, reversed arrival: B resolves before A -> still only B', { timeout: TEST_TIMEOUT_MS }, async (t) => {
   await fastDoubleSelection(t, 600, 300);
 });
 
-test('leaving the picker screen before the response arrives -> no /interpret/start', async (t) => {
+test('leaving the picker screen before the response arrives -> no /interpret/start', { timeout: TEST_TIMEOUT_MS }, async (t) => {
   const { context, page, calls } = await openPage({
     breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(150, 0),
   });
@@ -306,7 +346,7 @@ test('leaving the picker screen before the response arrives -> no /interpret/sta
   } finally { await context.close(); }
 });
 
-test('switching category before the response arrives -> old category gets no /interpret/start', async (t) => {
+test('switching category before the response arrives -> old category gets no /interpret/start', { timeout: TEST_TIMEOUT_MS }, async (t) => {
   const { context, page, calls } = await openPage({
     breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(150, 0),
   });
@@ -326,7 +366,7 @@ test('switching category before the response arrives -> old category gets no /in
   } finally { await context.close(); }
 });
 
-test('normal single city selection still starts exactly one report with the picked time zone', async (t) => {
+test('normal single city selection still starts exactly one report with the picked time zone', { timeout: TEST_TIMEOUT_MS }, async (t) => {
   const { context, page, calls } = await openPage({
     breakDetection: true, startResponses: [OK_START], timezoneLookup: raceLookup(20, 20),
   });
@@ -357,7 +397,7 @@ async function waitForCount(getCount, expected, timeoutMs = 3000) {
 // tzRetry token used by the race guards above) - its success path has no
 // staleness check, unlike the pre-fetch check and the error path's check,
 // which are unaffected.
-test('leaving the picker screen AFTER /interpret/start was sent -> the response is still used, not discarded', async (t) => {
+test('leaving the picker screen AFTER /interpret/start was sent -> the response is still used, not discarded', { timeout: TEST_TIMEOUT_MS }, async (t) => {
   const { context, page, calls } = await openPage({
     breakDetection: true, startResponses: [OK_START], timezoneLookup: [200, { timezone: 'Europe/Berlin' }],
     startDelayMs: 300,

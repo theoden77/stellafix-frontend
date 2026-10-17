@@ -45,6 +45,41 @@ function sess(id, overrides = {}) {
 }
 const detailOf = id => ({ ...sess(id), messages: [{ role: 'assistant', content: `Rapor metni ${id}`, created_at: '2026-10-10T09:30:00+00:00' }] });
 
+// Real-time limit for one page step that depends on the fake page clock
+// (a clock call, a frame, a page-side timer). Taken with Node's own timer:
+// page-side setTimeout/requestAnimationFrame are fake while the clock is
+// installed. A normal step takes well under a second.
+const PAGE_STEP_LIMIT_MS = 10_000;
+const CLOSE_LIMIT_MS = 5_000;
+// Races `work` against the real-time limit. On a timeout the page's browser
+// context is closed (itself bounded), which also ends the pending page call,
+// and the step fails with its name. The context is closed here, not left to
+// the test's finally, so no browser context outlives a hung step.
+async function pageStep(page, what, work, ms = PAGE_STEP_LIMIT_MS) {
+  let timer;
+  const limit = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`page step "${what}" did not finish within ${ms} ms (real time)`)), ms);
+  });
+  try {
+    return await Promise.race([work, limit]);
+  } catch (e) {
+    if (!/did not finish within/.test(e.message)) throw e;
+    work.catch(() => {}); // rejected by the close below
+    let closeTimer;
+    await Promise.race([page.context().close().catch(() => {}), new Promise(r => { closeTimer = setTimeout(r, CLOSE_LIMIT_MS); })]);
+    clearTimeout(closeTimer);
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+// Pages opened with the paused fake clock -> their unwrapped clock.runFor.
+const pausedPages = new WeakMap();
+// Fake page time at the first load of a clock page. The clock is installed
+// earlier and paused here, so page time only moves with fastForward/runFor
+// and never with real time.
+const CLOCK_START = new Date('2026-10-15T10:00:00Z');
+// One frame of the fake clock (requestAnimationFrame fires every 16 ms).
+const FRAME_MS = 16;
+
 // A responder returns a body (200), a [status, body] tuple, 'abort', or a Promise of either.
 async function reply(route, r) {
   r = await r;
@@ -102,7 +137,17 @@ async function openPage({ token = U1, quote = Q.sub, start = () => startOk('S1')
       return orig.apply(this, arguments);
     };
   });
-  if (clock) await page.clock.install({ time: new Date('2026-10-15T10:00:00Z') });
+  if (clock) {
+    // Installed 60 s early so the pause target is never in the past for the
+    // blank page that is already open; the loaded page starts at CLOCK_START.
+    await page.clock.install({ time: new Date(CLOCK_START.getTime() - 60_000) });
+    await page.clock.pauseAt(CLOCK_START);
+    pausedPages.set(page, page.clock.runFor.bind(page.clock));
+    for (const name of ['fastForward', 'runFor']) {
+      const orig = page.clock[name].bind(page.clock);
+      page.clock[name] = ticks => pageStep(page, `clock.${name}(${ticks})`, orig(ticks));
+    }
+  }
   if (afterClock) await page.addInitScript(afterClock); // runs after the fake clock is installed
   // Timers of 1 s or more as the page requests them: [{ms, at, firedAt}], page clock.
   await page.addInitScript(() => {
@@ -174,7 +219,7 @@ async function sendTimes(page) {
 }
 // Advances the page clock to 9 s after the previous automatic send and checks
 // nothing else left the page, then to 10 s after it. Targets are computed from
-// the recorded send time because the page clock keeps flowing in real time.
+// the recorded send time.
 async function passGap(page) {
   const sinceLast = () => page.evaluate(() => Date.now() - window.__genSends[window.__genSends.length - 1].at);
   const before = await page.evaluate(() => window.__genSends.length);
@@ -203,8 +248,22 @@ async function loginAs(page, token) {
   await page.evaluate(() => { pendingMagicLinkToken = 'magic'; return confirmMagicLink(); });
   await page.waitForFunction(t => authToken === t, token);
 }
-// One page turn so a response that already arrived has been handled.
-const nextFrame = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
+// One page turn so a response that already arrived has been handled. With
+// the paused clock the frame is fired by running the clock for one frame
+// (16 ms of page time; page timers due in those 16 ms fire too).
+async function nextFrame(page) {
+  const frame = page.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
+  if (!pausedPages.has(page)) return pageStep(page, 'nextFrame', frame);
+  frame.catch(() => {});
+  return pageStep(page, 'nextFrame', (async () => { await pausedPages.get(page)(FRAME_MS); await frame; })());
+}
+// Runs a page function that waits on page timers, while the paused clock runs
+// for `ms` of page time, and returns its result.
+async function withPageTime(page, fn, ms) {
+  const result = page.evaluate(fn);
+  result.catch(() => {});
+  return pageStep(page, `page timers over ${ms} ms`, (async () => { await pausedPages.get(page)(ms); return result; })());
+}
 function seedRecord(sub, id, body, { kind = 'start', created_at = 1, paused = false, spend = 'subscription' } = {}) {
   const raw = JSON.stringify(body);
   return [keyFor(sub, id), JSON.stringify({ v: 1, sub, kind, request_id: id, body: raw,
@@ -214,4 +273,4 @@ const startBody = (id, category = 'personality', spend = 'subscription') =>
   ({ chart_id: 'chart-1', category, language: 'tr', request_id: id, expected_spend: spend });
 
 
-module.exports = { useHarness, b64url, fakeJwt, U1, U2, PREFIX, UUID, delay, gate, never, until, Q, startOk, bal, sess, detailOf, reply, openPage, clickCategory, sendTimes, passGap, pendingKeys, pendingRecord, keyFor, text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody };
+module.exports = { useHarness, b64url, fakeJwt, U1, U2, PREFIX, UUID, delay, gate, never, until, Q, startOk, bal, sess, detailOf, reply, openPage, clickCategory, sendTimes, passGap, pendingKeys, pendingRecord, keyFor, text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody, pageStep, withPageTime, PAGE_STEP_LIMIT_MS, FRAME_MS };

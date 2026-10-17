@@ -5,15 +5,15 @@
 // with page.route; no real backend is called. Run: npm test
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { startHarness, API, json } = require('./helpers/harness.cjs');
+const { startHarness, API, json, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS } = require('./helpers/harness.cjs');
 const {
   useHarness, U1, U2, UUID, delay, gate, never, until, Q, startOk, sess, openPage, pendingKeys, pendingRecord, keyFor,
   text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody, clickCategory,
 } = require('./helpers/interpret-page.cjs');
 
 let h;
-before(async () => { h = await startHarness(); useHarness(h); });
-after(async () => { await h?.close(); });
+before(async () => { h = await startHarness(); useHarness(h); }, { timeout: HOOK_TIMEOUT_MS });
+after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 const SRC = 'src-session-77';
 const GIP = [409, { error: 'generation_in_progress', detail: 'x' }];
@@ -56,7 +56,7 @@ async function settle(page) { await nextFrame(page); await delay(150); await nex
 // ---------------------------------------------------------------------------
 // R1 visibility
 // ---------------------------------------------------------------------------
-test('R1 button: only on a completed report of a known category with a chart_id while logged in', async () => {
+test('R1 button: only on a completed report of a known category with a chart_id while logged in', { timeout: TEST_TIMEOUT_MS }, async () => {
   const list = [
     sess(SRC), sess('pen', { status: 'pending' }), sess('fail', { status: 'failed' }),
     sess('unk', { category: 'marriage' }), sess('nochart', { chart_id: null }), sess('emptychart', { chart_id: '' }),
@@ -78,7 +78,7 @@ test('R1 button: only on a completed report of a known category with a chart_id 
   } finally { await context.close(); }
 });
 
-test('R1 button: a saved report opened by a category click takes chart_id from the flow; a new report from /start shows it', async () => {
+test('R1 button: a saved report opened by a category click takes chart_id from the flow; a new report from /start shows it', { timeout: TEST_TIMEOUT_MS }, async () => {
   const det = { ...sess('saved', { chart_id: null }), messages: msgsOf('saved') };
   const { context, page, calls } = await openPage({
     quote: (b, n) => (b.category === 'career' ? Q.none('saved')() : Q.sub()), detail: () => det,
@@ -124,7 +124,7 @@ const TARGETS = {
 };
 const ALL8 = ['weekly_review', 'monthly_review', 'yearly_review', 'personality', 'career', 'finance', 'health', 'eclipse_nearest'];
 for (const locale of ['tr', 'en']) {
-  test(`R2 target texts (${locale}) for all 8 categories; no period_type in the quote or /start`, async () => {
+  test(`R2 target texts (${locale}) for all 8 categories; no period_type in the quote or /start`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const list = ALL8.map(c => sess(`r-${c}`, { category: c, period_type: 'rolling_7d', timezone: 'Europe/Istanbul' }));
     const { context, page, calls } = await openPage({
       chart: false, history: (a, off) => (off ? [] : list), detail: detailFrom(list),
@@ -152,7 +152,7 @@ for (const locale of ['tr', 'en']) {
 // ---------------------------------------------------------------------------
 // R3, R4: (b) the report on screen is today's target -> forced quote, confirm
 // ---------------------------------------------------------------------------
-test('R3 (b) subscription: second quote has force_regenerate; confirm; one /start with a new id, force, expected_spend "subscription"', async () => {
+test('R3 (b) subscription: second quote has force_regenerate; confirm; one /start with a new id, force, expected_spend "subscription"', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ quote: seq(Q.none(SRC), Q.sub), start: () => startOk('NEW') });
   try {
     await page.click('#regenBtn');
@@ -183,7 +183,7 @@ for (const [name, credits, expect] of [
   ['balance unreadable: confirm without the balance line', () => [500, { detail: 'x' }], 'confirm'],
   ['balance 0: "Rapor hakkın yok" + Abone Ol, no confirm', () => ({ report_credits: 0 }), 'none'],
 ]) {
-  test(`R4 (b) report_credit, ${name}`, async () => {
+  test(`R4 (b) report_credit, ${name}`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await setup({ quote: seq(Q.none(SRC), Q.credit), credits, start: () => startOk('NEW') });
     try {
       await page.click('#regenBtn');
@@ -214,7 +214,7 @@ for (const [name, credits, expect] of [
 // ---------------------------------------------------------------------------
 // R5 (c), R6 (d), R7 (e)
 // ---------------------------------------------------------------------------
-test('R5 (c) another saved report is today\'s target: no production, "Raporu aç" opens it (no auto open)', async () => {
+test('R5 (c) another saved report is today\'s target: no production, "Raporu aç" opens it (no auto open)', { timeout: TEST_TIMEOUT_MS }, async () => {
   const other = sess('OTHER');
   const { context, page, calls } = await setup({ others: [other], quote: Q.none('OTHER') });
   try {
@@ -232,7 +232,7 @@ test('R5 (c) another saved report is today\'s target: no production, "Raporu aç
 });
 
 for (const [spend, quote] of [['subscription', Q.sub], ['report_credit', Q.credit]]) {
-  test(`R6 (d) first quote ${spend}: confirm, no unapproved /start; /start without force`, async () => {
+  test(`R6 (d) first quote ${spend}: confirm, no unapproved /start; /start without force`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await setup({ quote, start: () => startOk('NEW') });
     try {
       await page.click('#regenBtn');
@@ -249,7 +249,7 @@ for (const [spend, quote] of [['subscription', Q.sub], ['report_credit', Q.credi
   });
 }
 
-test('R7 (e) 409 generation_in_progress on the forced quote: the check loop runs without force; a price shows an Üret button, no /start', async () => {
+test('R7 (e) 409 generation_in_progress on the forced quote: the check loop runs without force; a price shows an Üret button, no /start', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ clock: true, quote: seq(Q.none(SRC), () => GIP, Q.sub), start: () => startOk('NEW') });
   try {
     await page.click('#regenBtn');
@@ -271,7 +271,7 @@ test('R7 (e) 409 generation_in_progress on the forced quote: the check loop runs
 // ---------------------------------------------------------------------------
 // R8 captured context
 // ---------------------------------------------------------------------------
-test('R8 language from the source report, today\'s time zone, chart from the report; quote has no request_id/expected_spend', async () => {
+test('R8 language from the source report, today\'s time zone, chart from the report; quote has no request_id/expected_spend', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({
     chart: true, timezoneId: 'Asia/Tokyo',
     src: { category: 'weekly_review', language: 'tr', chart_id: 'chart-src', timezone: 'America/New_York', period_type: 'rolling_7d' },
@@ -300,7 +300,7 @@ test('R8 language from the source report, today\'s time zone, chart from the rep
 // ---------------------------------------------------------------------------
 // R9 uncertain forced request
 // ---------------------------------------------------------------------------
-test('R9 a forced /start that is aborted is resent with the same id and bytes; the same after a reload', async () => {
+test('R9 a forced /start that is aborted is resent with the same id and bytes; the same after a reload', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, reload } = await setup({
     clock: true, quote: seq(Q.none(SRC), Q.sub), start: (b, n) => (n === 1 ? 'abort' : n === 2 ? never() : startOk('NEW')),
   });
@@ -327,7 +327,7 @@ test('R9 a forced /start that is aborted is resent with the same id and bytes; t
 // ---------------------------------------------------------------------------
 // R10 spend_changed
 // ---------------------------------------------------------------------------
-test('R10 spend_changed on a forced /start: same force, a new confirm (subscription too), a NEW request_id', async () => {
+test('R10 spend_changed on a forced /start: same force, a new confirm (subscription too), a NEW request_id', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({
     quote: seq(Q.none(SRC), Q.sub), start: (b, n) => (n === 1 ? [409, { error: 'spend_changed', detail: 'x' }] : startOk('NEW')),
   });
@@ -356,7 +356,7 @@ test('R10 spend_changed on a forced /start: same force, a new confirm (subscript
 // R11 failed forced /start: "Önceki raporu aç"
 // ---------------------------------------------------------------------------
 for (const [err, msg] of [['request_failed', 'İstek tamamlanamadı, hakkın iade edildi.'], ['generation_expired', 'Yanıt süre sınırını aştı, hakkın iade edildi.']]) {
-  test(`R11 (a) live 409 ${err}: refund message + "Önceki raporu aç" opens the source; badges only from the list`, async () => {
+  test(`R11 (a) live 409 ${err}: refund message + "Önceki raporu aç" opens the source; badges only from the list`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await setup({
       quote: seq(Q.none(SRC), Q.sub), start: () => [409, { error: err, detail: 'x' }],
     });
@@ -379,7 +379,7 @@ for (const [err, msg] of [['request_failed', 'İstek tamamlanamadı, hakkın iad
   });
 }
 
-test('R11 (b) reload: the forced /start resumes with the same id, request_failed shows "Önceki raporu aç" in My reports, opening the source', async () => {
+test('R11 (b) reload: the forced /start resumes with the same id, request_failed shows "Önceki raporu aç" in My reports, opening the source', { timeout: TEST_TIMEOUT_MS }, async () => {
   const hold = gate();
   const { context, page, calls, reload } = await setup({
     quote: seq(Q.none(SRC), Q.sub), start: (b, n) => (n === 1 ? hold.wait().then(never) : [409, { error: 'request_failed', detail: 'x' }]),
@@ -404,7 +404,7 @@ test('R11 (b) reload: the forced /start resumes with the same id, request_failed
   } finally { await context.close(); }
 });
 
-test('R11 (c) an old forced record without the source field gets no "Önceki raporu aç"', async () => {
+test('R11 (c) an old forced record without the source field gets no "Önceki raporu aç"', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seed = [seedRecord('u1', 'rid-old', { ...startBody('rid-old'), force_regenerate: true })];
   const { context, page, calls } = await setup({ open: false, seed, start: () => [409, { error: 'request_failed', detail: 'x' }] });
   try {
@@ -419,7 +419,7 @@ test('R11 (c) an old forced record without the source field gets no "Önceki rap
 // ---------------------------------------------------------------------------
 // R12 the old report stays readable
 // ---------------------------------------------------------------------------
-test('R12 during a regen the old report stays readable; badges come from the list', async () => {
+test('R12 during a regen the old report stays readable; badges come from the list', { timeout: TEST_TIMEOUT_MS }, async () => {
   const hold = gate();
   let phase = 0;
   const list = () => (phase === 0 ? [sess(SRC)]
@@ -459,7 +459,7 @@ async function toReportChanged(page, calls) {
   assert.equal('force_regenerate' in calls.quote[2].body, false, 'the check quote has no force');
 }
 
-test('R13 (i) report_changed, check quote "none": the current report opens, no second /start', async () => {
+test('R13 (i) report_changed, check quote "none": the current report opens, no second /start', { timeout: TEST_TIMEOUT_MS }, async () => {
   const cur = sess('CUR');
   // The check quote is held until the message is checked: "none" opens the
   // current report, which replaces the view and the message with it.
@@ -476,7 +476,7 @@ test('R13 (i) report_changed, check quote "none": the current report opens, no s
   } finally { await context.close(); }
 });
 
-test('R13 (ii) report_changed, check quote subscription: "Aboneliğin kapsamında üret"; /start only on press, new id, no force', async () => {
+test('R13 (ii) report_changed, check quote subscription: "Aboneliğin kapsamında üret"; /start only on press, new id, no force', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ quote: seq(Q.none(SRC), Q.sub, Q.sub), start: (b, n) => (n === 1 ? RC : startOk('NEW')) });
   try {
     await toReportChanged(page, calls);
@@ -493,7 +493,7 @@ test('R13 (ii) report_changed, check quote subscription: "Aboneliğin kapsamınd
 });
 
 for (const [name, credits] of [['balance 2', () => ({ report_credits: 2 })], ['balance 0', () => ({ report_credits: 0 })]]) {
-  test(`R13 (iii) report_changed, check quote report_credit, ${name}`, async () => {
+  test(`R13 (iii) report_changed, check quote report_credit, ${name}`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await setup({
       credits, quote: seq(Q.none(SRC), Q.sub, Q.credit), start: (b, n) => (n === 1 ? RC : startOk('NEW')),
     });
@@ -521,7 +521,7 @@ for (const [name, credits] of [['balance 2', () => ({ report_credits: 2 })], ['b
 // ---------------------------------------------------------------------------
 // R14 double clicks
 // ---------------------------------------------------------------------------
-test('R14 double click on the button: one quote flow; double click on the confirm: one /start', async () => {
+test('R14 double click on the button: one quote flow; double click on the confirm: one /start', { timeout: TEST_TIMEOUT_MS }, async () => {
   const hold = gate();
   const { context, page, calls } = await setup({
     quote: seq(() => hold.wait().then(Q.none(SRC)), Q.sub), start: () => startOk('NEW'),
@@ -560,7 +560,7 @@ async function setupLeave(how, quote) {
   return r;
 }
 for (const how of Object.keys(LEAVE)) {
-  test(`R15 confirm open, then ${how} changes: the confirm sends nothing`, async () => {
+  test(`R15 confirm open, then ${how} changes: the confirm sends nothing`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await setupLeave(how, seq(Q.none(SRC), Q.sub));
     try {
       await page.click('#regenBtn');
@@ -572,7 +572,7 @@ for (const how of Object.keys(LEAVE)) {
     } finally { await context.close(); }
   });
 
-  test(`R15 a delayed forced quote arriving after ${how} changes shows nothing`, async () => {
+  test(`R15 a delayed forced quote arriving after ${how} changes shows nothing`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const hold = gate();
     const { context, page, calls } = await setupLeave(how, seq(Q.none(SRC), () => hold.wait().then(Q.sub)));
     try {
@@ -595,7 +595,7 @@ for (const how of Object.keys(LEAVE)) {
 // ---------------------------------------------------------------------------
 // R16 health disabled
 // ---------------------------------------------------------------------------
-test('R16 health disabled: 403 category_disabled message, the open report stays readable, no /start', async () => {
+test('R16 health disabled: 403 category_disabled message, the open report stays readable, no /start', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ src: { category: 'health' }, quote: () => [403, { error: 'category_disabled', detail: 'raw' }] });
   try {
     await page.click('#regenBtn');
@@ -631,7 +631,7 @@ for (const [name, opts, quote] of [
   ['missing time zone', { afterClock: breakTz }, seq(Q.sub)],
   ['422 timezone_invalid', {}, seq(() => invalidTz, Q.sub)],
 ]) {
-  test(`R17 picker on the first quote (${name}): continues from step (a) with the context, not the category flow`, async () => {
+  test(`R17 picker on the first quote (${name}): continues from step (a) with the context, not the category flow`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await setup({ src: weekly, quote, start: () => startOk('NEW'), ...opts });
     try {
       await routeTimezone(page);
@@ -649,7 +649,7 @@ for (const [name, opts, quote] of [
   });
 }
 
-test('R18 picker on the forced quote: the forced quote is redone, then the confirm; /start with force and the new time zone', async () => {
+test('R18 picker on the forced quote: the forced quote is redone, then the confirm; /start with force and the new time zone', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ src: weekly, quote: seq(Q.none(SRC), () => invalidTz, Q.sub), start: () => startOk('NEW') });
   try {
     await routeTimezone(page);
@@ -672,7 +672,7 @@ test('R18 picker on the forced quote: the forced quote is redone, then the confi
 // A: /start 422 time zone in the regen view -> back to the regen quote step
 // ---------------------------------------------------------------------------
 for (const forced of [true, false]) {
-  test(`A ${forced ? '(a) forced' : '(b) unforced'} /start 422: the picker returns to the ${forced ? 'forced' : 'first'} quote with the source chart; a new confirm and a new request_id`, async () => {
+  test(`A ${forced ? '(a) forced' : '(b) unforced'} /start 422: the picker returns to the ${forced ? 'forced' : 'first'} quote with the source chart; a new confirm and a new request_id`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await setup({
       chart: true, src: { ...weekly, chart_id: 'chart-9' },
       quote: forced ? seq(Q.none(SRC), Q.sub) : seq(Q.sub), start: (b, n) => (n === 1 ? invalidTz : startOk('NEW')),
@@ -707,7 +707,7 @@ for (const forced of [true, false]) {
   });
 }
 
-test('A (c) the flow becomes invalid while the picker is open (another report opens): the city pick sends nothing', async () => {
+test('A (c) the flow becomes invalid while the picker is open (another report opens): the city pick sends nothing', { timeout: TEST_TIMEOUT_MS }, async () => {
   const lookup = gate();
   const { context, page, calls } = await setup({
     chart: true, src: { ...weekly, chart_id: 'chart-9' }, others: [sess('OTHER')],
@@ -732,7 +732,7 @@ test('A (c) the flow becomes invalid while the picker is open (another report op
 // ---------------------------------------------------------------------------
 // B: the flow closes when the check loop ends; sent records are untouched
 // ---------------------------------------------------------------------------
-test('B the check loop expires: "Yeniden üret" starts a new flow (a new quote)', async () => {
+test('B the check loop expires: "Yeniden üret" starts a new flow (a new quote)', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ clock: true, quote: seq(Q.none(SRC), () => GIP) });
   try {
     await page.click('#regenBtn');
@@ -748,7 +748,7 @@ test('B the check loop expires: "Yeniden üret" starts a new flow (a new quote)'
   } finally { await context.close(); }
 });
 
-test('B "Beklemeyi durdur" on the check loop: "Yeniden üret" starts a new flow (a new quote)', async () => {
+test('B "Beklemeyi durdur" on the check loop: "Yeniden üret" starts a new flow (a new quote)', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ quote: seq(Q.none(SRC), () => GIP) });
   try {
     await page.click('#regenBtn');
@@ -761,7 +761,7 @@ test('B "Beklemeyi durdur" on the check loop: "Yeniden üret" starts a new flow 
   } finally { await context.close(); }
 });
 
-test('B a paused forced record stays exactly as it is (id, bytes, paused) when a new flow runs; it is not resent', async () => {
+test('B a paused forced record stays exactly as it is (id, bytes, paused) when a new flow runs; it is not resent', { timeout: TEST_TIMEOUT_MS }, async () => {
   const body = { chart_id: 'chart-1', category: 'personality', language: 'tr', force_regenerate: true, request_id: 'rid-paused', expected_spend: 'subscription' };
   const [key, raw0] = seedRecord('u1', 'rid-paused', body, { paused: true });
   const raw = JSON.stringify({ ...JSON.parse(raw0), source_session_id: SRC });
@@ -782,7 +782,7 @@ test('B a paused forced record stays exactly as it is (id, bytes, paused) when a
   } finally { await context.close(); }
 });
 
-test('B a forced /start in flight: a new flow on the same source never sends a second /start with that id', async () => {
+test('B a forced /start in flight: a new flow on the same source never sends a second /start with that id', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await setup({ quote: seq(Q.none(SRC), Q.sub), start: (b, n) => (n === 1 ? never() : startOk('NEW2')) });
   try {
     await page.click('#regenBtn');
@@ -824,7 +824,7 @@ async function forcedStartHeld(err, extra = {}) {
 }
 for (const err of Object.keys(FAIL)) {
   for (const where of Object.keys(LEAVE_TO)) {
-    test(`C forced /start ${err} arrives while on ${where}: a note in My reports with "Önceki raporu aç" (source), no "Sürdür", record deleted`, async () => {
+    test(`C forced /start ${err} arrives while on ${where}: a note in My reports with "Önceki raporu aç" (source), no "Sürdür", record deleted`, { timeout: TEST_TIMEOUT_MS }, async () => {
       const { context, page, calls, hold } = await forcedStartHeld(err);
       try {
         await LEAVE_TO[where](page);
@@ -848,7 +848,7 @@ for (const err of Object.keys(FAIL)) {
     });
   }
 
-  test(`C forced /start ${err}: the account changes before the response -> no note for the new account`, async () => {
+  test(`C forced /start ${err}: the account changes before the response -> no note for the new account`, { timeout: TEST_TIMEOUT_MS }, async () => {
     let tok = U2;
     const { context, page, hold } = await forcedStartHeld(err, { verify: () => tok });
     try {
@@ -873,7 +873,7 @@ for (const err of Object.keys(FAIL)) {
   });
 }
 
-test('C the same result handled twice (live path and a resume) gives one note', async () => {
+test('C the same result handled twice (live path and a resume) gives one note', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await setup({ open: false });
   try {
     const n = await page.evaluate(() => {
@@ -890,7 +890,7 @@ test('C the same result handled twice (live path and a resume) gives one note', 
   } finally { await context.close(); }
 });
 
-test('C notes are cleared on an explicit logout', async () => {
+test('C notes are cleared on an explicit logout', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, hold } = await forcedStartHeld('request_failed', { verify: () => U1 });
   try {
     await openReports(page);
@@ -907,7 +907,7 @@ test('C notes are cleared on an explicit logout', async () => {
   } finally { await context.close(); }
 });
 
-test('C unforced /start request_failed while elsewhere: a note without "Önceki raporu aç"', async () => {
+test('C unforced /start request_failed while elsewhere: a note without "Önceki raporu aç"', { timeout: TEST_TIMEOUT_MS }, async () => {
   const hold = gate();
   const { context, page } = await setup({
     others: [sess('OTHER')], quote: Q.sub, start: () => hold.wait().then(() => [409, { error: 'request_failed', detail: 'x' }]),
@@ -930,7 +930,7 @@ test('C unforced /start request_failed while elsewhere: a note without "Önceki 
 // Note labels: a finished request is not labelled as an unfinished one
 // ---------------------------------------------------------------------------
 for (const [locale, label, unfinished] of [['tr', 'Rapor isteği: ', 'Yarım kalan'], ['en', 'Report request: ', 'Unfinished']]) {
-  test(`note label (${locale}): a forced request_failed note says "${label}…", never "${unfinished}"`, async () => {
+  test(`note label (${locale}): a forced request_failed note says "${label}…", never "${unfinished}"`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, hold } = await forcedStartHeld('request_failed');
     try {
       await page.evaluate(l => setLocale(l), locale);
@@ -948,7 +948,7 @@ for (const [locale, label, unfinished] of [['tr', 'Rapor isteği: ', 'Yarım kal
 }
 
 for (const [locale, label] of [['tr', 'Soru'], ['en', 'Question']]) {
-  test(`note label (${locale}): a question note from the background (resume on load) says "${label}"`, async () => {
+  test(`note label (${locale}): a question note from the background (resume on load) says "${label}"`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const seed = [seedRecord('u1', 'rid-q', { session_id: 's1', question: 'Soru?', request_id: 'rid-q' }, { kind: 'continue' })];
     const { context, page, calls } = await setup({ open: false, seed, cont: () => [409, { error: 'request_failed', detail: 'x' }] });
     try {
@@ -965,7 +965,7 @@ for (const [locale, label] of [['tr', 'Soru'], ['en', 'Question']]) {
 // ---------------------------------------------------------------------------
 // Category flow: /start 422 time zone -> the picker returns to the category
 // ---------------------------------------------------------------------------
-test('category /start 422 (a): record deleted, the picker re-runs the category quote with the new time zone, a NEW request_id, the old id never again', async () => {
+test('category /start 422 (a): record deleted, the picker re-runs the category quote with the new time zone, a NEW request_id, the old id never again', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ quote: Q.sub, start: (b, n) => (n === 1 ? invalidTz : startOk('W1')) });
   try {
     await routeTimezone(page);
@@ -989,7 +989,7 @@ test('category /start 422 (a): record deleted, the picker re-runs the category q
   } finally { await context.close(); }
 });
 
-test('category /start 422 (b): another category is chosen while the picker is open; the city pick sends nothing', async () => {
+test('category /start 422 (b): another category is chosen while the picker is open; the city pick sends nothing', { timeout: TEST_TIMEOUT_MS }, async () => {
   const lookup = gate();
   const { context, page, calls } = await openPage({
     quote: b => (b.category === 'personality' ? Q.none('P')() : Q.sub()), start: () => invalidTz,

@@ -5,11 +5,11 @@
 // Run: npm test
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { API, startHarness, json } = require('./helpers/harness.cjs');
+const { API, startHarness, json, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS } = require('./helpers/harness.cjs');
 
 let h;
-before(async () => { h = await startHarness(); });
-after(async () => { await h?.close(); });
+before(async () => { h = await startHarness(); }, { timeout: HOOK_TIMEOUT_MS });
+after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 // Unsigned fake JWT; the page only decodes the payload for display/account id.
 const b64url = s => Buffer.from(s).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -124,7 +124,7 @@ async function loginAs(page, token) {
   await page.waitForFunction(t => authToken === t, token);
 }
 
-test('a: My reports opens without a chart, calls /history and renders the rows', async () => {
+test('a: My reports opens without a chart, calls /history and renders the rows', { timeout: TEST_TIMEOUT_MS }, async () => {
   const s1 = sess('s1', { chart_name: 'Ayşe', category: 'career' });
   const { context, page, calls } = await openPage({ history: () => [s1] });
   try {
@@ -144,7 +144,7 @@ test('a: My reports opens without a chart, calls /history and renders the rows',
   } finally { await context.close(); }
 });
 
-test('a2: the menu item is not reachable while logged out', async () => {
+test('a2: the menu item is not reachable while logged out', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await openPage();
   try {
     await page.evaluate(() => logout());
@@ -154,7 +154,7 @@ test('a2: the menu item is not reachable while logged out', async () => {
   } finally { await context.close(); }
 });
 
-test('b: person label - a real name is shown as is; null, empty, blank and placeholders become "Kişi"', async () => {
+test('b: person label - a real name is shown as is; null, empty, blank and placeholders become "Kişi"', { timeout: TEST_TIMEOUT_MS }, async () => {
   const names = { n1: '  Mehmet ', n2: null, n3: '', n4: '   ', n5: 'Natal Harita', n6: 'Natal Chart', n7: ' Natal Harita ' };
   const sessions = Object.entries(names).map(([id, chart_name]) => sess(id, { chart_name }));
   const { context, page } = await openPage({ history: () => sessions });
@@ -169,7 +169,7 @@ test('b: person label - a real name is shown as is; null, empty, blank and place
   } finally { await context.close(); }
 });
 
-test('c: chart_name is rendered as text, never as HTML', async () => {
+test('c: chart_name is rendered as text, never as HTML', { timeout: TEST_TIMEOUT_MS }, async () => {
   const evil = '<img src=x onerror=window.__xss=1>';
   const { context, page } = await openPage({ history: () => [sess('x1', { chart_name: evil })] });
   try {
@@ -182,7 +182,7 @@ test('c: chart_name is rendered as text, never as HTML', async () => {
   } finally { await context.close(); }
 });
 
-test('d: period last day uses the report time zone and the exclusive end, also across DST', async () => {
+test('d: period last day uses the report time zone and the exclusive end, also across DST', { timeout: TEST_TIMEOUT_MS }, async () => {
   const sessions = [
     sess('ist', { category: 'weekly_review', period_type: 'rolling_7d', timezone: 'Europe/Istanbul',
       period_start_utc: '2026-10-14T21:00:00+00:00', period_end_utc: '2026-10-21T21:00:00+00:00' }),
@@ -205,7 +205,7 @@ test('d: period last day uses the report time zone and the exclusive end, also a
   } finally { await context.close(); }
 });
 
-test('e: pagination - offset grows by the returned count, duplicates collapse, short page hides the button', async () => {
+test('e: pagination - offset grows by the returned count, duplicates collapse, short page hides the button', { timeout: TEST_TIMEOUT_MS }, async () => {
   const first = Array.from({ length: 20 }, (_, i) => sess(`p${i}`));
   const second = [sess('p19'), sess('p20'), sess('p21'), sess('p22')];
   const { context, page, calls } = await openPage({ history: off => (off === 0 ? first : second) });
@@ -221,7 +221,7 @@ test('e: pagination - offset grows by the returned count, duplicates collapse, s
   } finally { await context.close(); }
 });
 
-test('e2: empty list shows the empty state and no more button', async () => {
+test('e2: empty list shows the empty state and no more button', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await openPage({ history: () => [] });
   try {
     await openReports(page);
@@ -232,7 +232,7 @@ test('e2: empty list shows the empty state and no more button', async () => {
   } finally { await context.close(); }
 });
 
-test('f: badges - legacy rows get none, regenerated opens, pending opens read-only', async () => {
+test('f: badges - legacy rows get none, regenerated opens, pending opens read-only', { timeout: TEST_TIMEOUT_MS }, async () => {
   const legacy = sess('old', { is_live: false, superseded: false });
   const sup = sess('sup', { is_live: false, superseded: true });
   const pend = sess('pen', { status: 'pending' });
@@ -260,7 +260,7 @@ test('f: badges - legacy rows get none, regenerated opens, pending opens read-on
   } finally { await context.close(); }
 });
 
-test('g: a non-subscriber opens a saved weekly report - no lock, no /start, balance from /balance', async () => {
+test('g: a non-subscriber opens a saved weekly report - no lock, no /start, balance from /balance', { timeout: TEST_TIMEOUT_MS }, async () => {
   const wk = sess('wk', { category: 'weekly_review', period_type: 'rolling_7d', timezone: 'Europe/Istanbul',
     period_start_utc: '2026-10-14T21:00:00+00:00', period_end_utc: '2026-10-21T21:00:00+00:00' });
   const { context, page, calls } = await openPage({
@@ -281,7 +281,7 @@ test('g: a non-subscriber opens a saved weekly report - no lock, no /start, bala
   } finally { await context.close(); }
 });
 
-test('h: category_disabled on a follow-up shows its own message and keeps the report', async () => {
+test('h: category_disabled on a follow-up shows its own message and keeps the report', { timeout: TEST_TIMEOUT_MS }, async () => {
   const hs = sess('hs', { category: 'health' });
   const { context, page, calls } = await openPage({
     history: () => [hs], detail: () => detail(hs),
@@ -310,7 +310,7 @@ test('h: category_disabled on a follow-up shows its own message and keeps the re
   } finally { await context.close(); }
 });
 
-test('i: an unknown category opens with a generic title, readable, question box closed', async () => {
+test('i: an unknown category opens with a generic title, readable, question box closed', { timeout: TEST_TIMEOUT_MS }, async () => {
   const mr = sess('mr', { category: 'marriage' });
   const { context, page, calls } = await openPage({ history: () => [mr], detail: () => detail(mr) });
   try {
@@ -327,7 +327,7 @@ test('i: an unknown category opens with a generic title, readable, question box 
   } finally { await context.close(); }
 });
 
-test('j1: without a chart, "back" from an opened report returns to the list', async () => {
+test('j1: without a chart, "back" from an opened report returns to the list', { timeout: TEST_TIMEOUT_MS }, async () => {
   const s1 = sess('s1');
   const { context, page, calls } = await openPage({ history: () => [s1], detail: () => detail(s1) });
   try {
@@ -343,7 +343,7 @@ test('j1: without a chart, "back" from an opened report returns to the list', as
   } finally { await context.close(); }
 });
 
-test('j2: without a chart, a direct selectCategory sends no /start and opens no category chat', async () => {
+test('j2: without a chart, a direct selectCategory sends no /start and opens no category chat', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage();
   try {
     await page.evaluate(() => selectCategory('personality'));
@@ -354,7 +354,7 @@ test('j2: without a chart, a direct selectCategory sends no /start and opens no 
   } finally { await context.close(); }
 });
 
-test('k: after /start, /{id}/balance fills the counter; a failed balance keeps the report and offers a retry', async () => {
+test('k: after /start, /{id}/balance fills the counter; a failed balance keeps the report and offers a retry', { timeout: TEST_TIMEOUT_MS }, async () => {
   let n = 0;
   const { context, page, calls } = await openPage({
     quote: QUOTE_SUB,
@@ -385,7 +385,7 @@ test('k: after /start, /{id}/balance fills the counter; a failed balance keeps t
   } finally { await context.close(); }
 });
 
-test('l: logout clears the list and the opened report; a new login does not show old rows', async () => {
+test('l: logout clears the list and the opened report; a new login does not show old rows', { timeout: TEST_TIMEOUT_MS }, async () => {
   const s1 = sess('s1', { chart_name: 'Eski Hesap' });
   const { context, page } = await openPage({ history: (o, auth) => (auth === U1 ? [s1] : []), detail: () => detail(s1), verifyToken: U2 });
   try {
@@ -407,7 +407,7 @@ test('l: logout clears the list and the opened report; a new login does not show
   } finally { await context.close(); }
 });
 
-test('m: detail ok but /balance fails - the report opens read-only for questions with a retry that only re-reads /balance', async () => {
+test('m: detail ok but /balance fails - the report opens read-only for questions with a retry that only re-reads /balance', { timeout: TEST_TIMEOUT_MS }, async () => {
   const s1 = sess('s1');
   let n = 0;
   const { context, page, calls } = await openPage({
@@ -431,7 +431,7 @@ test('m: detail ok but /balance fails - the report opens read-only for questions
   } finally { await context.close(); }
 });
 
-test('n: a late A response does not overwrite report B opened afterwards', async () => {
+test('n: a late A response does not overwrite report B opened afterwards', { timeout: TEST_TIMEOUT_MS }, async () => {
   const A = sess('A'), B = sess('B');
   const gA = gate();
   const { context, page } = await openPage({
@@ -455,7 +455,7 @@ test('n: a late A response does not overwrite report B opened afterwards', async
   } finally { await context.close(); }
 });
 
-test('o: responses for a signed-out account are not applied after a new sign-in', async () => {
+test('o: responses for a signed-out account are not applied after a new sign-in', { timeout: TEST_TIMEOUT_MS }, async () => {
   const u1row = sess('u1a', { chart_name: 'U1 Kişisi' });
   const gList = gate(), gDetail = gate();
   const { context, page } = await openPage({
@@ -493,7 +493,7 @@ test('o: responses for a signed-out account are not applied after a new sign-in'
   } finally { await ctx2.context.close(); }
 });
 
-test('p: a late /start for a signed-out account is not shown and raises no notice', async () => {
+test('p: a late /start for a signed-out account is not shown and raises no notice', { timeout: TEST_TIMEOUT_MS }, async () => {
   const g = gate();
   const { context, page, calls } = await openPage({
     verifyToken: U2, quote: QUOTE_SUB,
@@ -514,7 +514,7 @@ test('p: a late /start for a signed-out account is not shown and raises no notic
   } finally { await context.close(); }
 });
 
-test('q: a /start that finishes after the user opened an old report does not overwrite it; a "ready" notice appears', async () => {
+test('q: a /start that finishes after the user opened an old report does not overwrite it; a "ready" notice appears', { timeout: TEST_TIMEOUT_MS }, async () => {
   const old = sess('old1');
   const g = gate();
   const { context, page, calls } = await openPage({
@@ -542,7 +542,7 @@ test('q: a /start that finishes after the user opened an old report does not ove
   } finally { await context.close(); }
 });
 
-test('r: a late /continue answer for report A does not touch report B', async () => {
+test('r: a late /continue answer for report A does not touch report B', { timeout: TEST_TIMEOUT_MS }, async () => {
   const A = sess('A'), B = sess('B');
   const g = gate();
   const { context, page } = await openPage({
@@ -570,7 +570,7 @@ test('r: a late /continue answer for report A does not touch report B', async ()
   } finally { await context.close(); }
 });
 
-test('s: read errors use the friendly messages, never the raw backend text', async () => {
+test('s: read errors use the friendly messages, never the raw backend text', { timeout: TEST_TIMEOUT_MS }, async () => {
   const s1 = sess('s1');
   const { context, page } = await openPage({ history: () => [s1], detail: () => [404, { detail: "session_id 's1' not found" }] });
   try {
@@ -583,7 +583,7 @@ test('s: read errors use the friendly messages, never the raw backend text', asy
   } finally { await context.close(); }
 });
 
-test('t: switching the language re-renders the open list', async () => {
+test('t: switching the language re-renders the open list', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await openPage({ history: () => [sess('s1', { category: 'timing', chart_name: null })] });
   try {
     await openReports(page);
@@ -621,7 +621,7 @@ async function assertShowsB(page) {
 }
 
 for (const [label, lateS] of [['500', [500, {}]], ['200 with other values', bal(1, 0)]]) {
-  test(`u: a late /balance (${label}) for a new report does not touch report B opened meanwhile`, async () => {
+  test(`u: a late /balance (${label}) for a new report does not touch report B opened meanwhile`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const B = sess('B');
     const gS = gate();
     const { context, page, calls } = await openPage({
@@ -648,7 +648,7 @@ for (const [label, lateS] of [['500', [500, {}]], ['200 with other values', bal(
   });
 }
 
-test('v: a late "Try again" /balance for report A does not touch report B opened meanwhile', async () => {
+test('v: a late "Try again" /balance for report A does not touch report B opened meanwhile', { timeout: TEST_TIMEOUT_MS }, async () => {
   const A = sess('A'), B = sess('B');
   const gRetry = gate();
   let aCalls = 0;
@@ -682,7 +682,7 @@ test('v: a late "Try again" /balance for report A does not touch report B opened
   } finally { await context.close(); }
 });
 
-test('w: a late /balance for a new report is not applied after logout and a new sign-in', async () => {
+test('w: a late /balance for a new report is not applied after logout and a new sign-in', { timeout: TEST_TIMEOUT_MS }, async () => {
   const gS = gate();
   const { context, page, calls } = await openPage({
     verifyToken: U2, quote: QUOTE_SUB,
@@ -707,7 +707,7 @@ test('w: a late /balance for a new report is not applied after logout and a new 
   } finally { await context.close(); }
 });
 
-test('x: a late "Try again" /balance does not overwrite the same report reopened afterwards', async () => {
+test('x: a late "Try again" /balance does not overwrite the same report reopened afterwards', { timeout: TEST_TIMEOUT_MS }, async () => {
   const A = sess('A');
   const gRetry = gate();
   let aCalls = 0;
@@ -742,7 +742,7 @@ test('x: a late "Try again" /balance does not overwrite the same report reopened
   } finally { await context.close(); }
 });
 
-test('y: the My reports top button reads "Kapat" without a chart and "Kategorilere dön" once a chart exists, in both languages and after logging in again', async () => {
+test('y: the My reports top button reads "Kapat" without a chart and "Kategorilere dön" once a chart exists, in both languages and after logging in again', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await openPage({ verifyToken: U1 });
   try {
     await openReports(page);

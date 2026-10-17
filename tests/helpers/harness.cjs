@@ -34,7 +34,14 @@ async function startHarness() {
   };
 }
 
+// Per-test and per-hook limits, so a hung test fails by name and its file
+// still ends. The longest normal test measured 26.1 s (six copies of the
+// suite at once; 12.4 s in CI, 18.3 s alone); 60 s leaves more than 2x.
+// Hooks start or close the browser and the local server (normally < 1 s).
+const TEST_TIMEOUT_MS = 60_000;
+const HOOK_TIMEOUT_MS = 30_000;
+
 const json = (route, status, body) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
-module.exports = { API, startHarness, json };
+module.exports = { API, startHarness, json, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS };
