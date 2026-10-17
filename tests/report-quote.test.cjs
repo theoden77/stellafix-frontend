@@ -3,15 +3,16 @@
 // browser record (sessionStorage) and its resume / keep / delete rules, and
 // the request timeouts. The API is mocked with page.route; no real backend
 // is called. Run: npm test
-const { test, before, after } = require('node:test');
+const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS } = require('./helpers/harness.cjs');
+const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
 const {
   useHarness, b64url, fakeJwt, U1, U2, PREFIX, UUID, delay, gate, never, until, Q, startOk, bal, sess, detailOf, reply, openPage, clickCategory, sendTimes, passGap, pendingKeys, pendingRecord, keyFor, text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody,
 } = require('./helpers/interpret-page.cjs');
 
 let h;
 before(async () => { h = await startHarness(); useHarness(h); }, { timeout: HOOK_TIMEOUT_MS });
+afterEach(async () => { await closeOpenContexts(h?.browser); }, { timeout: HOOK_TIMEOUT_MS });
 after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 // ---------------------------------------------------------------------------

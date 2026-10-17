@@ -1,15 +1,16 @@
 // Browser integration test for the error messages: chart not found, a
 // disabled category on an open report, and an unknown 409. The API is mocked
 // with page.route; no real backend is called. Run: npm test
-const { test, before, after } = require('node:test');
+const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS } = require('./helpers/harness.cjs');
+const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
 const {
   useHarness, Q, sess, openPage, clickCategory, pendingKeys, text, count, openReports, nextFrame,
 } = require('./helpers/interpret-page.cjs');
 
 let h;
 before(async () => { h = await startHarness(); useHarness(h); }, { timeout: HOOK_TIMEOUT_MS });
+afterEach(async () => { await closeOpenContexts(h?.browser); }, { timeout: HOOK_TIMEOUT_MS });
 after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 const lastError = page => page.locator('.chat-bubble.error').last().textContent();

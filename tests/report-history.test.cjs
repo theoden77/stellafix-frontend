@@ -3,12 +3,13 @@
 // /balance), read-only cases, follow-up errors, account changes and late
 // responses. The API is mocked with page.route; no real backend is called.
 // Run: npm test
-const { test, before, after } = require('node:test');
+const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { API, startHarness, json, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS } = require('./helpers/harness.cjs');
+const { API, startHarness, json, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
 
 let h;
 before(async () => { h = await startHarness(); }, { timeout: HOOK_TIMEOUT_MS });
+afterEach(async () => { await closeOpenContexts(h?.browser); }, { timeout: HOOK_TIMEOUT_MS });
 after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 // Unsigned fake JWT; the page only decodes the payload for display/account id.

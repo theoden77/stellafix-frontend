@@ -2,7 +2,7 @@
 // openPage with page.route mocks, a page-side send-time log, and helpers.
 // Not a test file itself (the npm test glob only runs tests/*.test.cjs).
 const assert = require('node:assert/strict');
-const { API, json } = require('./harness.cjs');
+const { API, json, CLOSE_LIMIT_MS, settlesWithin } = require('./harness.cjs');
 
 let current = null;
 const useHarness = h => { current = h; };
@@ -50,7 +50,6 @@ const detailOf = id => ({ ...sess(id), messages: [{ role: 'assistant', content: 
 // page-side setTimeout/requestAnimationFrame are fake while the clock is
 // installed. A normal step takes well under a second.
 const PAGE_STEP_LIMIT_MS = 10_000;
-const CLOSE_LIMIT_MS = 5_000;
 // Races `work` against the real-time limit. On a timeout the page's browser
 // context is closed (itself bounded), which also ends the pending page call,
 // and the step fails with its name. The context is closed here, not left to
@@ -65,9 +64,7 @@ async function pageStep(page, what, work, ms = PAGE_STEP_LIMIT_MS) {
   } catch (e) {
     if (!/did not finish within/.test(e.message)) throw e;
     work.catch(() => {}); // rejected by the close below
-    let closeTimer;
-    await Promise.race([page.context().close().catch(() => {}), new Promise(r => { closeTimer = setTimeout(r, CLOSE_LIMIT_MS); })]);
-    clearTimeout(closeTimer);
+    await settlesWithin(page.context().close(), CLOSE_LIMIT_MS);
     throw e;
   } finally { clearTimeout(timer); }
 }

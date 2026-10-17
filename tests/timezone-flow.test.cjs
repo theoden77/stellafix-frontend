@@ -7,20 +7,19 @@
 // Serves this repo locally and mocks https://api.stellafix.io with
 // page.route, so no real backend is called. Run: npm test
 // (needs Playwright's Chromium; PLAYWRIGHT_BROWSERS_PATH is honored).
-const { test, before, after } = require('node:test');
+const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const { chromium } = require('playwright');
 const { gate, until } = require('./helpers/interpret-page.cjs');
-const { TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS } = require('./helpers/harness.cjs');
+const { TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, launchBrowser, closeBrowser, closeServer, closeOpenContexts } = require('./helpers/harness.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const API = 'https://api.stellafix.io';
 const TYPES = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.js': 'text/javascript' };
 
-let server, baseUrl, browser;
+let server, baseUrl, browser, launched;
 
 before(async () => {
   server = http.createServer((req, res) => {
@@ -34,12 +33,14 @@ before(async () => {
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   baseUrl = `http://127.0.0.1:${server.address().port}/`;
-  browser = await chromium.launch();
+  launched = await launchBrowser();
+  browser = launched.browser;
 }, { timeout: HOOK_TIMEOUT_MS });
 
+afterEach(async () => { await closeOpenContexts(browser); }, { timeout: HOOK_TIMEOUT_MS });
 after(async () => {
-  await browser?.close();
-  await new Promise(r => server.close(r));
+  if (launched) await closeBrowser(launched);
+  if (server) await closeServer(server);
 }, { timeout: HOOK_TIMEOUT_MS });
 
 const json = (route, status, body) =>
