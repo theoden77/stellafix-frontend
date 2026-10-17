@@ -448,6 +448,9 @@ test('18: a /start and a /continue keep separate keys; after a reload they resum
   try {
     await clickCategory(page, 'personality');
     await until(() => calls.start.length === 1, '/start');
+    // The two requests are made at different moments. The paused page clock
+    // does not move by itself, and the resume order follows creation time.
+    await page.clock.fastForward(1_000);
     await openReports(page);
     await page.click('#reportsList .report-row[data-session-id="B"]');
     await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni B');
