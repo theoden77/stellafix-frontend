@@ -1,0 +1,358 @@
+// Browser integration test for the assistant text formatting: only **bold**
+// and line-start headings (# … ######) are shown as bold; everything else,
+// raw HTML and entities included, stays plain text. The API is mocked with
+// page.route; no real backend is called. Run: npm test
+const { test, before, after, afterEach } = require('node:test');
+const assert = require('node:assert/strict');
+const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
+const {
+  useHarness, Q, startOk, bal, sess, openPage, clickCategory, openReports, seedRecord, startBody, nextFrame, until,
+} = require('./helpers/interpret-page.cjs');
+
+let h;
+before(async () => { h = await startHarness(); useHarness(h); }, { timeout: HOOK_TIMEOUT_MS });
+afterEach(async () => { await closeOpenContexts(h?.browser); }, { timeout: HOOK_TIMEOUT_MS });
+after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
+
+// Adds a bubble with the page's own function and returns its index among the bubbles.
+const addBubble = (page, role, text) => page.evaluate(([r, t]) => {
+  const div = appendChatBubble(r, t);
+  return [...document.querySelectorAll('#chatMessages .chat-bubble')].indexOf(div);
+}, [role, text]);
+// What a bubble shows: its text, its <strong> texts, and whether a <strong> is nested.
+const shownAt = (page, i) => page.evaluate(i => {
+  const b = document.querySelectorAll('#chatMessages .chat-bubble')[i];
+  const t = b.querySelector('.chat-bubble-text');
+  return {
+    text: t.textContent,
+    strong: [...t.querySelectorAll('strong')].map(s => s.textContent),
+    nested: !!t.querySelector('strong strong'),
+    elements: [...t.querySelectorAll('*')].map(e => e.tagName.toLowerCase()),
+  };
+}, i);
+const render = async (page, text, role = 'assistant') => shownAt(page, await addBubble(page, role, text));
+const lastAssistant = page => page.evaluate(() => {
+  const all = document.querySelectorAll('#chatMessages .chat-bubble.assistant');
+  const t = all[all.length - 1].querySelector('.chat-bubble-text');
+  return { text: t.textContent, strong: [...t.querySelectorAll('strong')].map(s => s.textContent) };
+});
+// An open chat view without any network call.
+async function blankChat() {
+  const r = await openPage({ chart: true });
+  await r.page.evaluate(() => {
+    document.getElementById('categoryPanel').style.display = 'none';
+    document.getElementById('chatPanel').style.display = 'block';
+    document.getElementById('chatMessages').innerHTML = '';
+  });
+  return r;
+}
+
+const MD = '# Genel Bakış\nGüneş **Balık** burcunda, Ay **Koç** burcunda.\n\n## Sonuç\nSon paragraf.';
+const MD_SHOWN = 'Genel Bakış\nGüneş Balık burcunda, Ay Koç burcunda.\n\nSonuç\nSon paragraf.';
+const MD_STRONG = ['Genel Bakış', 'Balık', 'Koç', 'Sonuç'];
+
+// ---------------------------------------------------------------------------
+// Supported formats
+// ---------------------------------------------------------------------------
+test('bold: **x** is one <strong>, the markers are not shown; several on one line', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    let r = await render(page, 'Güneş **Balık** burcunda.');
+    assert.equal(r.text, 'Güneş Balık burcunda.');
+    assert.deepEqual(r.strong, ['Balık']);
+    r = await render(page, '**A** ve **B**, sonra **C D**.');
+    assert.equal(r.text, 'A ve B, sonra C D.');
+    assert.deepEqual(r.strong, ['A', 'B', 'C D']);
+    r = await render(page, '**baştan sona**');
+    assert.equal(r.text, 'baştan sona');
+    assert.deepEqual(r.strong, ['baştan sona']);
+  } finally { await context.close(); }
+});
+
+test('headings: # to ###### lines are bold without the markers; up to 3 leading spaces', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    for (const [input, shown, strong] of [
+      ['# Bir', 'Bir', 'Bir'],
+      ['## İki', 'İki', 'İki'],
+      ['### Üç', 'Üç', 'Üç'],
+      ['###### Altı', 'Altı', 'Altı'],
+      ['#\tSekme', 'Sekme', 'Sekme'],
+      ['#   Çok boşluk', 'Çok boşluk', 'Çok boşluk'],
+      ['   ## Girintili', '   Girintili', 'Girintili'],
+    ]) {
+      const r = await render(page, input);
+      assert.equal(r.text, shown, input);
+      assert.deepEqual(r.strong, [strong], input);
+      assert.deepEqual(r.elements, ['strong'], `${input}: only a <strong>, no heading element`);
+    }
+  } finally { await context.close(); }
+});
+
+test('bold inside a heading: one <strong>, no nested <strong>; an invalid pair stays visible inside the heading', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    let r = await render(page, '## Güneş **Balık** burcunda');
+    assert.equal(r.text, 'Güneş Balık burcunda');
+    assert.deepEqual(r.strong, ['Güneş Balık burcunda']);
+    assert.equal(r.nested, false);
+    r = await render(page, '# Başlık **kapanmamış');
+    assert.equal(r.text, 'Başlık **kapanmamış');
+    assert.deepEqual(r.strong, ['Başlık **kapanmamış']);
+  } finally { await context.close(); }
+});
+
+test('paragraphs and empty lines are kept; a heading line adds no extra line', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    const r = await render(page, MD);
+    assert.equal(r.text, MD_SHOWN);
+    assert.deepEqual(r.strong, MD_STRONG);
+    // The same text without the markers, as a plain assistant bubble: same height and the same rendered lines.
+    const metrics = await page.evaluate(([a, b]) => {
+      const box = t => {
+        const div = appendChatBubble('assistant', t);
+        return { h: div.getBoundingClientRect().height, lines: div.innerText.split('\n').length };
+      };
+      return [box(a), box(b)];
+    }, [MD, MD_SHOWN]);
+    assert.deepEqual(metrics[0], metrics[1]);
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// Stays plain: the shown text is exactly the input
+// ---------------------------------------------------------------------------
+const PLAIN = [
+  '**a **b** c**', '***x***', '****', '**kapanmamış', '** boşluklu**', '**boşluklu **', '**a*b**', '****x**',
+  'satırı **aşan\nkalın** metin',
+  '*italik*', '_italik_', '- liste', '1. liste', '`kod`', '[x](y)', '| tablo | x |', '> alıntı',
+  '####### başlık', '#başlık', 'C# ve 3#', '    # dört boşluk', '#', '# ', 'metin # değil başlık',
+];
+test('stays plain: unsupported or invalid markers are shown exactly as written', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    for (const input of PLAIN) {
+      const r = await render(page, input);
+      assert.equal(r.text, input, JSON.stringify(input));
+      assert.deepEqual(r.strong, [], `${JSON.stringify(input)}: no <strong>`);
+    }
+  } finally { await context.close(); }
+});
+
+test('a line with one invalid pair stays plain even if other pairs on it are valid; other lines are still formatted', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    const r = await render(page, '**iyi** ve ** kötü**\n**iyi**');
+    assert.equal(r.text, '**iyi** ve ** kötü**\niyi');
+    assert.deepEqual(r.strong, ['iyi']);
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// XSS: checked only inside the assistant bubble
+// ---------------------------------------------------------------------------
+const XSS = [
+  ['<script>window.__x=1</script>', '<script>window.__x=1</script>'],
+  ['<img src=x onerror="window.__x=1">', '<img src=x onerror="window.__x=1">'],
+  ['**<img src=x onerror="window.__x=1">**', '<img src=x onerror="window.__x=1">'],
+  ['# <svg onload="window.__x=1">', '<svg onload="window.__x=1">'],
+  ['[tıkla](javascript:window.__x=1)', '[tıkla](javascript:window.__x=1)'],
+  ['<a href="javascript:window.__x=1">x</a>', '<a href="javascript:window.__x=1">x</a>'],
+  ['&lt;script&gt;', '&lt;script&gt;'],
+  ['**<b>kalın</b>**', '<b>kalın</b>'],
+];
+const bubbleSafety = (page, i) => page.evaluate(i => {
+  const b = document.querySelectorAll('#chatMessages .chat-bubble')[i];
+  const els = [...b.querySelectorAll('*')];
+  return {
+    tags: els.map(e => e.tagName.toLowerCase()).filter(t => ['script', 'img', 'svg', 'iframe', 'a'].includes(t)),
+    attrs: els.flatMap(e => [...e.attributes].map(a => a.name)).filter(n => /^on/i.test(n) || n === 'href' || n === 'src'),
+    flag: window.__x,
+  };
+}, i);
+test('XSS: raw HTML and entities in an assistant text are shown as text; no element, attribute or script runs', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    for (const [input, shown] of XSS) {
+      const i = await addBubble(page, 'assistant', input);
+      await nextFrame(page);
+      await page.evaluate(() => new Promise(r => setTimeout(r, 50))); // an image error or load handler would have run
+      const s = await bubbleSafety(page, i);
+      assert.deepEqual(s.tags, [], `${input}: no script/img/svg/iframe/a`);
+      assert.deepEqual(s.attrs, [], `${input}: no on*/href/src`);
+      assert.equal(s.flag, undefined, `${input}: window.__x not set`);
+      assert.equal((await shownAt(page, i)).text, shown, input);
+    }
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// Performance: linear parsing of long texts full of unmatched markers
+// ---------------------------------------------------------------------------
+// Parsing and building the bubble's nodes (detached, no layout) must stay
+// under PERF_LIMIT_MS. The whole bubble in the page also includes the
+// browser's layout of a very long text, which the plain bubble of today pays
+// too; it is logged next to the plain bubble and bounded more loosely.
+const PERF_LIMIT_MS = 250;
+const PAGE_LIMIT_MS = 3000;
+test(`performance: 200 000 characters of unmatched markers are parsed and built in under ${PERF_LIMIT_MS} ms (one line and many lines)`, { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    const times = await page.evaluate(() => {
+      const one = '**a # '.repeat(Math.ceil(200000 / 6)).slice(0, 200000);
+      const many = '**a \n# **b\n'.repeat(Math.ceil(200000 / 11)).slice(0, 200000);
+      const out = {};
+      for (const [k, t] of [['one', one], ['many', many]]) {
+        const el = document.createElement('div');
+        let t0 = performance.now();
+        renderAssistantText(el, t);
+        const build = performance.now() - t0;
+        document.getElementById('chatMessages').innerHTML = '';
+        t0 = performance.now();
+        const div = appendChatBubble('assistant', t);
+        const bubble = performance.now() - t0;
+        document.getElementById('chatMessages').innerHTML = '';
+        t0 = performance.now();
+        appendChatBubble('user', t);
+        const plain = performance.now() - t0;
+        document.getElementById('chatMessages').innerHTML = '';
+        out[k] = { build, bubble, plain, len: el.textContent.length, shownLen: div.textContent.length };
+      }
+      return out;
+    });
+    for (const k of ['one', 'many']) {
+      const x = times[k];
+      console.log(`# markdown ${k}: parse+build ${x.build.toFixed(1)} ms, assistant bubble in the page ${x.bubble.toFixed(1)} ms, plain bubble ${x.plain.toFixed(1)} ms`);
+      assert.ok(x.build < PERF_LIMIT_MS, `${k}: parse+build ${x.build} ms`);
+      assert.ok(x.bubble < PAGE_LIMIT_MS, `${k}: bubble in the page ${x.bubble} ms`);
+    }
+    assert.equal(times.one.len, 200000, 'one line: nothing removed (no valid marker)');
+    assert.equal(times.one.shownLen, 200000);
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// Scope: only assistant texts are formatted
+// ---------------------------------------------------------------------------
+test('scope: user, notice and error bubbles keep **x** and # as written', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await blankChat();
+  try {
+    for (const role of ['user', 'notice', 'error']) {
+      for (const input of ['**x** ve **y**', '# başlık']) {
+        const r = await render(page, input, role);
+        assert.equal(r.text, input, `${role}: ${input}`);
+        assert.deepEqual(r.strong, [], `${role}: ${input}`);
+      }
+    }
+    // A notice with several lines (array) stays plain too.
+    const i = await page.evaluate(() => {
+      const div = appendChatBubble('notice', ['**a**', '# b']);
+      return [...document.querySelectorAll('#chatMessages .chat-bubble')].indexOf(div);
+    });
+    assert.equal(await page.evaluate(i => document.querySelectorAll('#chatMessages .chat-bubble')[i].querySelectorAll('strong').length, i), 0);
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// Every path that shows an assistant text
+// ---------------------------------------------------------------------------
+test('path: a live /start result is formatted', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await openPage({ start: () => [200, { session_id: 'S1', message: MD, language: 'tr', reused: false }] });
+  try {
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.chat-bubble.assistant');
+    const r = await lastAssistant(page);
+    assert.equal(r.text, MD_SHOWN);
+    assert.deepEqual(r.strong, MD_STRONG);
+  } finally { await context.close(); }
+});
+
+test('path: a live /continue answer is formatted; the question stays plain', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page, calls } = await openPage({
+    start: () => startOk('S1'), cont: () => [200, { message: 'Cevap: **Mars** güçlü.', ...bal(0) }],
+  });
+  try {
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+    await page.fill('#chatInput', '**Mars** ne durumda?');
+    await page.click('#chatSendBtn');
+    await until(() => calls.continue.length === 1, '/continue');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Cevap:');
+    const r = await lastAssistant(page);
+    assert.equal(r.text, 'Cevap: Mars güçlü.');
+    assert.deepEqual(r.strong, ['Mars']);
+    const q = await page.locator('.chat-bubble.user').last().textContent();
+    assert.equal(q, '**Mars** ne durumda?');
+    assert.equal(await page.locator('.chat-bubble.user strong').count(), 0);
+  } finally { await context.close(); }
+});
+
+test('path: a saved report opened from My reports is formatted; its user messages stay plain', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const s = sess('saved');
+  const { context, page } = await openPage({
+    chart: false, history: (a, off) => (off ? [] : [s]),
+    detail: () => ({ ...s, messages: [
+      { role: 'assistant', content: MD, created_at: '2026-10-10T09:30:00+00:00' },
+      { role: 'user', content: '**soru** # değil', created_at: '2026-10-10T09:31:00+00:00' },
+      { role: 'assistant', content: '### Cevap\n**Evet**.', created_at: '2026-10-10T09:32:00+00:00' },
+    ] }),
+  });
+  try {
+    await openReports(page);
+    await page.click('#reportsList .report-row[data-session-id="saved"]');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Genel Bakış');
+    const texts = await page.$$eval('#chatMessages .chat-bubble', bs => bs.map(b => [b.className, b.textContent, b.querySelectorAll('strong').length]));
+    assert.deepEqual(texts, [
+      ['chat-bubble assistant', MD_SHOWN, 4],
+      ['chat-bubble user', '**soru** # değil', 0],
+      ['chat-bubble assistant', 'Cevap\nEvet.', 2],
+    ]);
+  } finally { await context.close(); }
+});
+
+test('path: a saved report opened by a category click (quote "none") is formatted', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await openPage({
+    quote: Q.none('saved'), detail: () => ({ ...sess('saved'), messages: [{ role: 'assistant', content: MD, created_at: '2026-10-10T09:30:00+00:00' }] }),
+  });
+  try {
+    await clickCategory(page, 'personality');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Genel Bakış');
+    const r = await lastAssistant(page);
+    assert.equal(r.text, MD_SHOWN);
+    assert.deepEqual(r.strong, MD_STRONG);
+  } finally { await context.close(); }
+});
+
+test('path: a result after the automatic wait (resend after request_in_progress) is formatted', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page, calls } = await openPage({
+    clock: true,
+    start: (b, n) => (n === 1 ? [409, { error: 'request_in_progress', detail: 'x' }] : [200, { session_id: 'S1', message: MD, language: 'tr', reused: false }]),
+  });
+  try {
+    await clickCategory(page, 'personality');
+    await until(() => calls.start.length === 1, 'the first /start');
+    await page.waitForSelector('.pending-retry-btn');
+    await page.clock.fastForward(11_000);
+    await until(() => calls.start.length === 2, 'the automatic resend');
+    await page.waitForSelector('.chat-bubble.assistant');
+    const r = await lastAssistant(page);
+    assert.equal(r.text, MD_SHOWN);
+    assert.deepEqual(r.strong, MD_STRONG);
+  } finally { await context.close(); }
+});
+
+test('path: a report resumed after a reload (pending record) opens formatted', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const seed = [seedRecord('u1', 'rid-1', startBody('rid-1'))];
+  const { context, page, calls } = await openPage({
+    seed, chart: false, start: () => [200, { session_id: 'R1', message: MD, language: 'tr', reused: false }],
+    detail: () => ({ ...sess('R1'), messages: [{ role: 'assistant', content: MD, created_at: '2026-10-10T09:30:00+00:00' }] }),
+  });
+  try {
+    await until(() => calls.start.length === 1, 'the resumed /start');
+    await page.waitForSelector('.chat-bubble.assistant >> text=Genel Bakış');
+    const r = await lastAssistant(page);
+    assert.equal(r.text, MD_SHOWN);
+    assert.deepEqual(r.strong, MD_STRONG);
+  } finally { await context.close(); }
+});
