@@ -114,6 +114,7 @@ const TARGETS = {
     yearly_review: 'Bugünden başlayan 12 aylık dönem için yeni rapor',
     eclipse_nearest: 'Şu anki en yakın tutulma için yeni rapor',
     same: 'Bu rapor yeniden üretilecek; mevcut rapor okunabilir kalır.',
+    fresh: 'Bu bilgilerle yeni bir rapor oluşturulacak; mevcut rapor okunabilir kalır.',
   },
   en: {
     weekly_review: 'A new report for the 7-day period starting today',
@@ -121,33 +122,53 @@ const TARGETS = {
     yearly_review: 'A new report for the 12-month period starting today',
     eclipse_nearest: 'A new report for the current nearest eclipse',
     same: 'This report will be generated again; the current report stays readable.',
+    fresh: 'A new report will be created with these details; the current report stays readable.',
   },
 };
 const ALL8 = ['weekly_review', 'monthly_review', 'yearly_review', 'personality', 'career', 'finance', 'health', 'eclipse_nearest'];
+// Categories without a period: the forced branch regenerates the same report
+// ("same"); the unforced branch creates a new report ("fresh"). Categories
+// with a period show their own target text in both branches.
+const PERIOD4 = ['weekly_review', 'monthly_review', 'yearly_review', 'eclipse_nearest'];
+const expectTarget = (shown, locale, c, forced) => {
+  if (PERIOD4.includes(c)) {
+    assert.ok(shown.includes(TARGETS[locale][c]), `${c}: ${shown}`);
+    assert.ok(!shown.includes(TARGETS[locale].same) && !shown.includes(TARGETS[locale].fresh), `${c}: no generic text: ${shown}`);
+    return;
+  }
+  const [want, not] = forced ? ['same', 'fresh'] : ['fresh', 'same'];
+  assert.ok(shown.includes(TARGETS[locale][want]), `${c} ${forced ? 'forced' : 'unforced'}: ${shown}`);
+  assert.ok(!shown.includes(TARGETS[locale][not]), `${c} ${forced ? 'forced' : 'unforced'}: no "${not}" text: ${shown}`);
+};
 for (const locale of ['tr', 'en']) {
-  test(`R2 target texts (${locale}) for all 8 categories; no period_type in the quote or /start`, { timeout: TEST_TIMEOUT_MS }, async () => {
-    const list = ALL8.map(c => sess(`r-${c}`, { category: c, period_type: 'rolling_7d', timezone: 'Europe/Istanbul' }));
-    const { context, page, calls } = await openPage({
-      chart: false, history: (a, off) => (off ? [] : list), detail: detailFrom(list),
-      quote: Q.sub, start: b => startOk(`new-${b.category}`),
+  for (const forced of [false, true]) {
+    test(`R2 target texts (${locale}, ${forced ? 'forced' : 'unforced'}) for all 8 categories; no period_type in the quote or /start`, { timeout: TEST_TIMEOUT_MS }, async () => {
+      const list = ALL8.map(c => sess(`r-${c}`, { category: c, period_type: 'rolling_7d', timezone: 'Europe/Istanbul' }));
+      const { context, page, calls } = await openPage({
+        chart: false, history: (a, off) => (off ? [] : list), detail: detailFrom(list),
+        // Forced: the first quote says the report on screen is today's target.
+        quote: forced ? (b => (b.force_regenerate ? Q.sub() : Q.none(`r-${b.category}`)())) : Q.sub,
+        start: b => startOk(`new-${b.category}`),
+      });
+      try {
+        await page.evaluate(l => setLocale(l), locale);
+        for (const c of ALL8) {
+          await openSource(page, `r-${c}`);
+          const starts = calls.start.length;
+          await page.click('#regenBtn');
+          await page.waitForSelector('.regen-confirm-btn');
+          const shown = await confirmBubble(page);
+          expectTarget(shown, locale, c, forced);
+          await page.click('.regen-confirm-btn');
+          await until(() => calls.start.length === starts + 1, `/start for ${c}`);
+          assert.equal(calls.start[starts].body.force_regenerate === true, forced, `${c}: force_regenerate`);
+          await page.waitForSelector(`.chat-bubble.assistant >> text=Rapor metni new-${c}`);
+        }
+        for (const q of calls.quote) noRegenFields(q.body, 'quote');
+        for (const s of calls.start) noRegenFields(s.body, '/start');
+      } finally { await context.close(); }
     });
-    try {
-      await page.evaluate(l => setLocale(l), locale);
-      for (const c of ALL8) {
-        await openSource(page, `r-${c}`);
-        const starts = calls.start.length;
-        await page.click('#regenBtn');
-        await page.waitForSelector('.regen-confirm-btn');
-        const shown = await confirmBubble(page);
-        assert.ok(shown.includes(TARGETS[locale][c] || TARGETS[locale].same), `${c}: ${shown}`);
-        await page.click('.regen-confirm-btn');
-        await until(() => calls.start.length === starts + 1, `/start for ${c}`);
-        await page.waitForSelector(`.chat-bubble.assistant >> text=Rapor metni new-${c}`);
-      }
-      for (const q of calls.quote) noRegenFields(q.body, 'quote');
-      for (const s of calls.start) noRegenFields(s.body, '/start');
-    } finally { await context.close(); }
-  });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -238,6 +259,7 @@ for (const [spend, quote] of [['subscription', Q.sub], ['report_credit', Q.credi
     try {
       await page.click('#regenBtn');
       await page.waitForSelector('.regen-confirm-btn');
+      expectTarget(await confirmBubble(page), 'tr', 'personality', false);
       await settle(page);
       assert.equal(calls.quote.length, 1);
       assert.equal(calls.start.length, 0, 'no /start before the confirm');
@@ -340,6 +362,7 @@ test('R10 spend_changed on a forced /start: same force, a new confirm (subscript
     await until(() => calls.quote.length === 3, 'the new quote');
     assert.equal(calls.quote[2].body.force_regenerate, true, 'same force value');
     await page.waitForSelector('.regen-confirm-btn:not([disabled])');
+    expectTarget(await confirmBubble(page), 'tr', 'personality', true);
     assert.ok((await text(page, '#chatMessages')).includes('Bu raporun bedeli değişti'));
     assert.deepEqual(await pendingKeys(page), [], 'record deleted');
     await settle(page);
@@ -352,6 +375,47 @@ test('R10 spend_changed on a forced /start: same force, a new confirm (subscript
     assert.equal(b.expected_spend, 'subscription');
   } finally { await context.close(); }
 });
+
+test('R10 spend_changed on an unforced /start: no force, a new confirm with the new-report text, a NEW request_id', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page, calls } = await setup({
+    quote: Q.sub, start: (b, n) => (n === 1 ? [409, { error: 'spend_changed', detail: 'x' }] : startOk('NEW')),
+  });
+  try {
+    await page.click('#regenBtn');
+    await page.waitForSelector('.regen-confirm-btn');
+    await page.click('.regen-confirm-btn');
+    await until(() => calls.start.length === 1, '/start');
+    await until(() => calls.quote.length === 2, 'the new quote');
+    assert.equal('force_regenerate' in calls.quote[1].body, false, 'same force value');
+    await page.waitForSelector('.regen-confirm-btn:not([disabled])');
+    expectTarget(await confirmBubble(page), 'tr', 'personality', false);
+    await page.click('.regen-confirm-btn:not([disabled])');
+    await until(() => calls.start.length === 2, 'the second /start');
+    const [a, b] = calls.start.map(s => s.body);
+    assert.notEqual(b.request_id, a.request_id);
+    assert.equal('force_regenerate' in b, false);
+  } finally { await context.close(); }
+});
+
+// A quote with no response offers "Tekrar dene", which repeats the same step.
+for (const forced of [false, true]) {
+  test(`R10 quote retry (${forced ? 'forced' : 'unforced'}): "Tekrar dene" redoes the same quote; the confirm shows the ${forced ? 'same-report' : 'new-report'} text`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { context, page, calls } = await setup({
+      quote: forced ? seq(Q.none(SRC), () => 'abort', Q.sub) : seq(() => 'abort', Q.sub), start: () => startOk('NEW'),
+    });
+    try {
+      await page.click('#regenBtn');
+      await page.waitForSelector('.quote-retry-btn');
+      await page.click('.quote-retry-btn');
+      await page.waitForSelector('.regen-confirm-btn');
+      const last = calls.quote[calls.quote.length - 1].body;
+      assert.equal(last.force_regenerate === true, forced, 'the same step');
+      expectTarget(await confirmBubble(page), 'tr', 'personality', forced);
+      await settle(page);
+      assert.equal(calls.start.length, 0, 'no /start before the confirm');
+    } finally { await context.close(); }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // R11 failed forced /start: "Önceki raporu aç"
@@ -693,6 +757,7 @@ for (const forced of [true, false]) {
       await settle(page);
       assert.equal(calls.start.length, 1, 'no /start before the new confirm');
       await page.waitForSelector('.regen-confirm-btn:not([disabled])');
+      expectTarget(await confirmBubble(page), 'tr', 'weekly_review', forced);
       assert.equal(calls.quote.length, q0 + 1, 'one quote after the picker');
       assert.deepEqual(await pendingKeys(page), [], 'the 422 record is deleted');
       await settle(page);

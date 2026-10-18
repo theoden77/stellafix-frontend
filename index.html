@@ -872,6 +872,7 @@ const I18N = {
     regenTargetYearly: "Bugünden başlayan 12 aylık dönem için yeni rapor",
     regenTargetEclipse: "Şu anki en yakın tutulma için yeni rapor",
     regenTargetSame: "Bu rapor yeniden üretilecek; mevcut rapor okunabilir kalır.",
+    regenTargetNew: "Bu bilgilerle yeni bir rapor oluşturulacak; mevcut rapor okunabilir kalır.",
     regenPriceSubscription: "Aboneliğin kapsamında (ek ücret yok)",
     regenSavedExists: "Bu dönem için kayıtlı bir rapor var",
     btnOpenReport: "Raporu aç",
@@ -1114,6 +1115,7 @@ const I18N = {
     regenTargetYearly: "A new report for the 12-month period starting today",
     regenTargetEclipse: "A new report for the current nearest eclipse",
     regenTargetSame: "This report will be generated again; the current report stays readable.",
+    regenTargetNew: "A new report will be created with these details; the current report stays readable.",
     regenPriceSubscription: "Covered by your subscription (no extra charge)",
     regenSavedExists: "There is already a saved report for this period",
     btnOpenReport: "Open report",
@@ -5361,8 +5363,11 @@ function regenQuoteResult(flow,mode,resp,body){
 }
 // Onay her zaman: hedef metni + bedel. report_credit'te hak 0 ise onay yerine
 // Abone Ol; bakiye okunamazsa bakiye satırı gizlenir, onay kalır.
+// Dönemsiz kategoride hedef metni dala göre: zorlamalıda aynı rapor yeniden
+// üretilir, zorlamasızda bugünün hedefi için kayıtlı rapor yoktur, yeni bir
+// rapor oluşur.
 async function showRegenConfirm(flow,spend){
-  const lines=[t(REGEN_TARGET_KEYS[flow.ctx.category]||'regenTargetSame')];
+  const lines=[t(REGEN_TARGET_KEYS[flow.ctx.category]||(flow.force?'regenTargetSame':'regenTargetNew'))];
   if(spend==='report_credit'){
     if(!await ensureCreditBalance(flow))return;
     const n=creditBalance?(creditBalance.report_credits||0):null;
