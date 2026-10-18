@@ -4055,23 +4055,24 @@ function parseAssistantText(text){
     return {indent:'',heading:false,segs:mdBoldSegments(line)};
   });
 }
+// Ardışık düz metin (satır sonları dahil) tek bir metin düğümünde toplanır.
 function renderAssistantText(el,text){
   el.textContent='';
+  let plain='';
+  const strong=t=>{
+    if(plain){ el.appendChild(document.createTextNode(plain)); plain=''; }
+    const s=document.createElement('strong');
+    s.textContent=t;
+    el.appendChild(s);
+  };
   parseAssistantText(text).forEach((ln,i)=>{
-    if(i)el.appendChild(document.createTextNode('\n'));
-    if(ln.indent)el.appendChild(document.createTextNode(ln.indent));
-    if(ln.heading){
-      // Başlık zaten kalın: içindeki kalın parçalar iç içe <strong> olmaz.
-      const strong=document.createElement('strong');
-      strong.textContent=ln.segs.map(s=>s.t).join('');
-      el.appendChild(strong);
-      return;
-    }
-    for(const s of ln.segs){
-      if(s.b){ const strong=document.createElement('strong'); strong.textContent=s.t; el.appendChild(strong); }
-      else el.appendChild(document.createTextNode(s.t));
-    }
+    if(i)plain+='\n';
+    plain+=ln.indent;
+    // Başlık zaten kalın: içindeki kalın parçalar iç içe <strong> olmaz.
+    if(ln.heading){ strong(ln.segs.map(s=>s.t).join('')); return; }
+    for(const s of ln.segs){ if(s.b)strong(s.t); else plain+=s.t; }
   });
+  if(plain)el.appendChild(document.createTextNode(plain));
 }
 function appendChatBubble(role,text,action){
   const wrap=document.getElementById('chatMessages');
