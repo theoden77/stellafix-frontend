@@ -1,16 +1,17 @@
 // Browser integration test for the error messages: chart not found, a
 // disabled category on an open report, and an unknown 409. The API is mocked
 // with page.route; no real backend is called. Run: npm test
-const { test, before, after } = require('node:test');
+const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { startHarness } = require('./helpers/harness.cjs');
+const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
 const {
   useHarness, Q, sess, openPage, clickCategory, pendingKeys, text, count, openReports, nextFrame,
 } = require('./helpers/interpret-page.cjs');
 
 let h;
-before(async () => { h = await startHarness(); useHarness(h); });
-after(async () => { await h?.close(); });
+before(async () => { h = await startHarness(); useHarness(h); }, { timeout: HOOK_TIMEOUT_MS });
+afterEach(async () => { await closeOpenContexts(h?.browser); }, { timeout: HOOK_TIMEOUT_MS });
+after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 const lastError = page => page.locator('.chat-bubble.error').last().textContent();
 
@@ -18,7 +19,7 @@ for (const [locale, main, extra] of [
   ['tr', 'Bu kategori şu anda kullanılamıyor.', 'Rapor okunabilir, yeni soru şu an alınamıyor.'],
   ['en', 'This category is currently unavailable.', "You can read the report, but new questions can't be taken right now."],
 ]) {
-  test(`403 category_disabled on an open saved report (${locale}): both lines, the report stays, the record is deleted`, async () => {
+  test(`403 category_disabled on an open saved report (${locale}): both lines, the report stays, the record is deleted`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const hs = sess('hs', { category: 'health' });
     const { context, page, calls } = await openPage({
       chart: false, history: () => [hs], detail: () => ({ ...hs, messages: [{ role: 'assistant', content: 'Rapor metni hs' }] }),
@@ -43,7 +44,7 @@ for (const [locale, main, extra] of [
   });
 }
 
-test('403 category_disabled on a category click (no open report): only the first line', async () => {
+test('403 category_disabled on a category click (no open report): only the first line', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await openPage({ quote: () => [403, { error: 'category_disabled', detail: 'raw' }] });
   try {
     await clickCategory(page, 'health');
@@ -55,7 +56,7 @@ test('403 category_disabled on a category click (no open report): only the first
 });
 
 for (const [locale, msg] of [['tr', 'Harita bulunamadı, yeniden hesapla.'], ['en', "The chart couldn't be found; please calculate it again."]]) {
-  test(`404 on the quote (${locale}): "${msg}"`, async () => {
+  test(`404 on the quote (${locale}): "${msg}"`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await openPage({ quote: () => [404, { detail: 'raw backend text' }] });
     try {
       await page.evaluate(l => setLocale(l), locale);
@@ -66,7 +67,7 @@ for (const [locale, msg] of [['tr', 'Harita bulunamadı, yeniden hesapla.'], ['e
     } finally { await context.close(); }
   });
 
-  test(`404 on /start (${locale}): "${msg}", record deleted`, async () => {
+  test(`404 on /start (${locale}): "${msg}", record deleted`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await openPage({ quote: Q.sub, start: () => [404, { detail: 'raw backend text' }] });
     try {
       await page.evaluate(l => setLocale(l), locale);
@@ -79,7 +80,7 @@ for (const [locale, msg] of [['tr', 'Harita bulunamadı, yeniden hesapla.'], ['e
   });
 }
 
-test('an unknown 409 on /start (regenerate_unavailable): the general message, record deleted, no automatic retry', async () => {
+test('an unknown 409 on /start (regenerate_unavailable): the general message, record deleted, no automatic retry', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({
     clock: true, quote: Q.sub, start: () => [409, { error: 'regenerate_unavailable', detail: 'raw backend text' }],
   });
@@ -96,7 +97,7 @@ test('an unknown 409 on /start (regenerate_unavailable): the general message, re
   } finally { await context.close(); }
 });
 
-test('an unknown 409 on the quote: the general message and no automatic check', async () => {
+test('an unknown 409 on the quote: the general message and no automatic check', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ clock: true, quote: () => [409, { error: 'regenerate_unavailable', detail: 'raw' }] });
   try {
     await clickCategory(page, 'personality');

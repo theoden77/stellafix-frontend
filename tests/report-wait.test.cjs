@@ -4,17 +4,18 @@
 // polling, 429 back-off, hidden tabs, the 60 s notice, "Beklemeyi durdur",
 // the shared send queue and the 330 s window. The API is mocked with
 // page.route; no real backend is called. Run: npm test
-const { test, before, after } = require('node:test');
+const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { startHarness } = require('./helpers/harness.cjs');
+const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
 const {
   useHarness, U1, U2, delay, gate, never, until, Q, startOk, bal, sess, detailOf, openPage, clickCategory, sendTimes,
-  passGap, pendingKeys, pendingRecord, keyFor, text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody,
+  passGap, pendingKeys, pendingRecord, keyFor, text, count, openReports, logoutViaMenu, loginAs, nextFrame, seedRecord, startBody, withPageTime,
 } = require('./helpers/interpret-page.cjs');
 
 let h;
-before(async () => { h = await startHarness(); useHarness(h); });
-after(async () => { await h?.close(); });
+before(async () => { h = await startHarness(); useHarness(h); }, { timeout: HOOK_TIMEOUT_MS });
+afterEach(async () => { await closeOpenContexts(h?.browser); }, { timeout: HOOK_TIMEOUT_MS });
+after(async () => { await h?.close(); }, { timeout: HOOK_TIMEOUT_MS });
 
 const RIP = [409, { error: 'request_in_progress', detail: 'x' }];
 const GIP = [409, { error: 'generation_in_progress', detail: 'x' }];
@@ -35,9 +36,9 @@ async function untilAsync(cond, what, ms = 5000) {
 }
 // Expects the next automatic send `delayMs` after the previous result: the
 // page asks for a timer of exactly `delayMs` after that result, nothing leaves
-// the page before the timer fires, and the send leaves right after it. Under
-// load the fake page clock can step back a few hundred ms, so the clock
-// boundaries are checked with a 1000 ms margin; the requested delay is exact.
+// the page before the timer fires, and the send leaves right after it. The
+// clock boundaries are checked with a 1000 ms margin (kept from when the page
+// clock flowed in real time); the requested delay is exact.
 async function expectAutoSend(page, delayMs) {
   await untilAsync(async () => (await sendTimes(page)).slice(-1)[0].respAt !== null, 'the previous response');
   const log = await sendTimes(page);
@@ -114,7 +115,7 @@ const stopped = (page, key) => page.waitForFunction(k => { const r = sessionStor
 // ---------------------------------------------------------------------------
 // Test 9, approved request
 // ---------------------------------------------------------------------------
-test('9 approved: request_in_progress is resent with the same id and bytes after 10/15/20/30… s, stops at 330 s (paused), "Tekrar dene" resends', async () => {
+test('9 approved: request_in_progress is resent with the same id and bytes after 10/15/20/30… s, stops at 330 s (paused), "Tekrar dene" resends', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ clock: true, start: (b, n) => (n <= 13 ? RIP : startOk('S1')) });
   try {
     await clickCategory(page, 'personality');
@@ -154,7 +155,7 @@ for (const [label, result, credits, button, spend] of [
   ['(d) subscription', Q.sub, 3, 'Aboneliğin kapsamında üret', 'subscription'],
   ['(e) report_credit', Q.credit, 3, '1 rapor hakkı kullanarak üret', 'report_credit'],
 ]) {
-  test(`9 ${label} inside the loop: the loop stops on a priced "Üret" button; /start only when pressed`, async () => {
+  test(`9 ${label} inside the loop: the loop stops on a priced "Üret" button; /start only when pressed`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await openPage({
       clock: true, afterClock: logReads, credits: () => ({ report_credits: credits }),
       quote: (b, n) => (n <= 2 ? GIP : result()),
@@ -186,7 +187,7 @@ for (const [label, result, expect] of [
   ['(b) report_credit', Q.credit, { button: '1 rapor hakkı kullanarak üret', spend: 'report_credit' }],
   ['(c) none', Q.none('saved9'), null],
 ]) {
-  test(`9 ${label} after the window: "Tekrar kontrol et" makes one quote and never sends /start by itself`, async () => {
+  test(`9 ${label} after the window: "Tekrar kontrol et" makes one quote and never sends /start by itself`, { timeout: TEST_TIMEOUT_MS }, async () => {
     let afterExpiry = false;
     const { context, page, calls } = await openPage({
       clock: true, credits: () => ({ report_credits: 3 }), quote: () => (afterExpiry ? result() : GIP),
@@ -225,7 +226,7 @@ for (const [label, result, expect] of [
 // ---------------------------------------------------------------------------
 // Test 19 (loop part) and test 21 (automatic part)
 // ---------------------------------------------------------------------------
-test('19 loop: "Beklemeyi durdur" during an automatic resend aborts it, keeps the record paused, nothing is sent later; "Sürdür" resends the same id', async () => {
+test('19 loop: "Beklemeyi durdur" during an automatic resend aborts it, keeps the record paused, nothing is sent later; "Sürdür" resends the same id', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, net } = await openPage({
     clock: true, start: (b, n) => (n === 1 ? RIP : n === 2 ? never() : startOk('S1')),
   });
@@ -248,7 +249,7 @@ test('19 loop: "Beklemeyi durdur" during an automatic resend aborts it, keeps th
   } finally { await context.close(); }
 });
 
-test('19 loop, between resends: "Beklemeyi durdur" while the next resend is only scheduled keeps the record paused and nothing is sent later', async () => {
+test('19 loop, between resends: "Beklemeyi durdur" while the next resend is only scheduled keeps the record paused and nothing is sent later', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ clock: true, start: (b, n) => (n === 1 ? RIP : startOk('S1')) });
   try {
     await clickCategory(page, 'personality');
@@ -268,7 +269,7 @@ test('19 loop, between resends: "Beklemeyi durdur" while the next resend is only
   } finally { await context.close(); }
 });
 
-test('quote check loop: "Beklemeyi durdur" stops the checks; no quote and no /start later', async () => {
+test('quote check loop: "Beklemeyi durdur" stops the checks; no quote and no /start later', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ clock: true, quote: (b, n) => (n === 1 ? GIP : Q.sub()) });
   try {
     await clickCategory(page, 'personality');
@@ -282,7 +283,7 @@ test('quote check loop: "Beklemeyi durdur" stops the checks; no quote and no /st
   } finally { await context.close(); }
 });
 
-test('21 automatic: a hung /start is aborted at 180 s, resent automatically with the same id, aborted at 330 s, then nothing more', async () => {
+test('21 automatic: a hung /start is aborted at 180 s, resent automatically with the same id, aborted at 330 s, then nothing more', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls, net } = await openPage({ clock: true, start: () => never() });
   try {
     await clickCategory(page, 'personality');
@@ -312,7 +313,7 @@ test('21 automatic: a hung /start is aborted at 180 s, resent automatically with
 // ---------------------------------------------------------------------------
 // 60 s notice, 429 back-off, hidden tab
 // ---------------------------------------------------------------------------
-test('the "Bu biraz uzun sürebilir." notice appears once, at 60 s', async () => {
+test('the "Bu biraz uzun sürebilir." notice appears once, at 60 s', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page } = await openPage({ clock: true, start: () => RIP });
   try {
     await clickCategory(page, 'personality');
@@ -332,7 +333,7 @@ test('the "Bu biraz uzun sürebilir." notice appears once, at 60 s', async () =>
   } finally { await context.close(); }
 });
 
-test('429 doubles the next delay: an approved resend 20 s instead of 10 s, a quote check 10 s instead of 5 s', async () => {
+test('429 doubles the next delay: an approved resend 20 s instead of 10 s, a quote check 10 s instead of 5 s', { timeout: TEST_TIMEOUT_MS }, async () => {
   const r1 = await openPage({ clock: true, start: (b, n) => (n === 1 ? [429, { error: 'rate_limited', detail: 'x' }] : startOk('S1')) });
   try {
     await clickCategory(r1.page, 'personality');
@@ -363,7 +364,7 @@ test('429 doubles the next delay: an approved resend 20 s instead of 10 s, a quo
   } finally { await r2.context.close(); }
 });
 
-test('hidden tab: nothing is sent while hidden; visible again inside the window continues, after it the wait has expired', async () => {
+test('hidden tab: nothing is sent while hidden; visible again inside the window continues, after it the wait has expired', { timeout: TEST_TIMEOUT_MS }, async () => {
   const r1 = await openPage({ clock: true, start: (b, n) => (n === 1 ? RIP : startOk('S1')) });
   try {
     await clickCategory(r1.page, 'personality');
@@ -402,7 +403,7 @@ test('hidden tab: nothing is sent while hidden; visible again inside the window 
 // ---------------------------------------------------------------------------
 // report_not_ready, pending report, pending list
 // ---------------------------------------------------------------------------
-test('/continue report_not_ready: GET /{id} is polled; when completed the same continue id is sent once', async () => {
+test('/continue report_not_ready: GET /{id} is polled; when completed the same continue id is sent once', { timeout: TEST_TIMEOUT_MS }, async () => {
   let polls = 0;
   const A = sess('A');
   const { context, page, calls } = await openPage({
@@ -430,7 +431,7 @@ test('/continue report_not_ready: GET /{id} is polled; when completed the same c
   } finally { await context.close(); }
 });
 
-test('a pending report opened from My reports is polled; when completed the text shows and the question box opens; closing it stops the poll', async () => {
+test('a pending report opened from My reports is polled; when completed the text shows and the question box opens; closing it stops the poll', { timeout: TEST_TIMEOUT_MS }, async () => {
   let polls = 0;
   const P = sess('P', { status: 'pending' });
   const pendingDetail = { ...P, messages: [] };
@@ -464,7 +465,7 @@ test('a pending report opened from My reports is polled; when completed the text
   } finally { await r2.context.close(); }
 });
 
-test('My reports with a pending row: the first page is re-read and the row updated in place; loaded pages stay; closing stops the poll', async () => {
+test('My reports with a pending row: the first page is re-read and the row updated in place; loaded pages stay; closing stops the poll', { timeout: TEST_TIMEOUT_MS }, async () => {
   let reread = 0;
   const page1 = Array.from({ length: 20 }, (_, i) => sess(`p${i}`, i === 0 ? { status: 'pending' } : {}));
   const page2 = Array.from({ length: 5 }, (_, i) => sess(`q${i}`));
@@ -508,7 +509,7 @@ test('My reports with a pending row: the first page is re-read and the row updat
 // ---------------------------------------------------------------------------
 // Resume on load: 429 is retried; one queue; account change
 // ---------------------------------------------------------------------------
-test('resume on load: a 429 keeps the record and retries it with a doubled delay inside its window; one request at a time, >= 10 s apart', async () => {
+test('resume on load: a 429 keeps the record and retries it with a doubled delay inside its window; one request at a time, >= 10 s apart', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seed = [1, 2].map(i => seedRecord('u1', `rid-${i}`, startBody(`rid-${i}`), { created_at: i }));
   let first = 0;
   const { context, page, calls, net } = await openPage({
@@ -532,7 +533,7 @@ test('resume on load: a 429 keeps the record and retries it with a doubled delay
   } finally { await context.close(); }
 });
 
-test('two waiting records share one queue: every automatic send is >= 10 s after the previous one and only one is on the network', async () => {
+test('two waiting records share one queue: every automatic send is >= 10 s after the previous one and only one is on the network', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seed = [1, 2].map(i => seedRecord('u1', `rid-${i}`, startBody(`rid-${i}`), { created_at: i }));
   const { context, page, calls, net } = await openPage({
     clock: true, chart: false, seed, start: (b, n) => (n <= 6 ? RIP : startOk(`S-${b.request_id}`)),
@@ -551,7 +552,7 @@ test('two waiting records share one queue: every automatic send is >= 10 s after
   } finally { await context.close(); }
 });
 
-test('an automatic resend waits while a manual "Sürdür" request is on the network', async () => {
+test('an automatic resend waits while a manual "Sürdür" request is on the network', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seed = [seedRecord('u1', 'rid-b', startBody('rid-b'), { created_at: 1, paused: true })];
   const { context, page, calls, net } = await openPage({
     clock: true, seed,
@@ -582,7 +583,7 @@ test('an automatic resend waits while a manual "Sürdür" request is on the netw
   } finally { await context.close(); }
 });
 
-test('flight lock at the send itself: a second send of the same id while one is on the network is refused; the first one goes out once', async () => {
+test('flight lock at the send itself: a second send of the same id while one is on the network is refused; the first one goes out once', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seed = [seedRecord('u1', 'rid-f', startBody('rid-f'), { created_at: 1, paused: true })];
   const g = gate();
   const { context, page, calls } = await openPage({ seed, start: () => g.wait().then(() => startOk('S-f')) });
@@ -603,7 +604,7 @@ test('flight lock at the send itself: a second send of the same id while one is 
   } finally { await context.close(); }
 });
 
-test('an account change during a wait shows nothing on the new account and sends nothing for the old one', async () => {
+test('an account change during a wait shows nothing on the new account and sends nothing for the old one', { timeout: TEST_TIMEOUT_MS }, async () => {
   let current = U2;
   const { context, page, calls } = await openPage({
     clock: true, verify: () => current, quote: (b, n) => (b.category === 'career' ? GIP : Q.sub()), start: () => RIP,
@@ -643,7 +644,7 @@ for (const [label, second, shown] of [
   ['200', () => startOk('S1'), /Rapor metni S1/],
   ['409 request_failed', () => [409, { error: 'request_failed', detail: 'raw' }], /İstek tamamlanamadı, hakkın iade edildi\./],
 ]) {
-  test(`a finished wait (${label} on the first resend) leaves no waiting bubble, active buttons or 60 s notice; nothing more is sent`, async () => {
+  test(`a finished wait (${label} on the first resend) leaves no waiting bubble, active buttons or 60 s notice; nothing more is sent`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await openPage({ clock: true, start: (b, n) => (n === 1 ? RIP : second()) });
     try {
       await clickCategory(page, 'personality');
@@ -669,7 +670,7 @@ for (const [label, result, shown] of [
   ['(d) "Üret" button', Q.sub, '.quote-generate-btn'],
   ['(c) none', Q.none('savedQ'), '.chat-bubble.assistant >> text=Rapor metni savedQ'],
 ]) {
-  test(`a quote loop that ends with ${label} leaves no "hazırlanıyor" bubble, active check/stop buttons or 60 s notice`, async () => {
+  test(`a quote loop that ends with ${label} leaves no "hazırlanıyor" bubble, active check/stop buttons or 60 s notice`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const { context, page, calls } = await openPage({ clock: true, quote: (b, n) => (n <= 3 ? GIP : result()) });
     try {
       await clickCategory(page, 'personality');
@@ -685,7 +686,7 @@ for (const [label, result, shown] of [
 }
 
 for (const locale of ['tr', 'en']) {
-  test(`expiry text (${locale}): an approved /start and a report_not_ready wait both end with the expiry text only`, async () => {
+  test(`expiry text (${locale}): an approved /start and a report_not_ready wait both end with the expiry text only`, { timeout: TEST_TIMEOUT_MS }, async () => {
     const r1 = await openPage({ clock: true, start: () => RIP });
     try {
       await r1.page.evaluate(l => setLocale(l), locale);
@@ -743,7 +744,7 @@ async function expireApproved(page, calls) {
   return key;
 }
 
-test('expired wait, "Tekrar dene" → 200: the report shows and no waiting or expiry bubble, 60 s notice or active button is left; nothing more is sent', async () => {
+test('expired wait, "Tekrar dene" → 200: the report shows and no waiting or expiry bubble, 60 s notice or active button is left; nothing more is sent', { timeout: TEST_TIMEOUT_MS }, async () => {
   let manual = false;
   const { context, page, calls } = await openPage({ clock: true, start: () => (manual ? startOk('S1') : RIP) });
   try {
@@ -763,7 +764,7 @@ test('expired wait, "Tekrar dene" → 200: the report shows and no waiting or ex
   } finally { await context.close(); }
 });
 
-test('expired wait, "Tekrar dene" → 409 again: exactly one waiting bubble; the new window resends the same id and bytes; then 200 leaves it clean', async () => {
+test('expired wait, "Tekrar dene" → 409 again: exactly one waiting bubble; the new window resends the same id and bytes; then 200 leaves it clean', { timeout: TEST_TIMEOUT_MS }, async () => {
   let manual = 0;
   const { context, page, calls } = await openPage({ clock: true, start: () => (manual === 0 ? RIP : ++manual <= 2 ? RIP : startOk('S1')) });
   try {
@@ -789,7 +790,7 @@ test('expired wait, "Tekrar dene" → 409 again: exactly one waiting bubble; the
   } finally { await context.close(); }
 });
 
-test('expired wait, "Sürdür" in My reports → 200: the expired bubble is removed and the report opens clean', async () => {
+test('expired wait, "Sürdür" in My reports → 200: the expired bubble is removed and the report opens clean', { timeout: TEST_TIMEOUT_MS }, async () => {
   let manual = false;
   const { context, page, calls } = await openPage({ clock: true, start: () => (manual ? startOk('S1') : RIP) });
   try {
@@ -813,7 +814,7 @@ test('expired wait, "Sürdür" in My reports → 200: the expired bubble is remo
 // ---------------------------------------------------------------------------
 // Invariant: a new request_id only comes from a user action
 // ---------------------------------------------------------------------------
-test('a new request_id only comes from a user action; every automatic send carries an existing id and its first raw body', async () => {
+test('a new request_id only comes from a user action; every automatic send carries an existing id and its first raw body', { timeout: TEST_TIMEOUT_MS }, async () => {
   // rid-r was created by an earlier user action and is resumed on load.
   const seed = [seedRecord('u1', 'rid-r', startBody('rid-r'), { created_at: 1 })];
   const n = {};
@@ -864,7 +865,7 @@ test('a new request_id only comes from a user action; every automatic send carri
 // ---------------------------------------------------------------------------
 // After the window: "Tekrar kontrol et" gets 409 again
 // ---------------------------------------------------------------------------
-test('after the window, "Tekrar kontrol et" that gets 409 again starts one new bounded loop; it ends at 330 s with only "Tekrar kontrol et" and never sends /start', async () => {
+test('after the window, "Tekrar kontrol et" that gets 409 again starts one new bounded loop; it ends at 330 s with only "Tekrar kontrol et" and never sends /start', { timeout: TEST_TIMEOUT_MS }, async () => {
   const { context, page, calls } = await openPage({ clock: true, quote: () => GIP });
   try {
     await clickCategory(page, 'personality');
@@ -898,11 +899,11 @@ function earlyTimers() {
   const orig = window.setTimeout;
   window.setTimeout = function (fn, ms, ...args) { return orig.call(this, fn, ms >= 1000 ? ms - 100 : ms, ...args); };
 }
-test('timers firing 100 ms early: two automatic sends are still >= 10 000 ms apart', async () => {
+test('timers firing 100 ms early: two automatic sends are still >= 10 000 ms apart', { timeout: TEST_TIMEOUT_MS }, async () => {
   const seed = [1, 2].map(i => seedRecord('u1', `rid-${i}`, startBody(`rid-${i}`), { created_at: i }));
   const { context, page } = await openPage({ clock: true, chart: false, seed, afterClock: earlyTimers, start: b => startOk(`S-${b.request_id}`) });
   try {
-    const woke = await page.evaluate(() => new Promise(r => { const t0 = Date.now(); setTimeout(() => r(Date.now() - t0), 1000); }));
+    const woke = await withPageTime(page, () => new Promise(r => { const t0 = Date.now(); setTimeout(() => r(Date.now() - t0), 1000); }), 1000);
     assert.ok(woke < 1000, `sanity: a 1000 ms timer fired after ${woke} ms`);
     await untilSends(page, 1);
     await untilAsync(async () => (await sendTimes(page))[0].respAt !== null, 'the first response');
