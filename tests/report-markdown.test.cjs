@@ -171,21 +171,21 @@ const bubbleSafety = (page, i) => page.evaluate(i => {
     flag: window.__x,
   };
 }, i);
-test('XSS: raw HTML and entities in an assistant text are shown as text; no element, attribute or script runs', { timeout: TEST_TIMEOUT_MS }, async () => {
-  const { context, page } = await blankChat();
-  try {
-    for (const [input, shown] of XSS) {
+for (const [input, shown] of XSS) {
+  test(`XSS: ${input} in an assistant text is shown as text; no element, attribute or script runs`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { context, page } = await blankChat();
+    try {
       const i = await addBubble(page, 'assistant', input);
       await nextFrame(page);
       await page.evaluate(() => new Promise(r => setTimeout(r, 50))); // an image error or load handler would have run
       const s = await bubbleSafety(page, i);
-      assert.deepEqual(s.tags, [], `${input}: no script/img/svg/iframe/a`);
-      assert.deepEqual(s.attrs, [], `${input}: no on*/href/src`);
-      assert.equal(s.flag, undefined, `${input}: window.__x not set`);
-      assert.equal((await shownAt(page, i)).text, shown, input);
-    }
-  } finally { await context.close(); }
-});
+      assert.deepEqual(s.tags, [], 'no script/img/svg/iframe/a in the bubble');
+      assert.deepEqual(s.attrs, [], 'no on*/href/src in the bubble');
+      assert.equal(s.flag, undefined, 'window.__x not set');
+      assert.equal((await shownAt(page, i)).text, shown);
+    } finally { await context.close(); }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Performance: linear parsing of long texts full of unmatched markers
