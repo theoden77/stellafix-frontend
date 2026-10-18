@@ -4048,8 +4048,9 @@ function mdBoldSegments(line){
   if(pos<line.length)segs.push({t:line.slice(pos),b:false});
   return segs;
 }
+// null/undefined -> "" (textContent ile aynı: boş balon); diğer değerler String().
 function parseAssistantText(text){
-  return String(text).split('\n').map(line=>{
+  return (text==null?'':String(text)).split('\n').map(line=>{
     const m=mdHeading(line);
     if(m)return {indent:m.indent,heading:true,segs:mdBoldSegments(m.rest)};
     return {indent:'',heading:false,segs:mdBoldSegments(line)};

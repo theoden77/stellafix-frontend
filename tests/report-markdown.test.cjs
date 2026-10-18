@@ -356,3 +356,47 @@ test('path: a report resumed after a reload (pending record) opens formatted', {
     assert.deepEqual(r.strong, MD_STRONG);
   } finally { await context.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// A missing or null message gives an empty assistant bubble (never "null" or
+// "undefined"); the rest of the flow is unchanged.
+// ---------------------------------------------------------------------------
+const assistantTexts = page => page.$$eval('#chatMessages .chat-bubble.assistant', bs => bs.map(b => b.textContent));
+const noNullText = async page => {
+  const all = await page.textContent('#chatMessages');
+  assert.ok(!all.includes('null') && !all.includes('undefined'), `no "null"/"undefined" in the chat: ${JSON.stringify(all)}`);
+};
+for (const [name, body] of [['message: null', { message: null }], ['no message field', {}]]) {
+  test(`/start answer with ${name}: an empty assistant bubble; session and question box as usual`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { context, page, calls } = await openPage({ start: () => [200, { session_id: 'S1', language: 'tr', reused: false, ...body }] });
+    try {
+      assert.equal((await assistantTexts(page)).length, 0);
+      await clickCategory(page, 'personality');
+      await until(() => calls.start.length === 1, '/start');
+      await page.waitForSelector('#chatMessages .chat-bubble.assistant');
+      assert.deepEqual(await assistantTexts(page), [''], 'one assistant bubble, empty');
+      await noNullText(page);
+      assert.equal(await page.evaluate(() => interpretSessionId), 'S1', 'session_id taken');
+      // The report balance (1 free + 2 credits) fills the counter and opens the question box.
+      await page.waitForFunction(() => document.getElementById('chatRemaining').textContent === 'Kalan soru hakkın: 3');
+      assert.equal(await page.locator('#chatInput').isDisabled(), false, 'question box open');
+    } finally { await context.close(); }
+  });
+  test(`/continue answer with ${name}: an empty assistant bubble after the question; the counter updates`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { context, page, calls } = await openPage({ start: () => startOk('S1'), cont: () => [200, { ...bal(0, 4), ...body }] });
+    try {
+      await clickCategory(page, 'personality');
+      await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+      await page.waitForFunction(() => document.getElementById('chatRemaining').textContent === 'Kalan soru hakkın: 3');
+      await page.fill('#chatInput', 'Soru');
+      await page.click('#chatSendBtn');
+      await until(() => calls.continue.length === 1, '/continue');
+      await page.waitForFunction(() => document.getElementById('chatRemaining').textContent === 'Kalan soru hakkın: 4');
+      const bubbles = await page.$$eval('#chatMessages .chat-bubble', bs => bs.map(b => [b.className, b.textContent]));
+      assert.deepEqual(bubbles.slice(-2), [['chat-bubble user', 'Soru'], ['chat-bubble assistant', '']], 'an empty assistant bubble right after the question');
+      assert.deepEqual(await assistantTexts(page), ['Rapor metni S1', '']);
+      await noNullText(page);
+      assert.equal(await page.locator('#chatInput').isDisabled(), false, 'question box open');
+    } finally { await context.close(); }
+  });
+}
