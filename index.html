@@ -3996,6 +3996,85 @@ function showChatLoading(show){
 // text bir dizi olabilir (her öğe ayrı satır); action bir dizi olabilir (birden
 // fazla buton). Bir action'ın cls'i butona ek sınıf, pendingId'si ilgili
 // isteğin kimliğidir (istek ağdayken buton pasif görünür).
+// Asistan metninde yalnızca iki biçim desteklenir: **kalın** ve satır başı
+// başlık (# … ######). Diğer her şey (italik, liste, kod, bağlantı, tablo,
+// alıntı, ham HTML ve &lt; gibi varlıklar) yazıldığı gibi düz metin kalır.
+// Ayrıştırıcı saf ve doğrusaldır: metin -> satırlar -> {heading, segs:[{t,b}]}.
+// DOM yalnızca createElement('strong') ve metin düğümleriyle kurulur.
+// Satır başı başlık: en fazla 3 boşluk, 1–6 "#", en az bir boşluk/sekme ve
+// ardından içerik. Eşleşirse {indent, rest}, yoksa null.
+function mdHeading(line){
+  let i=0;
+  while(i<3&&line.charCodeAt(i)===32)i++;
+  let h=i;
+  while(h<line.length&&line.charCodeAt(h)===35)h++;
+  const hashes=h-i;
+  if(hashes<1||hashes>6)return null;
+  let r=h;
+  while(r<line.length&&(line.charCodeAt(r)===32||line.charCodeAt(r)===9))r++;
+  if(r===h||r===line.length)return null;
+  return {indent:line.slice(0,i),rest:line.slice(r)};
+}
+// Kalın, satır bazında: 3+ yıldız dizisi varsa ya da tek bir "**" çifti
+// geçersizse (boş, içinde "*", boşlukla başlayan/biten) ya da ayraç sayısı
+// tekse satırın tamamı düz kalır.
+function mdBoldSegments(line){
+  const delims=[]; // "**" dizilerinin başlangıçları
+  const singlesBefore=[]; // her "**" dizisinden önceki tek "*" sayısı
+  let singles=0;
+  for(let i=0;i<line.length;){
+    if(line.charCodeAt(i)!==42){ i++; continue; }
+    let j=i;
+    while(j<line.length&&line.charCodeAt(j)===42)j++;
+    const run=j-i;
+    if(run>=3)return [{t:line,b:false}];
+    if(run===2){ delims.push(i); singlesBefore.push(singles); }
+    else singles++;
+    i=j;
+  }
+  if(!delims.length)return [{t:line,b:false}];
+  if(delims.length%2)return [{t:line,b:false}];
+  const segs=[];
+  let pos=0;
+  for(let k=0;k<delims.length;k+=2){
+    const a=delims[k], z=delims[k+1];
+    const inner=line.slice(a+2,z);
+    if(!inner||singlesBefore[k+1]!==singlesBefore[k]||!inner[0].trim()||!inner[inner.length-1].trim())
+      return [{t:line,b:false}];
+    if(a>pos)segs.push({t:line.slice(pos,a),b:false});
+    segs.push({t:inner,b:true});
+    pos=z+2;
+  }
+  if(pos<line.length)segs.push({t:line.slice(pos),b:false});
+  return segs;
+}
+// null/undefined -> "" (textContent ile aynı: boş balon); diğer değerler String().
+function parseAssistantText(text){
+  return (text==null?'':String(text)).split('\n').map(line=>{
+    const m=mdHeading(line);
+    if(m)return {indent:m.indent,heading:true,segs:mdBoldSegments(m.rest)};
+    return {indent:'',heading:false,segs:mdBoldSegments(line)};
+  });
+}
+// Ardışık düz metin (satır sonları dahil) tek bir metin düğümünde toplanır.
+function renderAssistantText(el,text){
+  el.textContent='';
+  let plain='';
+  const strong=t=>{
+    if(plain){ el.appendChild(document.createTextNode(plain)); plain=''; }
+    const s=document.createElement('strong');
+    s.textContent=t;
+    el.appendChild(s);
+  };
+  parseAssistantText(text).forEach((ln,i)=>{
+    if(i)plain+='\n';
+    plain+=ln.indent;
+    // Başlık zaten kalın: içindeki kalın parçalar iç içe <strong> olmaz.
+    if(ln.heading){ strong(ln.segs.map(s=>s.t).join('')); return; }
+    for(const s of ln.segs){ if(s.b)strong(s.t); else plain+=s.t; }
+  });
+  if(plain)el.appendChild(document.createTextNode(plain));
+}
 function appendChatBubble(role,text,action){
   const wrap=document.getElementById('chatMessages');
   const div=document.createElement('div');
@@ -4004,7 +4083,10 @@ function appendChatBubble(role,text,action){
   for(const line of lines){
     const textDiv=document.createElement('div');
     textDiv.className='chat-bubble-text'+(lines.length>1?' chat-bubble-line':'');
-    textDiv.textContent=line; // backend metni innerHTML değil textContent ile basılır (XSS'e kapalı)
+    // Backend metni HTML olarak çözülmez, metin düğümü olarak basılır (XSS'e kapalı);
+    // yalnızca asistanın rapor ve cevap metinleri biçimlenir.
+    if(role==='assistant')renderAssistantText(textDiv,line);
+    else textDiv.textContent=line;
     div.appendChild(textDiv);
   }
   const actions=Array.isArray(action)?action:(action?[action]:[]);
