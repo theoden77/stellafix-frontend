@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const { startHarness, TEST_TIMEOUT_MS, HOOK_TIMEOUT_MS, closeOpenContexts } = require('./helpers/harness.cjs');
 const {
   useHarness, UUID, delay, gate, until, Q, startOk, bal, sess, openPage, clickCategory, text, count, openReports, nextFrame,
-  seedRecord, pendingKeys, keyFor,
+  seedRecord, pendingKeys, keyFor, U1, loginAs,
 } = require('./helpers/interpret-page.cjs');
 
 let h;
@@ -468,3 +468,101 @@ test('i language: with a friendship report open from My reports, TR -> EN turns 
     assert.equal(await text(page, '#chatCategoryTitle'), 'Arkadaşlık');
   } finally { await context.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// j. Saved requests with a missing or unknown sub-type are never sent
+// ---------------------------------------------------------------------------
+const NOT_SENT = 'Bu istek gönderilemedi. Lütfen kartlardan yeniden seç.';
+const relStart = (id, type) => {
+  const body = { chart_id: 'chart-1', category: 'relationship', language: 'tr', request_id: id, expected_spend: 'subscription' };
+  if (type !== undefined) body.relationship_type = type;
+  return body;
+};
+// Waits long enough for an automatic resume on load to have left the page.
+async function settleResume(page) { await settle(page); await delay(400); await settle(page); }
+async function expectNote(page) {
+  await openReports(page);
+  await page.waitForSelector('#pendingNotes .pending-note');
+  assert.equal(await count(page, '#pendingNotes .pending-note'), 1, 'one note');
+  assert.equal((await text(page, '#pendingNotes .pending-note .pending-item-label')).trim(), 'Rapor isteği: İlişki');
+  assert.equal((await text(page, '#pendingNotes .pending-note .pending-item-status')).trim(), NOT_SENT);
+  assert.equal(await count(page, '#pendingItems .pending-item'), 0, 'no "Sürdür" row');
+}
+
+for (const [name, type] of [['missing', undefined], ['"xyz"', 'xyz']]) {
+  test(`j${type === undefined ? 1 : 2} a saved /start with a ${name} sub-type is not sent on load; the record is deleted; a note shows`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const seed = [seedRecord('u1', 'rid-bad', relStart('rid-bad', type))];
+    const { context, page, calls } = await openPage({ chart: false, seed, history: () => [] });
+    try {
+      await settleResume(page);
+      assert.equal(calls.quote.length, 0, 'no /quote');
+      assert.equal(calls.start.length, 0, 'no /start');
+      assert.deepEqual(await pendingKeys(page), [], 'record deleted');
+      await expectNote(page);
+      await settle(page);
+      assert.equal(calls.start.length, 0);
+    } finally { await context.close(); }
+  });
+}
+
+test('j3 a paused invalid record: no "Sürdür" row in My reports, nothing sent, the record is deleted', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const seed = [seedRecord('u1', 'rid-bad', relStart('rid-bad', null), { paused: true })];
+  const { context, page, calls } = await openPage({ chart: false, seed, history: () => [] });
+  try {
+    await expectNote(page);
+    await settleResume(page);
+    assert.equal(calls.start.length, 0);
+    assert.deepEqual(await pendingKeys(page), []);
+  } finally { await context.close(); }
+});
+
+test('j4 an invalid record seeded while signed out: signing in with the same account sends nothing and deletes it', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const seed = [seedRecord('u1', 'rid-bad', relStart('rid-bad', undefined))];
+  const { context, page, calls } = await openPage({ token: null, chart: false, seed, history: () => [], verify: () => U1 });
+  try {
+    await settleResume(page);
+    assert.deepEqual(await pendingKeys(page), [keyFor('u1', 'rid-bad')], 'kept while signed out');
+    await loginAs(page, U1);
+    await settleResume(page);
+    assert.equal(calls.start.length, 0, 'no /start');
+    assert.deepEqual(await pendingKeys(page), [], 'deleted');
+    await expectNote(page);
+  } finally { await context.close(); }
+});
+
+test('j5 the last gate: an invalid record handed to sendRecord directly is not fetched and is deleted', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page, calls } = await openPage({ chart: false, history: () => [] });
+  try {
+    const out = await page.evaluate(async () => {
+      const rec = makePendingRecord('start', { chart_id: 'chart-1', category: 'relationship', language: 'tr', relationship_type: 'xyz' }, 'subscription');
+      savePending(rec, currentAccountKey()); // stored, as if the pruning had been skipped
+      const before = pendingExists(rec);
+      const res = await sendRecord(rec, { renew: true });
+      return { before, res, after: pendingExists(rec), sends: window.__genSends.length };
+    });
+    assert.deepEqual(out, { before: true, res: null, after: false, sends: 0 });
+    await settle(page);
+    assert.equal(calls.start.length, 0, 'no /start');
+    assert.deepEqual(await pendingKeys(page), []);
+  } finally { await context.close(); }
+});
+
+for (const [name, body, kind] of [
+  ['j6 a valid romantic record', relStart('rid-ok', 'romantic'), 'start'],
+  ['j7 a record of another category (personality)', { chart_id: 'chart-1', category: 'personality', language: 'tr', request_id: 'rid-ok', expected_spend: 'subscription' }, 'start'],
+  // A question record is never checked: even a body that would fail the
+  // sub-type rule is resumed as it is.
+  ['j8 a question record (its body is not checked)', { session_id: 's1', question: 'Soru?', request_id: 'rid-ok', category: 'relationship' }, 'continue'],
+]) {
+  test(`${name} is resumed on load with the same request_id and the byte-identical body`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const seed = [seedRecord('u1', 'rid-ok', body, { kind })];
+    const { context, page, calls } = await openPage({ chart: false, seed, history: () => [], start: () => startOk('S1') });
+    try {
+      await until(() => calls[kind].length === 1, `the resumed /${kind}`);
+      assert.equal(calls[kind][0].raw, JSON.stringify(body), 'byte-identical body');
+      assert.equal(calls[kind][0].body.request_id, 'rid-ok');
+      await page.waitForFunction(() => Object.keys(sessionStorage).every(k => !k.startsWith('stellafix_pending_interpret:')));
+      assert.equal(await count(page, '#pendingNotes .pending-note'), 0, 'no note');
+    } finally { await context.close(); }
+  });
+}

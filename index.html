@@ -860,6 +860,7 @@ const I18N = {
     pendingListTitle: "Yarım kalan istekler",
     pendingNotesTitle: "Sonuçlanan istekler",
     noteItemReport: "Rapor isteği: {category}",
+    errRequestNotSent: "Bu istek gönderilemedi. Lütfen kartlardan yeniden seç.",
     noteItemQuestion: "Soru",
     pendingItemReport: "Yarım kalan istek: {category}",
     pendingItemQuestion: "Yarım kalan soru",
@@ -1108,6 +1109,7 @@ const I18N = {
     pendingListTitle: "Unfinished requests",
     pendingNotesTitle: "Finished requests",
     noteItemReport: "Report request: {category}",
+    errRequestNotSent: "This request couldn't be sent. Please choose a card again.",
     noteItemQuestion: "Question",
     pendingItemReport: "Unfinished request: {category}",
     pendingItemQuestion: "Unfinished question",
@@ -4586,7 +4588,9 @@ function storedPendingEntries(){
   }catch(e){}
   return out;
 }
-// Giriş yapmış hesaba ait kayıtlar, created_at artan.
+// Giriş yapmış hesaba ait kayıtlar, created_at artan. Gönderilemeyecek
+// kayıtlar (bkz. pendingSendable) burada ayıklanır: listeye ve sürdürmeye
+// hiç düşmez.
 function pendingForCurrentAccount(){
   const account=currentAccountKey();
   if(!account)return [];
@@ -4595,7 +4599,18 @@ function pendingForCurrentAccount(){
   for(const {rec,account:a} of memPending.values()){
     if(a===account&&!list.some(r=>r.request_id===rec.request_id))list.push(rec);
   }
-  return list.sort((a,b)=>a.created_at-b.created_at);
+  return list.filter(r=>pendingSendable(r)||(dropUnsendable(r),false)).sort((a,b)=>a.created_at-b.created_at);
+}
+// Bir /start kaydı, gövdesi kart akışının gönderebileceği bir gövdeyse
+// gönderilebilir (ilişkide tanınan bir alt tür). Soru kayıtları bu kontrole
+// girmez. Gönderilemeyen kayıt onarılmaz (varsayılan alt tür atanmaz):
+// silinir ve hesaba kısa bir not düşer.
+function pendingSendable(rec){
+  return rec.kind!=='start'||requestBodyAllowed(pendingFields(rec));
+}
+function dropUnsendable(rec){
+  deletePending(rec);
+  if(currentAccountKey())addPendingNote(rec,'errRequestNotSent',null);
 }
 function clearAllPending(){
   memPending.clear();
@@ -4936,6 +4951,8 @@ function isFinalOutcome(out){
 //     dene / Sürdür ve yüklemede sürdürme). Pencere kendiliğinden yenilenmez.
 // Aynı istek zaten ağdaysa ya da kayıt artık yoksa null döner (gönderilmez).
 async function sendRecord(rec,opts={}){
+  // Son kapı: bütün gönderim yolları buradan geçer.
+  if(!pendingSendable(rec)){ dropUnsendable(rec); renderPendingList(); return null; }
   const key=flightKey(rec);
   if(flights.has(key))return null;
   if(!opts.first&&!pendingExists(rec))return null;
