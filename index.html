@@ -785,7 +785,7 @@ const I18N = {
     fullAnalysisNote: "Tam analiz için: Natal gösterge + Zaman Lordu + Transit tetik zinciri.",
     tzYearSuffix: "yılı",
     interpretPanelTitle: "Yıldızlarla Sohbet Et",
-    catGroupTime: "Zaman Bazlı", catGroupLife: "Kişilik & Yaşam", catGroupSpecial: "Özel",
+    catGroupTime: "Zaman Bazlı", catGroupLife: "Kişilik & Yaşam", catGroupRelations: "İlişkiler", catGroupSpecial: "Özel",
     catWeeklyTitle: "Haftalık Değerlendirme", catWeeklyDesc: "Bu haftaki gökyüzü etkilerine bakış",
     catMonthlyTitle: "Aylık Değerlendirme", catMonthlyDesc: "Bu ayki temaları ve fırsatları keşfet",
     catYearlyTitle: "Yıllık Değerlendirme", catYearlyDesc: "Yıl boyunca seni bekleyen büyük resmi gör",
@@ -794,6 +794,9 @@ const I18N = {
     catFinanceTitle: "Para", catFinanceDesc: "Maddi konulardaki eğilimlerin ve fırsatların",
     catMarriageTitle: "Evlilik", catMarriageDesc: "Önümüzdeki 12 ayda evlilik ve birliktelik temaları",
     catHealthTitle: "Sağlık", catHealthDesc: "Bedensel ve zihinsel denge eğilimlerin",
+    catRelParentTitle: "Anne-Baba İlişkileri", catRelParentDesc: "Anne-babanla ilişkilerindeki eğilimlerin",
+    catRelRomanticTitle: "Romantik İlişkiler", catRelRomanticDesc: "Romantik ilişkilerde bağ kurma biçimin",
+    catRelFriendshipTitle: "Arkadaşlık", catRelFriendshipDesc: "Arkadaşlıklarında ve topluluklarla ilişkilerindeki eğilimlerin",
     catEclipseTitle: "En Yakın Tutulma", catEclipseDesc: "Sıradaki tutulmanın haritan üzerindeki etkisi",
     btnBackToCategories: "← Kategorilere dön",
     chatLoadingTitle: "Yıldızlar okunuyor...",
@@ -820,6 +823,7 @@ const I18N = {
     reportsLoading: "Yükleniyor...",
     reportsEmpty: "Henüz kayıtlı bir raporun yok.",
     reportGenericCategory: "Rapor",
+    reportGenericRelationship: "İlişki",
     reportPersonFallback: "Kişi",
     reportPeriod: "Dönem: {start} – {end}",
     badgeRegenerated: "Yeniden üretildi",
@@ -856,6 +860,7 @@ const I18N = {
     pendingListTitle: "Yarım kalan istekler",
     pendingNotesTitle: "Sonuçlanan istekler",
     noteItemReport: "Rapor isteği: {category}",
+    errRequestNotSent: "Bu istek gönderilemedi. Lütfen kartlardan yeniden seç.",
     noteItemQuestion: "Soru",
     pendingItemReport: "Yarım kalan istek: {category}",
     pendingItemQuestion: "Yarım kalan soru",
@@ -1029,7 +1034,7 @@ const I18N = {
     fullAnalysisNote: "For full analysis: Natal significator + Time Lord + Transit trigger chain.",
     tzYearSuffix: "",
     interpretPanelTitle: "Chat with the Stars",
-    catGroupTime: "Time-Based", catGroupLife: "Personality & Life", catGroupSpecial: "Special",
+    catGroupTime: "Time-Based", catGroupLife: "Personality & Life", catGroupRelations: "Relationships", catGroupSpecial: "Special",
     catWeeklyTitle: "Weekly Review", catWeeklyDesc: "A look at this week's sky influences",
     catMonthlyTitle: "Monthly Review", catMonthlyDesc: "Explore this month's themes and opportunities",
     catYearlyTitle: "Yearly Review", catYearlyDesc: "See the big picture waiting for you this year",
@@ -1038,6 +1043,9 @@ const I18N = {
     catFinanceTitle: "Finance", catFinanceDesc: "Your tendencies and opportunities around money",
     catMarriageTitle: "Marriage", catMarriageDesc: "Marriage and partnership themes over the next 12 months",
     catHealthTitle: "Health", catHealthDesc: "Your physical and mental balance tendencies",
+    catRelParentTitle: "Relationships with Parents", catRelParentDesc: "Your tendencies in your relationships with your parents",
+    catRelRomanticTitle: "Romantic Relationships", catRelRomanticDesc: "How you form bonds in romantic relationships",
+    catRelFriendshipTitle: "Friendship", catRelFriendshipDesc: "Your tendencies in friendships and communities",
     catEclipseTitle: "Nearest Eclipse", catEclipseDesc: "How the next eclipse affects your chart",
     btnBackToCategories: "← Back to categories",
     chatLoadingTitle: "Reading the stars...",
@@ -1064,6 +1072,7 @@ const I18N = {
     reportsLoading: "Loading...",
     reportsEmpty: "You don't have any saved reports yet.",
     reportGenericCategory: "Report",
+    reportGenericRelationship: "Relationship",
     reportPersonFallback: "Person",
     reportPeriod: "Period: {start} – {end}",
     badgeRegenerated: "Regenerated",
@@ -1100,6 +1109,7 @@ const I18N = {
     pendingListTitle: "Unfinished requests",
     pendingNotesTitle: "Finished requests",
     noteItemReport: "Report request: {category}",
+    errRequestNotSent: "This request couldn't be sent. Please choose a card again.",
     noteItemQuestion: "Question",
     pendingItemReport: "Unfinished request: {category}",
     pendingItemQuestion: "Unfinished question",
@@ -3792,11 +3802,12 @@ function hideErr(){document.getElementById('errorBox').style.display='none';}
 // ============================================================
 // YORUM / SOHBET — sadece backend'den gerçek bir chart_id alındığında
 // (yani JS fallback değil, gerçek API hesaplaması sonrasında) kullanılabilir.
-// İlk aşama: form gerektirmeyen kategoriler (relationship/timing sonraki aşama).
+// Ek form gerektiren timing henüz arayüzde yok.
 // ============================================================
 const CATEGORY_GROUPS=[
   {id:'time',labelKey:'catGroupTime'},
   {id:'life',labelKey:'catGroupLife'},
+  {id:'relations',labelKey:'catGroupRelations'},
   {id:'special',labelKey:'catGroupSpecial'},
 ];
 const CATEGORIES=[
@@ -3808,13 +3819,33 @@ const CATEGORIES=[
   {id:'finance',group:'life',titleKey:'catFinanceTitle',descKey:'catFinanceDesc'},
   {id:'marriage',group:'life',titleKey:'catMarriageTitle',descKey:'catMarriageDesc'},
   {id:'health',group:'life',titleKey:'catHealthTitle',descKey:'catHealthDesc'},
+  {id:'relationship_parent',group:'relations',api:'relationship',relType:'parent',titleKey:'catRelParentTitle',descKey:'catRelParentDesc'},
+  {id:'relationship_romantic',group:'relations',api:'relationship',relType:'romantic',titleKey:'catRelRomanticTitle',descKey:'catRelRomanticDesc'},
+  {id:'relationship_friendship',group:'relations',api:'relationship',relType:'friendship',titleKey:'catRelFriendshipTitle',descKey:'catRelFriendshipDesc'},
   {id:'eclipse_nearest',group:'special',titleKey:'catEclipseTitle',descKey:'catEclipseDesc'},
 ];
 const CATEGORY_ICONS={
   weekly_review:'📅', monthly_review:'🗓️', yearly_review:'📆',
   personality:'🧭', career:'💼', finance:'💰', marriage:'💍', health:'🌿',
+  relationship_parent:'👪', relationship_romantic:'💞', relationship_friendship:'🤝',
   eclipse_nearest:'🌑',
 };
+// Kart kimliği (id) yalnızca istemcide kullanılır ve hiçbir isteğe girmez.
+// İstekteki kategori kartın api alanı (yoksa id); ilişki kartlarında alt tür
+// ayrı bir alan olarak (relationship_type) gönderilir. Bir rapor kategori VE
+// alt türüyle tanınır: ilişki raporunun alt türü eksik ya da tanınmıyorsa
+// rapor bilinmeyen sayılır (başlık genel, soru ve yeniden üretim yok) ve
+// hiçbir varsayılan alt tür atanmaz.
+const RELATIONSHIP_TYPES=['parent','romantic','friendship'];
+function cardApiCategory(c){ return c.api||c.id; }
+function findCard(category,relType){
+  if(category==='relationship')return CATEGORIES.find(c=>c.api==='relationship'&&c.relType===relType&&RELATIONSHIP_TYPES.includes(relType))||null;
+  return CATEGORIES.find(c=>!c.api&&c.id===category)||null;
+}
+// İstek gövdesi: ilişki kategorisi yalnızca tanınan bir alt türle gönderilebilir.
+function requestBodyAllowed(b){
+  return !!b&&(b.category!=='relationship'||RELATIONSHIP_TYPES.includes(b.relationship_type));
+}
 
 // stellafix-api PR #30: bu üç zaman-bazlı kategori artık sadece aktif
 // aboneliği olan kullanıcılara açık. Kilitliyi belirlemek için JWT'deki
@@ -3901,6 +3932,7 @@ function renderSkyToday(){
 let lastChartId=null;
 let interpretSessionId=null;
 let currentCategory=null;
+let currentRelationshipType=null; // currentCategory ile birlikte: yalnızca ilişki raporunda dolu
 // /interpret/continue yanıtının ham kredi alanları - {questions_included,
 // questions_used, questions_remaining_free, question_credits_remaining,
 // unlimited}. /start bunları döndürmüyor (bkz. handleStartResponse), bu
@@ -3935,6 +3967,7 @@ function resetInterpretArea(){
   interpretSessionId=null;
   questionCreditInfo=null;
   currentCategory=null;
+  currentRelationshipType=null;
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatLoading').style.display='none';
   const input=document.getElementById('chatInput');
@@ -4555,7 +4588,9 @@ function storedPendingEntries(){
   }catch(e){}
   return out;
 }
-// Giriş yapmış hesaba ait kayıtlar, created_at artan.
+// Giriş yapmış hesaba ait kayıtlar, created_at artan. Gönderilemeyecek
+// kayıtlar (bkz. pendingSendable) burada ayıklanır: listeye ve sürdürmeye
+// hiç düşmez.
 function pendingForCurrentAccount(){
   const account=currentAccountKey();
   if(!account)return [];
@@ -4564,7 +4599,18 @@ function pendingForCurrentAccount(){
   for(const {rec,account:a} of memPending.values()){
     if(a===account&&!list.some(r=>r.request_id===rec.request_id))list.push(rec);
   }
-  return list.sort((a,b)=>a.created_at-b.created_at);
+  return list.filter(r=>pendingSendable(r)||(dropUnsendable(r),false)).sort((a,b)=>a.created_at-b.created_at);
+}
+// Bir /start kaydı, gövdesi kart akışının gönderebileceği bir gövdeyse
+// gönderilebilir (ilişkide tanınan bir alt tür). Soru kayıtları bu kontrole
+// girmez. Gönderilemeyen kayıt onarılmaz (varsayılan alt tür atanmaz):
+// silinir ve hesaba kısa bir not düşer.
+function pendingSendable(rec){
+  return rec.kind!=='start'||requestBodyAllowed(pendingFields(rec));
+}
+function dropUnsendable(rec){
+  deletePending(rec);
+  if(currentAccountKey())addPendingNote(rec,'errRequestNotSent',null);
 }
 function clearAllPending(){
   memPending.clear();
@@ -4905,6 +4951,8 @@ function isFinalOutcome(out){
 //     dene / Sürdür ve yüklemede sürdürme). Pencere kendiliğinden yenilenmez.
 // Aynı istek zaten ağdaysa ya da kayıt artık yoksa null döner (gönderilmez).
 async function sendRecord(rec,opts={}){
+  // Son kapı: bütün gönderim yolları buradan geçer.
+  if(!pendingSendable(rec)){ dropUnsendable(rec); renderPendingList(); return null; }
   const key=flightKey(rec);
   if(flights.has(key))return null;
   if(!opts.first&&!pendingExists(rec))return null;
@@ -4987,7 +5035,7 @@ function applyGenResult(rec,out,ctx){
       if(ctx.live&&sameView){
         handleStartResponse(data); // önce: rapor açık olsun ki soru kutusu açılabilsin
         const f=pendingFields(rec);
-        setRegenSource(typeof data.session_id==='string'?{sessionId:data.session_id,chartId:f.chart_id,category:f.category,language:f.language}:null);
+        setRegenSource(typeof data.session_id==='string'?{sessionId:data.session_id,chartId:f.chart_id,category:f.category,relationshipType:f.relationship_type,language:f.language}:null);
         showChatLoading(false);
         fetchCreditBalance(); // bir rapor hakkı düşmüş olabilir - göstergeyi tazele
         // Soru göstergesi ilk sorudan önce dolsun (okuma başarısız olsa da rapor ekranda kalır).
@@ -5176,7 +5224,7 @@ function once(f){
 // 'loop' (409 generation_in_progress sonrası otomatik kontrol: 'check' gibi, ama sohbete yalnızca
 // sonuç basılır).
 async function runQuote(flow,mode){
-  if(!flowValid(flow))return;
+  if(!flowValid(flow)||!requestBodyAllowed(flow.quoteBody))return;
   const loop=mode==='loop'?flow.loop:null;
   if(!loop){ liveRecord=null; liveCtx=null; showChatLoading(true); }
   let resp=null, body=null;
@@ -5328,7 +5376,7 @@ async function showGenerateChoice(flow,spend){
   appendChatBubble('notice',t('msgNewReportNeeded'),generateAction(flow,'subscription',t('btnGenerateSubscription'),'quote-generate-btn'));
 }
 function sendStart(flow,spend){
-  if(!flowValid(flow))return;
+  if(!flowValid(flow)||!requestBodyAllowed(flow.quoteBody))return;
   if(flow.regen){ startRegen(flow,spend); return; }
   const rec=makePendingRecord('start',flow.quoteBody,spend);
   runLive(rec,{live:true,view:chatViewId,flow},{first:true});
@@ -5351,11 +5399,12 @@ async function openSavedReport(sessionId,flow){
 }
 
 // ---- Yeniden üret ----
-// Bir rapor ekranında, rapor tamamlanmışsa, kategori bilinen 8 kategoriden
-// biriyse, chart_id biliniyorsa ve giriş yapılmışsa görünür. Basıldığı anda
-// kaynak raporun session_id'si, chart_id, kategori, dil, hesap ve görünüm
-// yakalanır; akışın her adımı bu değerleri kullanır, açık rapordan ya da
-// arayüz dilinden yeniden okumaz. Görünüm, kategori, rapor ya da hesap
+// Bir rapor ekranında, rapor tamamlanmışsa, kategori bilinen bir kartın
+// kategorisiyse (ilişkide tanınan bir alt türle), chart_id biliniyorsa ve
+// giriş yapılmışsa görünür. Basıldığı anda kaynak raporun session_id'si,
+// chart_id, kategori, alt tür, dil, hesap ve görünüm yakalanır; akışın her
+// adımı bu değerleri kullanır, açık rapordan ya da arayüz dilinden yeniden
+// okumaz. Görünüm, kategori, rapor ya da hesap
 // değişirse akış geçersizdir (flowValid).
 // Hedef her zaman BUGÜNÜN dönemi/seçimidir. period_type gönderilmez: sunucu
 // o zaman haftalığı gönderilen saat diliminde bugünden başlayan 7 takvim
@@ -5370,7 +5419,7 @@ let regenSource=null;   // açık raporun yeniden üretim kaynağı (yoksa null)
 let regenActive=null;   // açık bir yeniden üretim akışının bağlamı (çift tıklama)
 function setRegenSource(src){
   regenSource=src&&typeof src.sessionId==='string'&&src.sessionId&&typeof src.chartId==='string'&&src.chartId
-    &&isKnownCategory(src.category)?src:null;
+    &&isKnownCategory(src.category,src.relationshipType)?src:null;
   updateRegenButton();
 }
 function updateRegenButton(){
@@ -5382,11 +5431,11 @@ function regenActiveFor(src){
   return !!(a&&a.open&&a.source===src.sessionId&&a.view===chatViewId&&a.flowId===tzPickerFlowId&&a.account===currentAccountKey());
 }
 function startRegenerate(){
-  if(!authToken||!regenSource)return;
+  if(!authToken||!regenSource||!isKnownCategory(regenSource.category,regenSource.relationshipType))return;
   if(regenActiveFor(regenSource))return; // aynı rapor için akış zaten açık
   tzPickerFlowId++; // bekleyen her picker dönüşü geçersiz
   const src=regenSource;
-  const ctx={source:src.sessionId,chartId:src.chartId,category:src.category,
+  const ctx={source:src.sessionId,chartId:src.chartId,category:src.category,relationshipType:src.relationshipType,
     language:src.language==='tr'||src.language==='en'?src.language:currentLocale,
     account:currentAccountKey(),view:chatViewId,flowId:tzPickerFlowId,open:true};
   regenActive=ctx;
@@ -5396,6 +5445,7 @@ function startRegenerate(){
 // istek saat dilimi (oturumdaki değil). Saat dilimi yoksa null.
 function regenFlow(ctx,force,tzRetry){
   const quoteBody={chart_id:ctx.chartId,category:ctx.category,language:ctx.language};
+  if(ctx.category==='relationship')quoteBody.relationship_type=ctx.relationshipType;
   if(PERIOD_CATEGORIES.has(ctx.category)){
     const tz=requestTimezone();
     if(!tz)return null;
@@ -5485,10 +5535,11 @@ function startRegen(flow,spend){
   continueBlocked=false;
   setBalanceUnavailable(false);
   currentCategory=flow.ctx.category;
+  currentRelationshipType=flow.ctx.relationshipType||null;
   document.getElementById('reportsPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='none';
   document.getElementById('chatPanel').style.display='block';
-  document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(flow.ctx.category);
+  document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(flow.ctx.category,flow.ctx.relationshipType);
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatRemaining').textContent='';
   updateChatBackLabel();
@@ -5505,6 +5556,8 @@ function regenForceSource(rec){
 // tzRetry (opsiyonel): sadece pickTzCity'nin tetiklediği retry çağrısında
 // geçiliyor - {requestId,flowId}, pickTzCity'nin şehir seçimi anında yakaladığı
 // kimlikler. Retry quote'u yeniden yapar, doğrudan /start göndermez.
+// catId: kartın istemci kimliği; istekte kartın API kategorisi ve (ilişki
+// kartlarında) alt türü gider.
 async function selectCategory(catId,tzRetry){
   // /interpret/* auth zorunlu - girişsiz kullanıcı doğrudan giriş ekranına.
   if(!authToken){ openAuthModal(); return; }
@@ -5516,7 +5569,10 @@ async function selectCategory(catId,tzRetry){
   }else{
     tzPickerFlowId++; // yeni/doğrudan bir kategori seçimi - bekleyen her tz-picker retry'sini geçersiz kılar
   }
-  currentCategory=catId;
+  const cfg=CATEGORIES.find(c=>c.id===catId);
+  const apiCategory=cfg?cardApiCategory(cfg):catId;
+  currentCategory=apiCategory;
+  currentRelationshipType=cfg&&cfg.relType||null;
   chatViewId++; // bu kategori sohbeti yeni bir görünüm
   historyReport=false;
   historyReadOnly=false;
@@ -5524,7 +5580,6 @@ async function selectCategory(catId,tzRetry){
   setBalanceUnavailable(false);
   updateChatBackLabel();
   document.getElementById('reportsPanel').style.display='none';
-  const cfg=CATEGORIES.find(c=>c.id===catId);
   document.getElementById('categoryPanel').style.display='none';
   document.getElementById('chatPanel').style.display='block';
   document.getElementById('chatCategoryTitle').textContent=cfg?t(cfg.titleKey):catId;
@@ -5537,9 +5592,10 @@ async function selectCategory(catId,tzRetry){
   // Kilit görseli (isCategoryLocked) kalır, ama tıklama her zaman quote yapar:
   // aynı girdiler için kayıtlı bir rapor abonelik kontrolünden önce ücretsiz
   // açılır. Kilitli kategoride yeni üretim quote'tan 403 ile döner.
-  const quoteBody={chart_id:lastChartId,category:catId,language:currentLocale};
+  const quoteBody={chart_id:lastChartId,category:apiCategory,language:currentLocale};
+  if(currentRelationshipType)quoteBody.relationship_type=currentRelationshipType;
   lastSentTimezone=null;
-  if(PERIOD_CATEGORIES.has(catId)){
+  if(PERIOD_CATEGORIES.has(apiCategory)){
     const tz=requestTimezone();
     if(!tz){ showTimezonePicker('missing',categoryTzOwner(catId,tzPickerFlowId)); return; }
     quoteBody.timezone=tz;
@@ -5626,14 +5682,15 @@ function addPendingNote(rec,key,out){
   if(pendingNotes.some(n=>n.account===account&&n.requestId===rec.request_id))return;
   const err=out&&out.status===409&&out.body&&out.body.error;
   const source=(err==='request_failed'||err==='generation_expired')?regenForceSource(rec):null;
-  pendingNotes.push({account,requestId:rec.request_id,kind:rec.kind,category:pendingFields(rec).category,key,source});
+  const f=pendingFields(rec);
+  pendingNotes.push({account,requestId:rec.request_id,kind:rec.kind,category:f.category,relationshipType:f.relationship_type,key,source});
 }
-function pendingLabel(kind,category){
-  return kind==='start'?t('pendingItemReport').replace('{category}',reportCategoryTitle(category)):t('pendingItemQuestion');
+function pendingLabel(kind,category,relType){
+  return kind==='start'?t('pendingItemReport').replace('{category}',reportCategoryTitle(category,relType)):t('pendingItemQuestion');
 }
 // Not etiketi yarım istek etiketinden ayrıdır: sonuçlanmış bir istektir.
-function noteLabel(kind,category){
-  return kind==='start'?t('noteItemReport').replace('{category}',reportCategoryTitle(category)):t('noteItemQuestion');
+function noteLabel(kind,category,relType){
+  return kind==='start'?t('noteItemReport').replace('{category}',reportCategoryTitle(category,relType)):t('noteItemQuestion');
 }
 function renderPendingList(){
   const box=document.getElementById('pendingList');
@@ -5647,7 +5704,8 @@ function renderPendingList(){
     row.dataset.requestId=rec.request_id;
     const label=document.createElement('span');
     label.className='pending-item-label';
-    label.textContent=pendingLabel(rec.kind,pendingFields(rec).category);
+    const f=pendingFields(rec);
+    label.textContent=pendingLabel(rec.kind,f.category,f.relationship_type);
     row.appendChild(label);
     const btn=document.createElement('button');
     btn.type='button';
@@ -5671,7 +5729,7 @@ function renderPendingList(){
     row.className='pending-note';
     const label=document.createElement('span');
     label.className='pending-item-label';
-    label.textContent=noteLabel(n.kind,n.category);
+    label.textContent=noteLabel(n.kind,n.category,n.relationshipType);
     const st=document.createElement('div');
     st.className='pending-item-status';
     st.textContent=t(n.key);
@@ -5739,10 +5797,11 @@ function setBalanceUnavailable(v){
   balanceUnavailable=!!v;
   document.getElementById('balanceError').style.display=balanceUnavailable?'flex':'none';
 }
-function isKnownCategory(cat){ return CATEGORIES.some(c=>c.id===cat); }
-function reportCategoryTitle(cat){
-  const cfg=CATEGORIES.find(c=>c.id===cat);
-  return cfg?t(cfg.titleKey):t('reportGenericCategory');
+function isKnownCategory(cat,relType){ return !!findCard(cat,relType); }
+function reportCategoryTitle(cat,relType){
+  const cfg=findCard(cat,relType);
+  if(cfg)return t(cfg.titleKey);
+  return t(cat==='relationship'?'reportGenericRelationship':'reportGenericCategory');
 }
 // Ad olduğu gibi gösterilir; yalnızca "ad yok / yer tutucu" kararı için
 // kırpılmış kopyaya bakılır.
@@ -5807,7 +5866,7 @@ function buildReportRow(s){
   top.className='report-row-top';
   const title=document.createElement('span');
   title.className='report-row-title';
-  title.textContent=reportCategoryTitle(s.category);
+  title.textContent=reportCategoryTitle(s.category,s.relationship_type);
   top.appendChild(title);
   const badgeKey=reportBadgeKey(s);
   if(badgeKey){
@@ -5984,16 +6043,18 @@ function showHistoryReport(d,balance,opts={}){
   tzPickerFlowId++;
   historyReport=!opts.fromCategory;
   continueBlocked=false;
-  historyReadOnly=d.status==='pending'||!isKnownCategory(d.category);
+  const known=isKnownCategory(d.category,d.relationship_type);
+  historyReadOnly=d.status==='pending'||!known;
   interpretSessionId=d.session_id;
   currentCategory=d.category;
+  currentRelationshipType=d.category==='relationship'?d.relationship_type:null;
   questionCreditInfo=balance;
   setBalanceUnavailable(!historyReadOnly&&!balance);
   document.getElementById('interpretArea').style.display='block';
   document.getElementById('reportsPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='none';
   document.getElementById('chatPanel').style.display='block';
-  document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(d.category);
+  document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(d.category,d.relationship_type);
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatInput').value='';
   for(const m of d.messages){
@@ -6008,9 +6069,9 @@ function showHistoryReport(d,balance,opts={}){
   }else if(d.status==='failed'){
     continueBlocked=true;
     appendChatBubble('error',t('errReportFailed'));
-  }else if(!isKnownCategory(d.category))appendChatBubble('notice',t('reportReadOnlyNote'));
+  }else if(!known)appendChatBubble('notice',t('reportReadOnlyNote'));
   // Kategori tıklamasıyla açılan raporda akışın chart_id'si, Raporlarım'dan açılanda detaydaki.
-  setRegenSource(d.status==='completed'?{sessionId:d.session_id,chartId:opts.chartId||d.chart_id,category:d.category,language:d.language}:null);
+  setRegenSource(d.status==='completed'?{sessionId:d.session_id,chartId:opts.chartId||d.chart_id,category:d.category,relationshipType:d.relationship_type,language:d.language}:null);
   updateChatBackLabel();
   showChatLoading(false);
   updateRemainingUI();
@@ -6155,6 +6216,7 @@ function clearChatState(){
   interpretSessionId=null;
   questionCreditInfo=null;
   currentCategory=null;
+  currentRelationshipType=null;
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatInput').value='';
   document.getElementById('chatLoading').style.display='none';
@@ -6214,7 +6276,7 @@ function refreshReportsLocale(){
   updateChatBackLabel();
   updateReportsCloseLabel();
   if(reportsPanelVisible()){ renderReportsList(); renderPendingList(); }
-  if(historyReport)document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(currentCategory);
+  if(historyReport)document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(currentCategory,currentRelationshipType);
 }
 
 document.addEventListener('click',e=>{if(!e.target.closest('.form-group')){closeDropdown();closeCountryDropdown();}});
