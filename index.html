@@ -792,6 +792,7 @@ const I18N = {
     catPersonalityTitle: "Kişilik Analizi", catPersonalityDesc: "Doğum haritana göre karakterinin temel dinamikleri",
     catCareerTitle: "Kariyer", catCareerDesc: "Mesleki yönelimin ve potansiyellerin",
     catFinanceTitle: "Para", catFinanceDesc: "Maddi konulardaki eğilimlerin ve fırsatların",
+    catMarriageTitle: "Evlilik", catMarriageDesc: "Önümüzdeki 12 ayda evlilik ve birliktelik temaları",
     catHealthTitle: "Sağlık", catHealthDesc: "Bedensel ve zihinsel denge eğilimlerin",
     catEclipseTitle: "En Yakın Tutulma", catEclipseDesc: "Sıradaki tutulmanın haritan üzerindeki etkisi",
     btnBackToCategories: "← Kategorilere dön",
@@ -1035,6 +1036,7 @@ const I18N = {
     catPersonalityTitle: "Personality Analysis", catPersonalityDesc: "Core dynamics of your character from your birth chart",
     catCareerTitle: "Career", catCareerDesc: "Your professional orientation and potential",
     catFinanceTitle: "Finance", catFinanceDesc: "Your tendencies and opportunities around money",
+    catMarriageTitle: "Marriage", catMarriageDesc: "Marriage and partnership themes over the next 12 months",
     catHealthTitle: "Health", catHealthDesc: "Your physical and mental balance tendencies",
     catEclipseTitle: "Nearest Eclipse", catEclipseDesc: "How the next eclipse affects your chart",
     btnBackToCategories: "← Back to categories",
@@ -3804,12 +3806,13 @@ const CATEGORIES=[
   {id:'personality',group:'life',titleKey:'catPersonalityTitle',descKey:'catPersonalityDesc'},
   {id:'career',group:'life',titleKey:'catCareerTitle',descKey:'catCareerDesc'},
   {id:'finance',group:'life',titleKey:'catFinanceTitle',descKey:'catFinanceDesc'},
+  {id:'marriage',group:'life',titleKey:'catMarriageTitle',descKey:'catMarriageDesc'},
   {id:'health',group:'life',titleKey:'catHealthTitle',descKey:'catHealthDesc'},
   {id:'eclipse_nearest',group:'special',titleKey:'catEclipseTitle',descKey:'catEclipseDesc'},
 ];
 const CATEGORY_ICONS={
   weekly_review:'📅', monthly_review:'🗓️', yearly_review:'📆',
-  personality:'🧭', career:'💼', finance:'💰', health:'🌿',
+  personality:'🧭', career:'💼', finance:'💰', marriage:'💍', health:'🌿',
   eclipse_nearest:'🌑',
 };
 
@@ -5362,7 +5365,7 @@ async function openSavedReport(sessionId,flow){
 // Her üretim, bedel ne olursa olsun (abonelik dahil) açık onay ister;
 // kategori tıklamasındaki "abonelikte onaysız" kuralı burada yoktur.
 const REGEN_TARGET_KEYS={weekly_review:'regenTargetWeekly',monthly_review:'regenTargetMonthly',
-  yearly_review:'regenTargetYearly',eclipse_nearest:'regenTargetEclipse'};
+  yearly_review:'regenTargetYearly',marriage:'regenTargetYearly',eclipse_nearest:'regenTargetEclipse'};
 let regenSource=null;   // açık raporun yeniden üretim kaynağı (yoksa null)
 let regenActive=null;   // açık bir yeniden üretim akışının bağlamı (çift tıklama)
 function setRegenSource(src){

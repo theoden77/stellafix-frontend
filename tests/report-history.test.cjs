@@ -312,7 +312,7 @@ test('h: category_disabled on a follow-up shows its own message and keeps the re
 });
 
 test('i: an unknown category opens with a generic title, readable, question box closed', { timeout: TEST_TIMEOUT_MS }, async () => {
-  const mr = sess('mr', { category: 'marriage' });
+  const mr = sess('mr', { category: 'timing' });
   const { context, page, calls } = await openPage({ history: () => [mr], detail: () => detail(mr) });
   try {
     await openReports(page);
