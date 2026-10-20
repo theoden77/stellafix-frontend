@@ -974,3 +974,308 @@ test('a timing report with a null summary: the generic "Zamanlama" title, readab
     await until(() => calls.continue.length === 1, '/continue');
   } finally { await context.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// The place line on a newly produced report: the saved detail is read in the
+// background after /start; the report and the question box do not wait.
+// ---------------------------------------------------------------------------
+const NEW_LINE = 'Eylemin yapılacağı yer: Europe/Istanbul (41.01, 28.95)';
+const newDetail = (id = 'S1', over = {}) => ({
+  ...timingSess(id, { action_type: RANGE.action, date_range_start: RANGE.start, date_range_end: RANGE.end,
+    location: { latitude: BIRTH.lat, longitude: BIRTH.lon }, timezone: 'Europe/Istanbul' }), messages: msgsOf(id), ...over,
+});
+const subtitle = page => page.evaluate(() => {
+  const el = document.getElementById('chatSubtitle');
+  return el.style.display === 'none' ? '' : el.textContent;
+});
+const errorBubbles = page => count(page, '.chat-bubble.error');
+// Resolves when the detail read of `id` has finished (answered or failed).
+function detailDone(page, id) {
+  const hit = r => r.url().endsWith(`/interpret/${id}`);
+  return new Promise(res => {
+    page.on('response', r => { if (hit(r)) res(); });
+    page.on('requestfailed', r => { if (hit(r)) res(); });
+  });
+}
+// Sends the card form on "subscription" and waits for the new report and the held detail read.
+async function producedWithHeldDetail(page, calls) {
+  await openForm(page);
+  await fill(page);
+  await submit(page);
+  await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni S1');
+  await until(() => calls.detail.includes('S1'), 'the detail read');
+}
+
+test('new report place line: the report text and the question box are there while the detail read is held; the line shows when it comes', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const g = gate();
+  const { context, page, calls } = await ready({ quote: Q.sub, detail: async id => { if (id === 'S1') await g.wait(); return newDetail(id); } });
+  try {
+    let finished = false;
+    detailDone(page, 'S1').then(() => { finished = true; });
+    await producedWithHeldDetail(page, calls);
+    await page.waitForFunction(() => !document.getElementById('chatInput').disabled);
+    assert.equal(finished, false, 'the report and the question box are shown while the detail read is still held');
+    assert.equal(await subtitle(page), '', 'no line before the read');
+    assert.deepEqual(calls.balance, ['S1']);
+    const resp = page.waitForResponse(r => r.url().endsWith('/interpret/S1'));
+    g.open();
+    await resp;
+    await page.waitForFunction(l => document.getElementById('chatSubtitle').textContent === l, NEW_LINE);
+    assert.equal(await subtitle(page), NEW_LINE);
+    assert.equal(await text(page, '#regenBtn'), 'Bu ayarlarla yeni tarama');
+    assert.deepEqual(calls.balance, ['S1'], 'no second balance read');
+  } finally { await context.close(); }
+});
+
+for (const [name, fail] of [['5xx', () => [503, { detail: 'x' }]], ['a network error', () => 'abort']]) {
+  for (const balanceOk of [true, false]) {
+    test(`new report place line, detail read ${name} with /balance ${balanceOk ? 'ok' : 'failing'}: no line, no error bubble; the question box follows /balance only`, { timeout: TEST_TIMEOUT_MS }, async () => {
+      // The detail answer is held until /balance has been applied, so it cannot be hidden by a later /balance.
+      const g = gate();
+      const { context, page, calls } = await ready({ quote: Q.sub, detail: async id => { if (id !== 'S1') return newDetail(id); await g.wait(); return fail(); },
+        balance: () => (balanceOk ? bal(1, 2) : [503, { detail: 'x' }]) });
+      try {
+        const done = detailDone(page, 'S1');
+        await producedWithHeldDetail(page, calls);
+        await until(() => calls.balance.length === 1, '/balance');
+        if (balanceOk) await page.waitForFunction(() => !document.getElementById('chatInput').disabled);
+        else await page.waitForSelector('#balanceError', { state: 'visible' });
+        g.open();
+        await done;
+        await settle(page);
+        assert.equal(await subtitle(page), '');
+        assert.equal(await errorBubbles(page), 0, 'no error bubble');
+        assert.equal(calls.detail.filter(x => x === 'S1').length, 1, 'no retry');
+        assert.ok(await page.isVisible('.chat-bubble.assistant >> text=Rapor metni S1'), 'the report stays readable');
+        if (balanceOk) {
+          assert.equal(await page.isDisabled('#chatInput'), false);
+          await page.fill('#chatInput', 'Bir sorum var');
+          await page.click('#chatSendBtn');
+          await until(() => calls.continue.length === 1, '/continue');
+        } else {
+          assert.equal(await page.isDisabled('#chatInput'), true, 'closed by the existing /balance rule');
+          assert.equal(await page.isVisible('#balanceError'), true);
+        }
+      } finally { await context.close(); }
+    });
+  }
+}
+
+const OTHER_T = timingSess('t2');
+for (const [name, leave, opts] of [
+  ['another report', async page => { await openRow(page, 't2'); }, {}],
+  ['back to the categories', async page => { await page.click('#chatBackBtn'); }, {}],
+  ['the account changed', async page => { await logoutViaMenu(page); await loginAs(page, U2); }, { verify: () => U2 }],
+]) {
+  test(`new report place line, late detail after ${name}: the new screen's line does not change or appear`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const g = gate();
+    const list = [OTHER_T];
+    const { context, page, calls } = await ready({ quote: Q.sub, history: (a, off) => (off ? [] : list),
+      detail: async id => { if (id === 'S1') { await g.wait(); return newDetail(id); } return detailFrom(list)(id); }, ...opts });
+    try {
+      await producedWithHeldDetail(page, calls);
+      await leave(page);
+      const before = await subtitle(page);
+      const resp = page.waitForResponse(r => r.url().endsWith('/interpret/S1'));
+      g.open();
+      await resp;
+      await settle(page);
+      if (name === 'back to the categories') {
+        // The category screen has no line; the next chat starts without one.
+        assert.equal(await page.isVisible('#categoryPanel'), true);
+        assert.equal(await page.isVisible('#chatSubtitle'), false);
+        await openForm(page);
+        assert.equal(await subtitle(page), '');
+        return;
+      }
+      assert.equal(await subtitle(page), before);
+      assert.ok(!(await subtitle(page)).includes('Europe/Istanbul'), 'not the new report\'s line');
+      if (name === 'another report') assert.equal(before, 'Eylemin yapılacağı yer: Asia/Tokyo (35.69, 139.69)');
+      else assert.equal(before, '');
+    } finally { await context.close(); }
+  });
+}
+
+test('new report place line, a late 401 after the account changed: the new account stays signed in, no sign-in screen', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const g = gate();
+  const { context, page, calls } = await ready({ quote: Q.sub, verify: () => U2,
+    detail: async id => { if (id === 'S1') { await g.wait(); return [401, { detail: 'x' }]; } return newDetail(id); } });
+  try {
+    await producedWithHeldDetail(page, calls);
+    await logoutViaMenu(page);
+    await loginAs(page, U2);
+    const resp = page.waitForResponse(r => r.url().endsWith('/interpret/S1'));
+    g.open();
+    await resp;
+    await settle(page);
+    assert.equal(await page.evaluate(() => authToken), U2);
+    assert.equal(await page.isVisible('#authModalBackdrop'), false);
+  } finally { await context.close(); }
+});
+
+for (const [name, body] of [
+  ['a null timing', () => newDetail('S1', { timing: null })],
+  ['a different session_id', () => newDetail('S1', { session_id: 'S-other' })],
+]) {
+  test(`new report place line, a detail with ${name}: no line`, { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { context, page, calls } = await ready({ quote: Q.sub, detail: id => (id === 'S1' ? body() : newDetail(id)) });
+    try {
+      const done = detailDone(page, 'S1');
+      await producedWithHeldDetail(page, calls);
+      await done;
+      await settle(page);
+      assert.equal(await subtitle(page), '');
+      assert.equal(await errorBubbles(page), 0);
+    } finally { await context.close(); }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Place picker "Vazgeç"
+// ---------------------------------------------------------------------------
+const BIRTH_TEXT = `${BIRTH.label} (41.01, 28.95)`;
+test('place picker "Vazgeç" without choosing a city: the place and the body location stay as before; submit on again', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page, calls } = await ready({ quote: Q.sub });
+  try {
+    await openForm(page);
+    await fill(page);
+    await page.click('#timingPlaceChange');
+    assert.equal(await submitDisabled(page), true);
+    assert.equal(await text(page, '#timingPlaceCancel'), 'Vazgeç');
+    await page.click('#timingPlaceCancel');
+    assert.equal(await count(page, '#timingPlacePicker #tzCountryInput'), 0, 'the picker is closed');
+    assert.equal(await text(page, '#timingPlaceText'), BIRTH_TEXT);
+    assert.equal(await page.isVisible('#timingPlaceNote'), true, 'the birth place note is back');
+    assert.equal(await submitDisabled(page), false);
+    await submit(page);
+    await until(() => calls.quote.length === 1, 'the quote');
+    assert.deepEqual(calls.quote[0].body.location, { latitude: BIRTH.lat, longitude: BIRTH.lon });
+  } finally { await context.close(); }
+});
+
+test('place picker "Vazgeç" after choosing a city: back to the place from before the picker opened', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page, calls } = await ready({ quote: Q.sub });
+  try {
+    await openForm(page);
+    await fill(page);
+    await pickCity(page, 'Almanya', 'Berlin');
+    assert.equal(await text(page, '#timingPlaceText'), 'Berlin, Almanya (52.52, 13.41)');
+    await page.click('#timingPlaceCancel');
+    assert.equal(await text(page, '#timingPlaceText'), BIRTH_TEXT);
+    assert.equal(await submitDisabled(page), false);
+    await submit(page);
+    await until(() => calls.quote.length === 1, 'the quote');
+    assert.deepEqual(calls.quote[0].body.location, { latitude: BIRTH.lat, longitude: BIRTH.lon });
+  } finally { await context.close(); }
+});
+
+test('place picker "Vazgeç" while the country city data load is held: the late load does not reopen anything or change the place', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page, calls } = await ready({ quote: Q.sub });
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  try {
+    const g = gate();
+    let loads = 0;
+    await page.route('**/cities/DE.json', async route => { loads += 1; await g.wait(); return route.fallback(); });
+    await openForm(page);
+    await fill(page);
+    await page.click('#timingPlaceChange');
+    await page.fill('#tzCountryInput', 'Almanya');
+    await page.click('#tzCountryDropdown .city-option');
+    await until(() => loads === 1, 'the city data load');
+    await page.click('#timingPlaceCancel');
+    const resp = page.waitForResponse(r => r.url().endsWith('/cities/DE.json'));
+    g.open();
+    await resp;
+    await settle(page);
+    assert.equal(await count(page, '#timingPlacePicker #tzCountryInput, #timingPlacePicker #tzCityInput'), 0, 'the picker stays closed');
+    assert.equal(await page.$$eval('.city-dropdown', ds => ds.filter(d => d.offsetParent !== null && d.style.display !== 'none').length), 0, 'no open list');
+    assert.equal(await text(page, '#timingPlaceText'), BIRTH_TEXT);
+    assert.deepEqual(errors, [], 'no page error');
+    await submit(page);
+    await until(() => calls.quote.length === 1, 'the quote');
+    assert.deepEqual(calls.quote[0].body.location, { latitude: BIRTH.lat, longitude: BIRTH.lon });
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// New scan: the report's language and chart
+// ---------------------------------------------------------------------------
+test('new scan: an EN report with the interface in TR sends language "en"', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const list = [timingSess('en-t', {}, { language: 'en' })];
+  const { context, page, calls } = await ready({ quote: Q.credit, history: (a, off) => (off ? [] : list), detail: detailFrom(list) });
+  try {
+    assert.equal(await page.evaluate(() => currentLocale), 'tr');
+    await openRow(page, 'en-t');
+    await page.click('#regenBtn');
+    await page.waitForSelector('#timingFormPanel');
+    await submit(page);
+    await until(() => calls.quote.length === 1, 'the quote');
+    assert.equal(calls.quote[0].body.language, 'en');
+  } finally { await context.close(); }
+});
+
+test('new scan: a report of chart-9 while chart-1 is on screen sends chart_id "chart-9"', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const list = [timingSess('c9-t', {}, { chart_id: 'chart-9' })];
+  const { context, page, calls } = await ready({ quote: Q.credit, history: (a, off) => (off ? [] : list), detail: detailFrom(list) });
+  try {
+    assert.equal(await page.evaluate(() => lastChartId), 'chart-1');
+    await openRow(page, 'c9-t');
+    await page.click('#regenBtn');
+    await page.waitForSelector('#timingFormPanel');
+    await submit(page);
+    await until(() => calls.quote.length === 1, 'the quote');
+    assert.equal(calls.quote[0].body.chart_id, 'chart-9');
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// The off submit button looks off
+// ---------------------------------------------------------------------------
+test('submit button: the computed opacity differs when off and on', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await ready();
+  try {
+    await openForm(page);
+    // The button has a 0.2 s transition; read after it has run.
+    const opacity = async () => { await delay(300); return page.$eval('#timingSubmitBtn', b => getComputedStyle(b).opacity); };
+    assert.equal(await submitDisabled(page), true);
+    const off = await opacity();
+    await fill(page);
+    assert.equal(await submitDisabled(page), false);
+    const on = await opacity();
+    assert.notEqual(off, on, `off ${off}, on ${on}`);
+  } finally { await context.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// Birth place order: two /natal answers for the same chart_id
+// ---------------------------------------------------------------------------
+test('birth place order: two /natal requests return the same chart_id and the older one is answered last; the newer request\'s place stays', { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { context, page } = await openPage({ chart: false, quote: Q.sub });
+  try {
+    const g = gate();
+    let n = 0;
+    await page.route(`${API}/natal**`, async route => {
+      n += 1;
+      if (n === 1) await g.wait();
+      return json(route, 200, natalResp('chart-same'));
+    });
+    const OLDP = { name: 'Izmir', lat: 38.4127, lon: 27.1384 };
+    page.evaluate(p => {
+      selectedCity = { name: p.name, countryCode: 'TR', region: '', lat: p.lat, lon: p.lon, tz: 'Europe/Istanbul' };
+      document.getElementById('birthDate').value = '1990-01-01';
+      document.getElementById('birthTime').value = '12:00';
+      calculateChart();
+    }, OLDP);
+    await until(() => n === 1, 'the first /natal');
+    await computeChart(page, BIRTH);
+    await page.waitForFunction(() => birthPlaceFor('chart-same') && birthPlaceFor('chart-same').seq === 2);
+    const resp = page.waitForResponse(r => r.url().includes('/natal'));
+    g.open();
+    await resp;
+    await settle(page);
+    assert.deepEqual(await page.evaluate(() => birthPlaceFor('chart-same')), { seq: 2, name: BIRTH.label, lat: BIRTH.lat, lon: BIRTH.lon });
+    await openForm(page);
+    assert.equal(await text(page, '#timingPlaceText'), BIRTH_TEXT);
+  } finally { await context.close(); }
+});

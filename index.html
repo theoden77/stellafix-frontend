@@ -241,6 +241,8 @@
   .timing-place-change{align-self:flex-start;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:transparent;border:1px solid var(--lapis);border-radius:8px;padding:4px 10px;cursor:pointer;}
   .timing-form-error,.timing-range-hint{margin-top:8px;font-size:13px;color:var(--crimson);}
   .timing-submit{margin-top:12px;}
+  .timing-submit:disabled{opacity:.5;cursor:not-allowed;}
+  .timing-place-cancel{align-self:flex-start;margin-top:6px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:inherit;background:transparent;border:1px solid var(--rule);border-radius:8px;padding:4px 10px;cursor:pointer;}
   .chat-subtitle{font-size:12px;opacity:.75;margin:-8px 0 12px;}
   .credit-status{font-size:12px;color:var(--ink);opacity:.65;margin-bottom:12px;padding:8px 12px;background:var(--parchment-dark);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .credit-status.exhausted{color:var(--crimson);opacity:1;background:#FEF2F2;}
@@ -819,7 +821,7 @@ const I18N = {
     timingStartLabel: "Başlangıç", timingEndLabel: "Bitiş",
     timingPlaceLabel: "Eylemin yapılacağı yer",
     timingPlaceDefaultNote: "Varsayılan doğum yerin. Eylem başka bir yerde olacaksa değiştir.",
-    timingPlaceChange: "Değiştir", timingPlaceNone: "Bir yer seç.",
+    timingPlaceChange: "Değiştir", timingPlaceCancel: "Vazgeç", timingPlaceNone: "Bir yer seç.",
     timingInfoLine: "Saatler eylemin yapılacağı yerin yerel saatiyle verilir.",
     timingSubmit: "Uygun saatleri bul",
     timingRangeTooLongClient: "En fazla 90 gün seçebilirsin.",
@@ -1088,7 +1090,7 @@ const I18N = {
     timingStartLabel: "Start", timingEndLabel: "End",
     timingPlaceLabel: "Where the action will take place",
     timingPlaceDefaultNote: "Your birth place by default. Change it if the action will take place elsewhere.",
-    timingPlaceChange: "Change", timingPlaceNone: "Choose a place.",
+    timingPlaceChange: "Change", timingPlaceCancel: "Cancel", timingPlaceNone: "Choose a place.",
     timingInfoLine: "Times are given in the local time of the place where the action will take place.",
     timingSubmit: "Find favourable times",
     timingRangeTooLongClient: "You can choose at most 90 days.",
@@ -5132,6 +5134,7 @@ function applyGenResult(rec,out,ctx){
         fetchCreditBalance(); // bir rapor hakkı düşmüş olabilir - göstergeyi tazele
         // Soru göstergesi ilk sorudan önce dolsun (okuma başarısız olsa da rapor ekranda kalır).
         loadReportBalance(data.session_id,out.account,chatViewId);
+        if(f.category==='timing')loadTimingPlaceLine(data.session_id,out.account,chatViewId);
         return;
       }
       if(!ctx.live&&sameView&&typeof data.session_id==='string'){
@@ -5834,6 +5837,21 @@ function setChatSubtitle(text){
 function renderTimingSubtitle(){
   setChatSubtitle(currentTimingSummary?t('timingPlaceLine').replace('{place}',timingPlaceText(timingSummaryPlace(currentTimingSummary))):null);
 }
+// Yeni üretilen zamanlama raporunun yer satırı: kayıtlı rapor detayı arka
+// planda okunur. Rapor ve soru kutusu bunu beklemez; sonuç (başarı ya da
+// hata) soru kutusuna ve bakiye kurallarına dokunmaz. Hata halinde satır
+// gösterilmez, mesaj basılmaz, tekrar denenmez. Yanıt yalnız aynı hesap,
+// aynı görünüm ve aynı rapor hâlâ açıkken uygulanır (401 de).
+async function loadTimingPlaceLine(sessionId,account,view){
+  if(typeof sessionId!=='string'||!authToken)return;
+  const r=await fetchSavedReport(sessionId,{withBalance:false});
+  if(account!==currentAccountKey()||view!==chatViewId||interpretSessionId!==sessionId)return;
+  if(r.detailResp&&r.detailResp.status===401){ handleUnauthorized(); return; }
+  const d=r.detail;
+  if(!d||d.session_id!==sessionId||d.category!=='timing'||!timingSummaryValid(d.timing))return;
+  currentTimingSummary=d.timing;
+  renderTimingSubtitle();
+}
 function timingErrorType(body){
   const items=body&&Array.isArray(body.detail)?body.detail:[];
   for(const it of items){ if(it&&TIMING_ERRORS[it.type])return it.type; }
@@ -5970,12 +5988,31 @@ function updateTimingForm(){
 }
 // "Değiştir": mevcut ülke → şehir seçicisi. Seçim tamamlanmadan gönderilemez;
 // art arda seçimlerde sonuncusu geçerlidir. Doğum formundaki seçim değişmez.
+// Önceki yer seçici açıldığı anda yakalanır; "Vazgeç" ona döner.
 function startTimingPlacePick(form){
   if(timingForm!==form)return;
   form.picking=true;
+  form.prevPlace=form.place?{...form.place}:null;
   const box=form.el.querySelector('#timingPlacePicker');
-  box.replaceChildren(...buildPlacePickerFields());
+  const cancel=document.createElement('button');
+  cancel.type='button';
+  cancel.className='timing-place-cancel';
+  cancel.id='timingPlaceCancel';
+  cancel.textContent=t('timingPlaceCancel');
+  cancel.addEventListener('click',()=>cancelTimingPlacePick(form));
+  box.replaceChildren(...buildPlacePickerFields(),cancel);
   tzPicker={cc:null,data:null,norm:null,form,onCity:city=>pickTimingPlace(form,city)};
+  updateTimingForm();
+}
+// Seçici kapanır, yakalanan yer geri gelir. Bekleyen konum yanıtları
+// (ülke/şehir verisi) geçersizdir: yeni seçici durumu yok.
+function cancelTimingPlacePick(form){
+  if(timingForm!==form)return;
+  if(tzPicker&&tzPicker.form===form)tzPicker=null;
+  form.picking=false;
+  form.place=form.prevPlace;
+  form.el.querySelector('#timingPlacePicker').replaceChildren();
+  renderTimingPlace(form);
   updateTimingForm();
 }
 function pickTimingPlace(form,city){
@@ -6458,12 +6495,13 @@ async function openHistoryReport(sessionId){
 }
 
 // GET /{id} ve /{id}/balance paralel; detail yalnızca messages dizisi varsa döner.
-async function fetchSavedReport(sessionId){
+// withBalance:false yalnız detayı okur (balance null döner).
+async function fetchSavedReport(sessionId,{withBalance=true}={}){
   const id=encodeURIComponent(sessionId);
   const get=url=>fetchWithTimeout(url,{headers:authHeaders()},READ_TIMEOUT_MS).catch(()=>null);
   const [detailResp,balanceResp]=await Promise.all([
     get(`${API_URL}/api/v1/interpret/${id}`),
-    get(`${API_URL}/api/v1/interpret/${id}/balance`),
+    withBalance?get(`${API_URL}/api/v1/interpret/${id}/balance`):null,
   ]);
   let detail=null, balance=null;
   try{ if(detailResp&&detailResp.ok)detail=await detailResp.json(); }catch(e){ detail=null; }
