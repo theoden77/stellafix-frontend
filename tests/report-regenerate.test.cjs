@@ -60,7 +60,7 @@ async function settle(page) { await nextFrame(page); await delay(150); await nex
 test('R1 button: only on a completed report of a known category with a chart_id while logged in', { timeout: TEST_TIMEOUT_MS }, async () => {
   const list = [
     sess(SRC), sess('pen', { status: 'pending' }), sess('fail', { status: 'failed' }),
-    sess('unk', { category: 'timing' }), sess('nochart', { chart_id: null }), sess('emptychart', { chart_id: '' }),
+    sess('unk', { category: 'made_up_category' }), sess('nochart', { chart_id: null }), sess('emptychart', { chart_id: '' }),
   ];
   const { context, page } = await openPage({
     chart: false, history: (a, off) => (off ? [] : list), detail: detailFrom(list),

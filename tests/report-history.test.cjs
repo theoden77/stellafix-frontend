@@ -312,7 +312,7 @@ test('h: category_disabled on a follow-up shows its own message and keeps the re
 });
 
 test('i: an unknown category opens with a generic title, readable, question box closed', { timeout: TEST_TIMEOUT_MS }, async () => {
-  const mr = sess('mr', { category: 'timing' });
+  const mr = sess('mr', { category: 'made_up_category' });
   const { context, page, calls } = await openPage({ history: () => [mr], detail: () => detail(mr) });
   try {
     await openReports(page);
@@ -585,7 +585,7 @@ test('s: read errors use the friendly messages, never the raw backend text', { t
 });
 
 test('t: switching the language re-renders the open list', { timeout: TEST_TIMEOUT_MS }, async () => {
-  const { context, page } = await openPage({ history: () => [sess('s1', { category: 'timing', chart_name: null })] });
+  const { context, page } = await openPage({ history: () => [sess('s1', { category: 'made_up_category', chart_name: null })] });
   try {
     await openReports(page);
     await waitRows(page, 1);

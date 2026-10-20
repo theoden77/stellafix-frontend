@@ -229,6 +229,19 @@
   .tz-picker-field{margin-top:10px;}
   .tz-picker .city-dropdown{position:static;margin-top:4px;box-shadow:none;}
   .tz-picker-error{margin-top:8px;font-size:13px;color:var(--crimson);}
+  .timing-form{white-space:normal;max-width:100%;width:100%;}
+  .timing-field{margin-top:10px;display:flex;flex-direction:column;gap:4px;}
+  .timing-field label,.timing-field .timing-field-label{font-size:12px;font-weight:600;}
+  .timing-field select,.timing-field input{font-family:'Inter',sans-serif;font-size:13px;padding:6px 8px;border:1px solid var(--rule);border-radius:8px;background:#fff;}
+  .timing-dates{display:flex;gap:10px;flex-wrap:wrap;}
+  .timing-dates .timing-field{flex:1 1 140px;}
+  .timing-field-error input,.timing-field-error .timing-place-text{border-color:var(--crimson);outline:1px solid var(--crimson);}
+  .timing-place-text{font-size:13px;padding:6px 8px;border:1px solid transparent;border-radius:8px;}
+  .timing-place-note,.timing-info{font-size:12px;opacity:.7;}
+  .timing-place-change{align-self:flex-start;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--lapis);background:transparent;border:1px solid var(--lapis);border-radius:8px;padding:4px 10px;cursor:pointer;}
+  .timing-form-error,.timing-range-hint{margin-top:8px;font-size:13px;color:var(--crimson);}
+  .timing-submit{margin-top:12px;}
+  .chat-subtitle{font-size:12px;opacity:.75;margin:-8px 0 12px;}
   .credit-status{font-size:12px;color:var(--ink);opacity:.65;margin-bottom:12px;padding:8px 12px;background:var(--parchment-dark);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .credit-status.exhausted{color:var(--crimson);opacity:1;background:#FEF2F2;}
   .credit-status-action{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#fff;background:var(--lapis);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap;}
@@ -634,6 +647,7 @@
         <button type="button" class="chat-back-btn" id="chatBackBtn" onclick="backToCategories()" data-i18n="btnBackToCategories">← Kategorilere dön</button>
         <button type="button" class="chat-back-btn" id="regenBtn" style="display:none" onclick="startRegenerate()" data-i18n="btnRegenerate">Yeniden üret</button>
       </div>
+      <div class="chat-subtitle" id="chatSubtitle" style="display:none"></div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-loading" id="chatLoading" style="display:none">
         <div class="chat-spinner"></div>
@@ -798,6 +812,26 @@ const I18N = {
     catRelRomanticTitle: "Romantik İlişkiler", catRelRomanticDesc: "Romantik ilişkilerde bağ kurma biçimin",
     catRelFriendshipTitle: "Arkadaşlık", catRelFriendshipDesc: "Arkadaşlıklarında ve topluluklarla ilişkilerindeki eğilimlerin",
     catEclipseTitle: "En Yakın Tutulma", catEclipseDesc: "Sıradaki tutulmanın haritan üzerindeki etkisi",
+    catTimingTitle: "Zamanlama", catTimingDesc: "Önemli bir adım için uygun saatler",
+    timingActionLabel: "Eylem türü", timingActionPlaceholder: "Seç",
+    timingAction_contract_signing: "Sözleşme imzalama", timingAction_business_launch: "İş kurma/başlatma",
+    timingAction_travel: "Seyahat", timingAction_relocation: "Taşınma",
+    timingStartLabel: "Başlangıç", timingEndLabel: "Bitiş",
+    timingPlaceLabel: "Eylemin yapılacağı yer",
+    timingPlaceDefaultNote: "Varsayılan doğum yerin. Eylem başka bir yerde olacaksa değiştir.",
+    timingPlaceChange: "Değiştir", timingPlaceNone: "Bir yer seç.",
+    timingInfoLine: "Saatler eylemin yapılacağı yerin yerel saatiyle verilir.",
+    timingSubmit: "Uygun saatleri bul",
+    timingRangeTooLongClient: "En fazla 90 gün seçebilirsin.",
+    timingErrDateInPast: "Başlangıç tarihi, eylemin yapılacağı yerde geçmişte kaldı. Yeni bir başlangıç tarihi seç.",
+    timingErrNoCandidates: "Bu aralıkta taranacak saat kalmadı. Yeni tarihler seç.",
+    timingErrRangeTooLong: "Aralık 90 günü aşıyor.",
+    timingErrTimezoneUnknown: "Bu yerin saat dilimi belirlenemedi. Başka bir yer seç.",
+    timingNoteDateInPast: "Tarih geçmişte kaldı, yeni tarih seç.",
+    timingPlaceLine: "Eylemin yapılacağı yer: {place}",
+    timingRangePast: "Bu aralık geçti; güncel adaylar için yeni tarama gerekir. Bu rapor okunabilir kalır.",
+    timingRangePartlyPast: "Bu aralığın bir kısmı geçti; geçmiş saatlerdeki adaylar artık kullanılamaz. Bu rapor okunabilir kalır.",
+    btnTimingRescan: "Bu ayarlarla yeni tarama",
     btnBackToCategories: "← Kategorilere dön",
     chatLoadingTitle: "Yıldızlar okunuyor...",
     chatLoadingNote: "Bu biraz sürebilir",
@@ -1047,6 +1081,26 @@ const I18N = {
     catRelRomanticTitle: "Romantic Relationships", catRelRomanticDesc: "How you form bonds in romantic relationships",
     catRelFriendshipTitle: "Friendship", catRelFriendshipDesc: "Your tendencies in friendships and communities",
     catEclipseTitle: "Nearest Eclipse", catEclipseDesc: "How the next eclipse affects your chart",
+    catTimingTitle: "Timing", catTimingDesc: "Favourable times for an important step",
+    timingActionLabel: "Type of action", timingActionPlaceholder: "Choose",
+    timingAction_contract_signing: "Signing a contract", timingAction_business_launch: "Starting a business",
+    timingAction_travel: "Travel", timingAction_relocation: "Moving",
+    timingStartLabel: "Start", timingEndLabel: "End",
+    timingPlaceLabel: "Where the action will take place",
+    timingPlaceDefaultNote: "Your birth place by default. Change it if the action will take place elsewhere.",
+    timingPlaceChange: "Change", timingPlaceNone: "Choose a place.",
+    timingInfoLine: "Times are given in the local time of the place where the action will take place.",
+    timingSubmit: "Find favourable times",
+    timingRangeTooLongClient: "You can choose at most 90 days.",
+    timingErrDateInPast: "The start date has already passed where the action will take place. Choose a new start date.",
+    timingErrNoCandidates: "There are no times left to scan in this range. Choose new dates.",
+    timingErrRangeTooLong: "The range is longer than 90 days.",
+    timingErrTimezoneUnknown: "The time zone of this place couldn't be determined. Choose another place.",
+    timingNoteDateInPast: "The date has passed; choose a new date.",
+    timingPlaceLine: "Where the action will take place: {place}",
+    timingRangePast: "This range has passed; a new scan is needed for current candidates. This report stays readable.",
+    timingRangePartlyPast: "Part of this range has passed; candidates at past times can no longer be used. This report stays readable.",
+    btnTimingRescan: "New scan with these settings",
     btnBackToCategories: "← Back to categories",
     chatLoadingTitle: "Reading the stars...",
     chatLoadingNote: "This may take a moment",
@@ -1269,6 +1323,17 @@ function updateTechToggleLabel(){
 // geçerken tablo Türkçe kalıyordu). Artık ağ hiç devreye girmiyor.
 let lastCalculatedBirthData=null;
 let lastApiData=null;
+// Zamanlama formunun varsayılan eylem yeri: başarılı bir /natal yanıtının ait
+// olduğu isteğe gönderilen doğum yeri (ad ve tam koordinat), o yanıtın
+// chart_id'siyle saklanır. Değerler istek anında yakalanır; formdaki canlı
+// alan kullanılmaz. Her harita kendi kaydını tutar: geç gelen eski bir yanıt
+// başka bir haritanın kaydını ezmez; aynı harita için yalnız daha yeni bir
+// istek yazar (sıra numarası).
+let natalSeq=0;
+const natalBirthPlaces=new Map(); // chart_id -> {seq, name, lat, lon}
+function birthPlaceFor(chartId){
+  return chartId&&natalBirthPlaces.get(chartId)||null;
+}
 
 function setLocale(loc){
   if(loc===currentLocale)return;
@@ -2974,6 +3039,8 @@ async function calculateChart(){
   // sonsuza kadar "Hesaplanıyor..." durumunda kalmaz.
   const controller=new AbortController();
   const timeoutId=setTimeout(()=>controller.abort(),CALC_TIMEOUT_MS);
+  const mySeq=++natalSeq;
+  const sentPlace={name:placeLabel(selectedCity),lat:selectedCity.lat,lon:selectedCity.lon};
 
   try {
     const resp = await fetch(`${API_URL}/natal?locale=${currentLocale}`, {
@@ -3007,6 +3074,10 @@ async function calculateChart(){
     }
 
     const data = await resp.json();
+    if(data&&typeof data.chart_id==='string'&&data.chart_id){
+      const prev=natalBirthPlaces.get(data.chart_id);
+      if(!prev||mySeq>prev.seq)natalBirthPlaces.set(data.chart_id,{seq:mySeq,...sentPlace});
+    }
     // Ham yanıt saklanıyor - dil değişince (setLocale) bu veriden backend'e
     // tekrar sormadan yeniden render edilecek.
     lastApiData=data;
@@ -3802,7 +3873,7 @@ function hideErr(){document.getElementById('errorBox').style.display='none';}
 // ============================================================
 // YORUM / SOHBET — sadece backend'den gerçek bir chart_id alındığında
 // (yani JS fallback değil, gerçek API hesaplaması sonrasında) kullanılabilir.
-// Ek form gerektiren timing henüz arayüzde yok.
+// Zamanlama kartı quote'tan önce bir form açar (bkz. ZAMANLAMA FORMU).
 // ============================================================
 const CATEGORY_GROUPS=[
   {id:'time',labelKey:'catGroupTime'},
@@ -3823,12 +3894,13 @@ const CATEGORIES=[
   {id:'relationship_romantic',group:'relations',api:'relationship',relType:'romantic',titleKey:'catRelRomanticTitle',descKey:'catRelRomanticDesc'},
   {id:'relationship_friendship',group:'relations',api:'relationship',relType:'friendship',titleKey:'catRelFriendshipTitle',descKey:'catRelFriendshipDesc'},
   {id:'eclipse_nearest',group:'special',titleKey:'catEclipseTitle',descKey:'catEclipseDesc'},
+  {id:'timing',group:'special',titleKey:'catTimingTitle',descKey:'catTimingDesc',form:true},
 ];
 const CATEGORY_ICONS={
   weekly_review:'📅', monthly_review:'🗓️', yearly_review:'📆',
   personality:'🧭', career:'💼', finance:'💰', marriage:'💍', health:'🌿',
   relationship_parent:'👪', relationship_romantic:'💞', relationship_friendship:'🤝',
-  eclipse_nearest:'🌑',
+  eclipse_nearest:'🌑', timing:'⏳',
 };
 // Kart kimliği (id) yalnızca istemcide kullanılır ve hiçbir isteğe girmez.
 // İstekteki kategori kartın api alanı (yoksa id); ilişki kartlarında alt tür
@@ -3968,6 +4040,9 @@ function resetInterpretArea(){
   questionCreditInfo=null;
   currentCategory=null;
   currentRelationshipType=null;
+  closeTimingForm();
+  currentTimingSummary=null;
+  setChatSubtitle(null);
   document.getElementById('chatMessages').innerHTML='';
   document.getElementById('chatLoading').style.display='none';
   const input=document.getElementById('chatInput');
@@ -4009,6 +4084,7 @@ function backToCategories(){
   // Raporlarım'dan açılmış bir rapordan geri dönüş kategori ızgarasına değil
   // listeye gider (harita hesaplanmamış olabilir).
   if(historyReport){ backToReportsList(); return; }
+  closeTimingForm();
   document.getElementById('chatPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='block';
   // Seçim ekranından çıkılıyor - bekleyen her tz-picker retry'sini geçersiz
@@ -4297,7 +4373,15 @@ function showTimezonePicker(reason,owner){
   msg.className='chat-bubble-text';
   msg.textContent=t(reason==='invalid'?'tzPickerInvalid':'tzPickerMissing');
   panel.appendChild(msg);
-
+  panel.append(...buildPlacePickerFields());
+  wrap.appendChild(panel);
+  wrap.scrollTop=wrap.scrollHeight;
+  document.getElementById('chatInput').disabled=true;
+  document.getElementById('chatSendBtn').disabled=true;
+}
+// Ülke ve şehir alanları (konum seçicinin ortak parçası). Şehir seçimi
+// tzPicker.onCity varsa ona verilir, yoksa saat dilimi aranır (pickTzCity).
+function buildPlacePickerFields(){
   const countryField=document.createElement('div');
   countryField.className='tz-picker-field';
   const countryInput=document.createElement('input');
@@ -4330,14 +4414,9 @@ function showTimezonePicker(reason,owner){
   err.className='tz-picker-error';
   err.style.display='none';
 
-  panel.append(countryField,cityField,err);
-  wrap.appendChild(panel);
-  wrap.scrollTop=wrap.scrollHeight;
-  document.getElementById('chatInput').disabled=true;
-  document.getElementById('chatSendBtn').disabled=true;
-
   countryInput.addEventListener('input',()=>renderTzCountryOptions(countryInput.value));
   cityInput.addEventListener('input',()=>renderTzCityOptions(cityInput.value));
+  return [countryField,cityField,err];
 }
 
 function tzOption(label,detail,onPick){
@@ -4414,6 +4493,11 @@ async function pickTzCity(i){
   document.getElementById('tzCityInput').value=c[0];
   document.getElementById('tzCityDropdown').style.display='none';
   hideTzPickerError();
+  if(tzPicker.onCity){
+    const region=(c[6]&&tzPicker.data.admin1&&tzPicker.data.admin1[c[6]])||'';
+    tzPicker.onCity({name:c[0],region,countryCode:tzPicker.cc,lat:c[2],lon:c[3]});
+    return;
+  }
   // Bu seçimin kimliği - fetch'ten SONRAKİ her await'ten sonra tekrar
   // kontrol ediliyor (bkz. tzPickerRequestId notu yukarıda).
   const myRequestId=++tzPickerRequestId;
@@ -5016,6 +5100,10 @@ function genOutcomeKey(rec,out){
     return 'errSomethingWrong';
   }
   if(s===404&&rec.kind==='start')return 'errChartNotFound'; // /start'ta 404 haritaya aittir
+  if(s===422&&rec.kind==='start'&&pendingFields(rec).category==='timing'){
+    const type=timingErrorType(out.body);
+    if(type)return TIMING_ERRORS[type].note;
+  }
   if(s===402||s===403||s===404||s===422)return interpretErrorInfo(s,out.body).textKey;
   return 'chatErrorMessage';
 }
@@ -5028,14 +5116,18 @@ function applyGenResult(rec,out,ctx){
   if(!out)return;
   if(!isAutoWaitable(out)||out.account!==currentAccountKey())stopWaiter(rec); // bekleme bitti
   if(out.account!==currentAccountKey())return;
-  const sameView=ctx.view===chatViewId;
+  // Zamanlama formundan gönderilen istekte kullanıcı formdan ayrıldıysa başka bir ekrandadır.
+  const timingFlow=ctx.flow&&ctx.flow.timing;
+  const sameView=ctx.view===chatViewId&&!(timingFlow&&!flowValid(ctx.flow));
   if(out.ok){
     const data=out.body||{};
     if(rec.kind==='start'){
       if(ctx.live&&sameView){
+        if(timingFlow)closeTimingForm();
         handleStartResponse(data); // önce: rapor açık olsun ki soru kutusu açılabilsin
         const f=pendingFields(rec);
-        setRegenSource(typeof data.session_id==='string'?{sessionId:data.session_id,chartId:f.chart_id,category:f.category,relationshipType:f.relationship_type,language:f.language}:null);
+        setRegenSource(typeof data.session_id==='string'?{sessionId:data.session_id,chartId:f.chart_id,category:f.category,relationshipType:f.relationship_type,language:f.language,
+          timing:f.category==='timing'?timingSummaryFromBody(f,timingFlow?timingFlow.place:null):undefined}:null);
         showChatLoading(false);
         fetchCreditBalance(); // bir rapor hakkı düşmüş olabilir - göstergeyi tazele
         // Soru göstergesi ilk sorudan önce dolsun (okuma başarısız olsa da rapor ekranda kalır).
@@ -5121,6 +5213,7 @@ function showGenError(rec,out,ctx){
     showAskAgain(rec,key,ctx,true);
     return;
   }
+  if(s===422&&ctx.flow&&ctx.flow.timing){ showTimingError(ctx.flow,out.body); return; }
   showInterpretError(s,out.body,genTzOwner(rec,ctx));
 }
 // /start 422 saat dilimi: seçiciden sonra isteği başlatan akışa dönülür.
@@ -5206,7 +5299,8 @@ function sendQuestion(sessionId,question){
 // olur: bayat quote yanıtı sessizce atılır, onay ekranından /start gitmez.
 function flowValid(flow){
   return flow.flowId===tzPickerFlowId&&flow.view===chatViewId&&flow.account===currentAccountKey()
-    &&(!flow.tzRetry||isTzRetryStillValid(flow.tzRetry));
+    &&(!flow.tzRetry||isTzRetryStillValid(flow.tzRetry))
+    &&(!flow.timing||(timingForm===flow.timing.form&&flow.timing.seq===flow.timing.form.seq));
 }
 function once(f){
   let done=false;
@@ -5271,6 +5365,7 @@ async function runQuote(flow,mode){
     if(spend==='none'&&body.existing&&typeof body.existing.session_id==='string'){ openSavedReport(body.existing.session_id,flow); return; }
     if(spend==='subscription'){
       if(mode==='click'){ sendStart(flow,'subscription'); return; }
+      if(mode==='confirm'){ showConfirm(flow,'subscription'); return; } // her bedel ayrı onay ister
       showGenerateChoice(flow,'subscription');
       return;
     }
@@ -5284,6 +5379,7 @@ async function runQuote(flow,mode){
   }
   if(resp.status===409){ appendChatBubble('error',t('errSomethingWrong')); return; }
   if(resp.status===404){ appendChatBubble('error',t('errChartNotFound')); return; } // quote'ta 404 haritaya aittir
+  if(flow.timing&&resp.status===422){ showTimingError(flow,body); return; }
   showInterpretError(resp.status,body,flow.regen?regenTzOwner(flow.ctx,'check'):categoryTzOwner(flow.catId,flow.flowId));
 }
 
@@ -5351,14 +5447,21 @@ async function ensureCreditBalance(flow){
 }
 // report_credit: "1 rapor hakkı kullanılacak" ve kalan hak. Hak 0 ise onay
 // yok, Abone Ol. Bakiye okunamazsa bakiye satırı gizlenir, onay kalır.
-async function showConfirm(flow){
+// Zamanlamada onay ekranı eylemi, tarih aralığını ve yeri özetler; formun
+// eski bir rapordan açıldığı akışta abonelik de bu ekrandan onaylanır.
+async function showConfirm(flow,spend='report_credit'){
+  const summary=flow.timing?[timingSummaryLine(flow.quoteBody,flow.timing.place)]:[];
+  if(spend==='subscription'){
+    appendChatBubble('notice',[...summary,t('regenPriceSubscription')],generateAction(flow,'subscription',t('btnConfirmGenerate'),'quote-confirm-btn'));
+    return;
+  }
   if(!await ensureCreditBalance(flow))return;
   const n=creditBalance?(creditBalance.report_credits||0):null;
   if(n!==null&&n<=0){
     appendChatBubble('notice',t('noReportCredits'),{label:t('ctaSubscribe'),onClick:startSubscribeCheckout});
     return;
   }
-  const lines=[t('quoteConfirmText')];
+  const lines=[...summary,t('quoteConfirmText')];
   if(n!==null)lines.push(t('quoteBalanceLine').replace('{n}',n));
   appendChatBubble('notice',lines,generateAction(flow,'report_credit',t('btnConfirmGenerate'),'quote-confirm-btn'));
 }
@@ -5395,7 +5498,8 @@ async function openSavedReport(sessionId,flow){
       {label:t('btnRetry'),onClick:once(()=>openSavedReport(sessionId,flow))});
     return;
   }
-  showHistoryReport(r.detail,r.balance,{fromCategory:!flow.regen||!historyReport,chartId:flow.quoteBody.chart_id});
+  const fromReport=flow.regen||(flow.timing&&flow.timing.source==='report');
+  showHistoryReport(r.detail,r.balance,{fromCategory:!fromReport||!historyReport,chartId:flow.quoteBody.chart_id});
 }
 
 // ---- Yeniden üret ----
@@ -5419,12 +5523,15 @@ let regenSource=null;   // açık raporun yeniden üretim kaynağı (yoksa null)
 let regenActive=null;   // açık bir yeniden üretim akışının bağlamı (çift tıklama)
 function setRegenSource(src){
   regenSource=src&&typeof src.sessionId==='string'&&src.sessionId&&typeof src.chartId==='string'&&src.chartId
-    &&isKnownCategory(src.category,src.relationshipType)?src:null;
+    &&isKnownCategory(src.category,src.relationshipType)&&(src.category!=='timing'||timingSummaryValid(src.timing))?src:null;
   updateRegenButton();
 }
+// Zamanlama raporunda bu düğme "Bu ayarlarla yeni tarama"dır (bkz. openTimingRescan).
 function updateRegenButton(){
   const btn=document.getElementById('regenBtn');
-  if(btn)btn.style.display=regenSource&&authToken?'':'none';
+  if(!btn)return;
+  btn.style.display=regenSource&&authToken?'':'none';
+  btn.textContent=t(regenSource&&regenSource.category==='timing'?'btnTimingRescan':'btnRegenerate');
 }
 function regenActiveFor(src){
   const a=regenActive;
@@ -5432,6 +5539,7 @@ function regenActiveFor(src){
 }
 function startRegenerate(){
   if(!authToken||!regenSource||!isKnownCategory(regenSource.category,regenSource.relationshipType))return;
+  if(regenSource.category==='timing'){ openTimingRescan(regenSource); return; }
   if(regenActiveFor(regenSource))return; // aynı rapor için akış zaten açık
   tzPickerFlowId++; // bekleyen her picker dönüşü geçersiz
   const src=regenSource;
@@ -5536,6 +5644,8 @@ function startRegen(flow,spend){
   setBalanceUnavailable(false);
   currentCategory=flow.ctx.category;
   currentRelationshipType=flow.ctx.relationshipType||null;
+  closeTimingForm();
+  setChatSubtitle(null);
   document.getElementById('reportsPanel').style.display='none';
   document.getElementById('categoryPanel').style.display='none';
   document.getElementById('chatPanel').style.display='block';
@@ -5588,6 +5698,15 @@ async function selectCategory(catId,tzRetry){
   interpretSessionId=null;
   questionCreditInfo=null;
   setRegenSource(null);
+  closeTimingForm();
+  setChatSubtitle(null);
+  // Form kartı (zamanlama): quote gitmez, önce form açılır.
+  if(cfg&&cfg.form){
+    const bp=birthPlaceFor(lastChartId);
+    openTimingForm({source:'card',chartId:lastChartId,language:null,
+      place:bp?{lat:bp.lat,lon:bp.lon,name:bp.name,timezone:null,isBirth:true}:null});
+    return;
+  }
 
   // Kilit görseli (isCategoryLocked) kalır, ama tıklama her zaman quote yapar:
   // aynı girdiler için kayıtlı bir rapor abonelik kontrolünden önce ücretsiz
@@ -5606,6 +5725,325 @@ async function selectCategory(catId,tzRetry){
   if(tzRetry&&!isTzRetryStillValid(tzRetry))return;
   const flow={catId,quoteBody,flowId:tzPickerFlowId,view:chatViewId,account:currentAccountKey(),tzRetry:tzRetry||null};
   await runQuote(flow,'click');
+}
+
+// ============================================================
+// ZAMANLAMA FORMU
+// Zamanlama kartı quote'tan önce bu formu açar: eylem türü, tarih aralığı ve
+// eylemin yapılacağı yer. Gönderim, kategori akışının quote → bedel/onay →
+// üretim adımlarını aynen kullanır; gövde {chart_id, category:"timing",
+// language, action_type, date_range_start, date_range_end, location}.
+// - location her zaman gönderilir; varsayılanı haritanın /natal'a gönderilen
+//   doğum yeridir (tam koordinat). Ekranda iki ondalık gösterilir.
+// - Tarihler takvim günüdür: varsayılan ve min yok, istemcide "bugün"
+//   kontrolü yok (bugün eylem yerinde sunucuda belirlenir), hiçbir durumda
+//   kendiliğinden değiştirilmez. Gün sayısı UTC gece yarısına çevrilmiş
+//   takvim tarihleriyle hesaplanır (yerel saat ve DST etkilemez).
+// - Formun kaynağı açılırken yakalanır: kategori kartı (abonelik onaysız
+//   üretir) ya da eski bir rapor ("Bu ayarlarla yeni tarama": her bedel ayrı
+//   onay ister). Yeni gönderim önceki gönderimin yanıtlarını ve onay
+//   düğmelerini geçersiz kılar (flowValid).
+// ============================================================
+const TIMING_ACTIONS=['contract_signing','business_launch','travel','relocation'];
+const TIMING_MAX_DAYS=90;
+const TIMING_ERRORS={
+  timing_date_in_past:{key:'timingErrDateInPast',field:'start',note:'timingNoteDateInPast'},
+  timing_no_candidates:{key:'timingErrNoCandidates',field:null,note:'timingErrNoCandidates'},
+  timing_range_too_long:{key:'timingErrRangeTooLong',field:null,note:'timingErrRangeTooLong'},
+  timing_timezone_unknown:{key:'timingErrTimezoneUnknown',field:'place',note:'timingErrTimezoneUnknown'},
+};
+let timingForm=null;          // açık form (yoksa null)
+let currentTimingSummary=null; // açık zamanlama raporunun özeti (başlık satırı için)
+
+// "YYYY-MM-DD" → o takvim gününün UTC gece yarısı (ms); geçersizse null.
+function calendarDayUTC(str){
+  const m=typeof str==='string'?str.match(/^(\d{4})-(\d{2})-(\d{2})$/):null;
+  if(!m)return null;
+  const y=+m[1], mo=+m[2], d=+m[3];
+  const ms=Date.UTC(y,mo-1,d);
+  const dt=new Date(ms);
+  if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==mo-1||dt.getUTCDate()!==d)return null;
+  return ms;
+}
+// İki uç dahil gün sayısı; tarihlerden biri geçersizse null.
+function timingDaysInclusive(start,end){
+  const a=calendarDayUTC(start), b=calendarDayUTC(end);
+  if(a===null||b===null)return null;
+  return Math.round((b-a)/86400000)+1;
+}
+function formatCalendarDate(str){
+  const ms=calendarDayUTC(str);
+  if(ms===null)return '';
+  return new Intl.DateTimeFormat(reportLocaleTag(),{timeZone:'UTC',day:'numeric',month:'short',year:'numeric'}).format(new Date(ms+12*3600000));
+}
+// Bir saat dilimindeki bugünün takvim tarihi; tanınmıyorsa null.
+function calendarDateIn(tz){
+  if(typeof tz!=='string'||!tz)return null;
+  try{
+    const parts=new Intl.DateTimeFormat('en-US',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    const get=k=>(parts.find(p=>p.type===k)||{}).value;
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  }catch(e){ return null; }
+}
+function timingCoordText(lat,lon){ return `${Number(lat).toFixed(2)}, ${Number(lon).toFixed(2)}`; }
+// place: {lat, lon, name, timezone}. Ad yoksa saat dilimi, o da yoksa yalnız koordinat.
+function timingPlaceText(place){
+  if(!place)return '';
+  const c=timingCoordText(place.lat,place.lon);
+  if(place.name)return `${place.name} (${c})`;
+  if(place.timezone)return `${place.timezone} (${c})`;
+  return `(${c})`;
+}
+function timingSummaryValid(tm){
+  return !!(tm&&typeof tm==='object'&&TIMING_ACTIONS.includes(tm.action_type)
+    &&calendarDayUTC(tm.date_range_start)!==null&&calendarDayUTC(tm.date_range_end)!==null
+    &&tm.location&&Number.isFinite(tm.location.latitude)&&Number.isFinite(tm.location.longitude));
+}
+function timingSummaryPlace(tm){
+  return {lat:tm.location.latitude,lon:tm.location.longitude,name:tm.place_name||null,
+    timezone:typeof tm.timezone==='string'&&tm.timezone?tm.timezone:null};
+}
+// Yeni üretilen raporun özeti gönderilen gövdeden (yer adı formdan, varsa).
+function timingSummaryFromBody(f,place){
+  const loc=f.location||{};
+  return {action_type:f.action_type,date_range_start:f.date_range_start,date_range_end:f.date_range_end,
+    location:{latitude:loc.latitude,longitude:loc.longitude},timezone:null,place_name:place&&place.name||null};
+}
+function timingSummaryLine(body,place){
+  return `${t('timingAction_'+body.action_type)} · ${formatCalendarDate(body.date_range_start)} – ${formatCalendarDate(body.date_range_end)} · ${timingPlaceText(place)}`;
+}
+function timingRowTitle(tm){
+  return `${t('catTimingTitle')} · ${t('timingAction_'+tm.action_type)} · ${formatCalendarDate(tm.date_range_start)}–${formatCalendarDate(tm.date_range_end)}`;
+}
+// "Aralık geçti" notu: bugün, raporun kayıtlı saat diliminde hesaplanır;
+// saat dilimi yoksa ya da tanınmıyorsa not yok. Bitiş günü dahildir.
+function timingRangeNoteKey(tm){
+  if(!timingSummaryValid(tm))return null;
+  const today=calendarDateIn(tm.timezone);
+  if(!today)return null;
+  if(today>tm.date_range_end)return 'timingRangePast';
+  if(tm.date_range_start<today)return 'timingRangePartlyPast';
+  return null;
+}
+function setChatSubtitle(text){
+  const el=document.getElementById('chatSubtitle');
+  if(!el)return;
+  el.textContent=text||'';
+  el.style.display=text?'':'none';
+}
+function renderTimingSubtitle(){
+  setChatSubtitle(currentTimingSummary?t('timingPlaceLine').replace('{place}',timingPlaceText(timingSummaryPlace(currentTimingSummary))):null);
+}
+function timingErrorType(body){
+  const items=body&&Array.isArray(body.detail)?body.detail:[];
+  for(const it of items){ if(it&&TIMING_ERRORS[it.type])return it.type; }
+  return null;
+}
+
+// opts: {source:'card'|'report', chartId, language (null: gönderimdeki arayüz dili),
+//        action, start, end, place}
+function openTimingForm(opts){
+  closeTimingForm();
+  const form={source:opts.source,chartId:opts.chartId,language:opts.language,place:opts.place||null,
+    flowId:tzPickerFlowId,view:chatViewId,account:currentAccountKey(),picking:false,seq:0};
+  const panel=document.createElement('div');
+  panel.id='timingFormPanel';
+  panel.className='chat-bubble assistant timing-form';
+  const field=(cls,labelKey,control)=>{
+    const f=document.createElement('div');
+    f.className='timing-field'+(cls?' '+cls:'');
+    const l=document.createElement('label');
+    l.textContent=t(labelKey);
+    if(control&&control.id)l.htmlFor=control.id;
+    f.appendChild(l);
+    if(control)f.appendChild(control);
+    return f;
+  };
+  const action=document.createElement('select');
+  action.id='timingAction';
+  const ph=document.createElement('option');
+  ph.value='';
+  ph.textContent=t('timingActionPlaceholder');
+  ph.disabled=true;
+  action.appendChild(ph);
+  for(const a of TIMING_ACTIONS){
+    const o=document.createElement('option');
+    o.value=a;
+    o.textContent=t('timingAction_'+a);
+    action.appendChild(o);
+  }
+  action.value=TIMING_ACTIONS.includes(opts.action)?opts.action:'';
+  const start=document.createElement('input');
+  start.type='date';
+  start.id='timingStart';
+  if(opts.start)start.value=opts.start;
+  const end=document.createElement('input');
+  end.type='date';
+  end.id='timingEnd';
+  if(opts.end)end.value=opts.end;
+  const dates=document.createElement('div');
+  dates.className='timing-dates';
+  const startField=field('timing-start-field','timingStartLabel',start);
+  dates.append(startField,field('timing-end-field','timingEndLabel',end));
+
+  const placeField=document.createElement('div');
+  placeField.className='timing-field timing-place-field';
+  placeField.id='timingPlaceField';
+  const placeLabel=document.createElement('div');
+  placeLabel.className='timing-field-label';
+  placeLabel.textContent=t('timingPlaceLabel');
+  const placeText=document.createElement('div');
+  placeText.className='timing-place-text';
+  placeText.id='timingPlaceText';
+  const placeNote=document.createElement('div');
+  placeNote.className='timing-place-note';
+  placeNote.id='timingPlaceNote';
+  placeNote.textContent=t('timingPlaceDefaultNote');
+  const change=document.createElement('button');
+  change.type='button';
+  change.className='timing-place-change';
+  change.id='timingPlaceChange';
+  change.textContent=t('timingPlaceChange');
+  const picker=document.createElement('div');
+  picker.className='tz-picker timing-place-picker';
+  picker.id='timingPlacePicker';
+  placeField.append(placeLabel,placeText,placeNote,change,picker);
+
+  const info=document.createElement('div');
+  info.className='timing-info';
+  info.textContent=t('timingInfoLine');
+  const hint=document.createElement('div');
+  hint.className='timing-range-hint';
+  hint.id='timingRangeHint';
+  hint.textContent=t('timingRangeTooLongClient');
+  hint.style.display='none';
+  const err=document.createElement('div');
+  err.className='timing-form-error';
+  err.id='timingFormError';
+  err.setAttribute('role','alert');
+  err.style.display='none';
+  const submit=document.createElement('button');
+  submit.type='button';
+  submit.className='btn-primary timing-submit';
+  submit.id='timingSubmitBtn';
+  submit.textContent=t('timingSubmit');
+
+  panel.append(field('timing-action-field','timingActionLabel',action),dates,placeField,info,hint,err,submit);
+  form.el=panel;
+  timingForm=form;
+  for(const el of [action,start,end]){
+    el.addEventListener('input',()=>{ el.closest('.timing-field').classList.remove('timing-field-error'); updateTimingForm(); });
+    el.addEventListener('change',()=>updateTimingForm());
+  }
+  change.addEventListener('click',()=>startTimingPlacePick(form));
+  submit.addEventListener('click',()=>submitTimingForm(form));
+  const wrap=document.getElementById('chatMessages');
+  wrap.appendChild(panel);
+  renderTimingPlace(form);
+  updateTimingForm();
+}
+function closeTimingForm(){
+  if(!timingForm)return;
+  if(timingForm.el&&timingForm.el.isConnected)timingForm.el.remove();
+  if(tzPicker&&tzPicker.form===timingForm)tzPicker=null;
+  timingForm=null;
+}
+function renderTimingPlace(form){
+  const el=form.el;
+  el.querySelector('#timingPlaceText').textContent=form.place?timingPlaceText(form.place):t('timingPlaceNone');
+  el.querySelector('#timingPlaceNote').style.display=form.place&&form.place.isBirth?'':'none';
+}
+function timingFormState(form){
+  const el=form.el;
+  const v={action:el.querySelector('#timingAction').value,start:el.querySelector('#timingStart').value,end:el.querySelector('#timingEnd').value};
+  const days=timingDaysInclusive(v.start,v.end);
+  const tooLong=days!==null&&days>TIMING_MAX_DAYS;
+  const ok=TIMING_ACTIONS.includes(v.action)&&days!==null&&days>=1&&!tooLong&&!!form.place&&!form.picking;
+  return {ok,tooLong,v};
+}
+function updateTimingForm(){
+  const form=timingForm;
+  if(!form)return;
+  const st=timingFormState(form);
+  form.el.querySelector('#timingSubmitBtn').disabled=!st.ok;
+  form.el.querySelector('#timingRangeHint').style.display=st.tooLong?'':'none';
+}
+// "Değiştir": mevcut ülke → şehir seçicisi. Seçim tamamlanmadan gönderilemez;
+// art arda seçimlerde sonuncusu geçerlidir. Doğum formundaki seçim değişmez.
+function startTimingPlacePick(form){
+  if(timingForm!==form)return;
+  form.picking=true;
+  const box=form.el.querySelector('#timingPlacePicker');
+  box.replaceChildren(...buildPlacePickerFields());
+  tzPicker={cc:null,data:null,norm:null,form,onCity:city=>pickTimingPlace(form,city)};
+  updateTimingForm();
+}
+function pickTimingPlace(form,city){
+  if(timingForm!==form||form.view!==chatViewId||form.account!==currentAccountKey())return;
+  const country=city.countryCode?countryName(city.countryCode):'';
+  form.place={lat:city.lat,lon:city.lon,name:[city.name,country].filter(Boolean).join(', '),timezone:null,isBirth:false};
+  form.picking=false;
+  form.el.querySelector('#timingPlaceField').classList.remove('timing-field-error');
+  renderTimingPlace(form);
+  updateTimingForm();
+}
+function submitTimingForm(form){
+  if(timingForm!==form||form.view!==chatViewId||form.account!==currentAccountKey()||form.flowId!==tzPickerFlowId)return;
+  if(!authToken){ openAuthModal(); return; }
+  const st=timingFormState(form);
+  if(!st.ok)return;
+  form.seq++; // önceki gönderimin yanıtları ve onay düğmeleri artık geçersiz
+  form.el.querySelector('#timingFormError').style.display='none';
+  form.el.querySelectorAll('.timing-field-error').forEach(f=>f.classList.remove('timing-field-error'));
+  const quoteBody={chart_id:form.chartId,category:'timing',language:form.language||currentLocale,
+    action_type:st.v.action,date_range_start:st.v.start,date_range_end:st.v.end,
+    location:{latitude:form.place.lat,longitude:form.place.lon}};
+  const flow={catId:'timing',quoteBody,flowId:form.flowId,view:form.view,account:form.account,tzRetry:null,
+    timing:{form,seq:form.seq,source:form.source,place:{...form.place}}};
+  runQuote(flow,form.source==='report'?'confirm':'click');
+}
+// Zamanlama 422'si: form açık kalır, alanlar aynen korunur; mesaj formda.
+// Kullanıcı formdan ayrıldıysa ya da hesap değiştiyse hiçbir şey basılmaz.
+function showTimingError(flow,body){
+  if(!flowValid(flow))return;
+  const form=flow.timing.form;
+  const type=timingErrorType(body);
+  const info=type?TIMING_ERRORS[type]:null;
+  const err=form.el.querySelector('#timingFormError');
+  err.textContent=t(info?info.key:'errInvalidInput');
+  err.style.display='';
+  if(info&&info.field==='start')form.el.querySelector('.timing-start-field').classList.add('timing-field-error');
+  if(info&&info.field==='place')form.el.querySelector('#timingPlaceField').classList.add('timing-field-error');
+}
+// "Bu ayarlarla yeni tarama": formu raporun eylemi, tarihleri ve yeriyle
+// açar (tarihler güncellenmez). Kaynak harita raporunkidir.
+function openTimingRescan(src){
+  const tm=src.timing;
+  tzPickerFlowId++;
+  chatViewId++;
+  stopReportPoll(false);
+  setRegenSource(null);
+  interpretSessionId=null;
+  questionCreditInfo=null;
+  historyReadOnly=false;
+  continueBlocked=false;
+  setBalanceUnavailable(false);
+  currentCategory='timing';
+  currentRelationshipType=null;
+  currentTimingSummary=null;
+  setChatSubtitle(null);
+  document.getElementById('reportsPanel').style.display='none';
+  document.getElementById('categoryPanel').style.display='none';
+  document.getElementById('chatPanel').style.display='block';
+  document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle('timing');
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('chatRemaining').textContent='';
+  updateChatBackLabel();
+  updateRemainingUI();
+  openTimingForm({source:'report',chartId:src.chartId,
+    language:src.language==='tr'||src.language==='en'?src.language:null,
+    action:tm.action_type,start:tm.date_range_start,end:tm.date_range_end,
+    place:{...timingSummaryPlace(tm),isBirth:false}});
 }
 
 async function sendFollowUp(){
@@ -5866,7 +6304,7 @@ function buildReportRow(s){
   top.className='report-row-top';
   const title=document.createElement('span');
   title.className='report-row-title';
-  title.textContent=reportCategoryTitle(s.category,s.relationship_type);
+  title.textContent=s.category==='timing'&&timingSummaryValid(s.timing)?timingRowTitle(s.timing):reportCategoryTitle(s.category,s.relationship_type);
   top.appendChild(title);
   const badgeKey=reportBadgeKey(s);
   if(badgeKey){
@@ -6043,8 +6481,11 @@ function showHistoryReport(d,balance,opts={}){
   tzPickerFlowId++;
   historyReport=!opts.fromCategory;
   continueBlocked=false;
+  closeTimingForm();
   const known=isKnownCategory(d.category,d.relationship_type);
   historyReadOnly=d.status==='pending'||!known;
+  currentTimingSummary=d.category==='timing'&&timingSummaryValid(d.timing)?d.timing:null;
+  renderTimingSubtitle();
   interpretSessionId=d.session_id;
   currentCategory=d.category;
   currentRelationshipType=d.category==='relationship'?d.relationship_type:null;
@@ -6062,6 +6503,8 @@ function showHistoryReport(d,balance,opts={}){
     if(m.role==='assistant')appendChatBubble('assistant',m.content);
     else if(m.role==='user')appendChatBubble('user',m.content);
   }
+  const rangeKey=timingRangeNoteKey(currentTimingSummary);
+  if(rangeKey)appendChatBubble('notice',t(rangeKey));
   let pendingNote=null;
   if(d.status==='pending'){
     pendingNote=appendChatBubble('notice',t('reportPendingNote'),
@@ -6071,7 +6514,7 @@ function showHistoryReport(d,balance,opts={}){
     appendChatBubble('error',t('errReportFailed'));
   }else if(!known)appendChatBubble('notice',t('reportReadOnlyNote'));
   // Kategori tıklamasıyla açılan raporda akışın chart_id'si, Raporlarım'dan açılanda detaydaki.
-  setRegenSource(d.status==='completed'?{sessionId:d.session_id,chartId:opts.chartId||d.chart_id,category:d.category,relationshipType:d.relationship_type,language:d.language}:null);
+  setRegenSource(d.status==='completed'?{sessionId:d.session_id,chartId:opts.chartId||d.chart_id,category:d.category,relationshipType:d.relationship_type,language:d.language,timing:d.timing}:null);
   updateChatBackLabel();
   showChatLoading(false);
   updateRemainingUI();
@@ -6209,6 +6652,9 @@ function exitHistoryReport(){
 }
 function clearChatState(){
   setRegenSource(null);
+  closeTimingForm();
+  currentTimingSummary=null;
+  setChatSubtitle(null);
   historyReadOnly=false;
   continueBlocked=false;
   liveRecord=null; liveCtx=null;
@@ -6276,7 +6722,11 @@ function refreshReportsLocale(){
   updateChatBackLabel();
   updateReportsCloseLabel();
   if(reportsPanelVisible()){ renderReportsList(); renderPendingList(); }
-  if(historyReport)document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(currentCategory,currentRelationshipType);
+  if(historyReport){
+    document.getElementById('chatCategoryTitle').textContent=reportCategoryTitle(currentCategory,currentRelationshipType);
+    renderTimingSubtitle();
+  }
+  updateRegenButton();
 }
 
 document.addEventListener('click',e=>{if(!e.target.closest('.form-group')){closeDropdown();closeCountryDropdown();}});
