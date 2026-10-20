@@ -211,7 +211,7 @@ test('body: the place unchanged still sends location = the exact coordinates sen
       assert.equal('period_type' in c, false);
       assert.equal('timezone' in c, false);
     }
-    assert.equal(await page.$('#timingFormPanel'), null, 'the form closes on the new report');
+    assert.equal(await count(page, '#timingFormPanel'), 0, 'the form closes on the new report');
   } finally { await context.close(); }
 });
 
@@ -288,7 +288,7 @@ test('quote "none": the saved report opens and the form closes; no /start', { ti
     await fill(page);
     await submit(page);
     await page.waitForSelector('.chat-bubble.assistant >> text=Rapor metni saved-t');
-    assert.equal(await page.$('#timingFormPanel'), null);
+    assert.equal(await count(page, '#timingFormPanel'), 0);
     await settle(page);
     assert.equal(calls.start.length, 0);
   } finally { await context.close(); }
@@ -597,7 +597,7 @@ test('midnight 5b: an unfinished record resumed after midnight that gets 422 is 
     await openReports(page);
     await page.waitForSelector('#pendingNotes .pending-note');
     assert.deepEqual(await noteRows(page), ['Rapor isteği: ZamanlamaTarih geçmişte kaldı, yeni tarih seç.']);
-    assert.equal(await page.$('#timingFormPanel'), null);
+    assert.equal(await count(page, '#timingFormPanel'), 0);
     assert.equal(await count(page, '#pendingItems .pending-item'), 0);
   } finally { await context.close(); }
 });
@@ -767,7 +767,7 @@ for (const kind of ['quote', 'start']) {
       g.open();
       await resp;
       await settle(page);
-      assert.equal(await page.$('#timingFormPanel'), null, 'not reopened');
+      assert.equal(await count(page, '#timingFormPanel'), 0, 'not reopened');
       assert.equal(await page.isVisible('#chatPanel'), false);
       assert.equal(await count(page, '.chat-bubble.error'), 0);
       await openReports(page);
@@ -794,7 +794,7 @@ for (const kind of ['quote', 'start']) {
       g.open();
       await resp;
       await settle(page);
-      assert.equal(await page.$('#timingFormPanel'), null);
+      assert.equal(await count(page, '#timingFormPanel'), 0);
       assert.equal(await count(page, '.chat-bubble.error'), 0);
       await openReports(page);
       await settle(page);
@@ -815,7 +815,7 @@ test('late successful /start while on another screen (same account): "Raporun ha
     await resp;
     await page.waitForSelector('#reportReadyToast', { state: 'visible' });
     await until(() => calls.credits > credits, 'the balance refresh');
-    assert.equal(await page.$('#timingFormPanel'), null);
+    assert.equal(await count(page, '#timingFormPanel'), 0);
   } finally { await context.close(); }
 });
 
@@ -852,7 +852,7 @@ for (const [name, leave] of [
       g.open();
       await resp;
       await settle(page);
-      assert.equal(await page.$('#timingFormPanel'), null);
+      assert.equal(await count(page, '#timingFormPanel'), 0);
       assert.equal(await count(page, '.chat-bubble:has(.quote-confirm-btn) >> text=Sözleşme imzalama'), 0, 'no timing confirm');
       assert.equal(calls.start.length, 0);
     } finally { await context.close(); }
